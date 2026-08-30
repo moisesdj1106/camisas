@@ -375,9 +375,13 @@ const AdminPage = () => {
   const getProofUrl = (value) => {
     if (!value) return null;
     if (/^https?:\/\//i.test(value)) return value;
-    if (value.startsWith('/uploads')) {
-      return window.location.hostname === 'localhost' ? `http://localhost:4000${value}` : value;
+
+    const backendBase = (import.meta.env.VITE_API_URL || 'http://localhost:4000').replace(/\/$/, '');
+
+    if (value.startsWith('/uploads') || value.startsWith('uploads')) {
+      return new URL(value.replace(/^\//, ''), `${backendBase}/`).toString();
     }
+
     return value;
   };
 
