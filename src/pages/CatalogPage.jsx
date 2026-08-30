@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { apiUrl } from '../api';
 
 const typeLabels = {
   local: 'Local',
@@ -30,8 +31,8 @@ export const CatalogPage = ({ user, onAddToCart }) => {
     const load = async () => {
       try {
         const [productsResponse, rateResponse] = await Promise.all([
-          fetch('/api/products'),
-          fetch('/api/admin/exchange-rate', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+          fetch(apiUrl('/api/products')),
+          fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
         ]);
         const data = await productsResponse.json();
         const rateData = await rateResponse.json().catch(() => ({ exchangeRate: 36 }));
@@ -62,7 +63,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const featuredClubs = clubs.slice(0, 3);
 
   const openDetail = async (productId) => {
-    const response = await fetch(`/api/products/${productId}`);
+    const response = await fetch(apiUrl(`/api/products/${productId}`));
     const data = await response.json();
     setSelectedProduct(data);
     setDorsal('');

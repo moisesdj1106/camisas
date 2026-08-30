@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { apiUrl } from '../api';
 
 const statusLabels = {
   pending: 'En revisión',
@@ -38,7 +39,7 @@ const OrderHistoryModal = ({ open, onClose, user }) => {
       setLoading(true);
       const token = localStorage.getItem('token');
       try {
-        const response = await fetch('/api/orders/mine', {
+        const response = await fetch(apiUrl('/api/orders/mine'), {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.ok) {

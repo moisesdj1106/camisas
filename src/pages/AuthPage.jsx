@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { apiUrl } from '../api';
 
 const AuthPage = ({ onAuth }) => {
   const [mode, setMode] = useState('login');
@@ -8,7 +9,7 @@ const AuthPage = ({ onAuth }) => {
 
   const submit = async (event) => {
     event.preventDefault();
-    const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+    const endpoint = mode === 'login' ? apiUrl('/api/auth/login') : apiUrl('/api/auth/register');
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

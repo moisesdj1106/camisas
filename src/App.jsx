@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { apiUrl } from './api';
 import AuthPage from './pages/AuthPage';
 import CatalogPage from './pages/CatalogPage';
 import AdminPage from './pages/AdminPage';
@@ -35,7 +36,7 @@ const App = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
       try {
-        const response = await fetch('/api/auth/me/notifications', {
+        const response = await fetch(apiUrl('/api/auth/me/notifications'), {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.ok) {
@@ -79,7 +80,7 @@ const App = () => {
   const markNotificationRead = async (notificationId) => {
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch(`/api/auth/me/notifications/${notificationId}/read`, {
+      const response = await fetch(apiUrl(`/api/auth/me/notifications/${notificationId}/read`), {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });

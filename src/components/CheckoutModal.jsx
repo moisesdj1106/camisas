@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { apiUrl } from '../api';
 
 const paymentDetails = {
   whatsapp: {
@@ -37,7 +38,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
 
     const loadExchangeRate = async () => {
       try {
-        const response = await fetch('/api/admin/exchange-rate', {
+        const response = await fetch(apiUrl('/api/admin/exchange-rate'), {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         if (response.ok) {
@@ -84,7 +85,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
     }
 
     try {
-      const response = await fetch('/api/orders', {
+      const response = await fetch(apiUrl('/api/orders'), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { apiUrl } from '../api';
 
 const formatCurrency = (value, currency = 'USD') => {
   const amount = Number(value || 0);
@@ -67,12 +68,12 @@ const AdminPage = () => {
     const token = localStorage.getItem('token');
     try {
       const [dashRes, ordersRes, auditsRes, inventoryRes, clubsRes, rateRes] = await Promise.all([
-        fetch('/api/admin/dashboard', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/admin/orders', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/admin/audit-logs', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/products', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/admin/clubs', { headers: { Authorization: `Bearer ${token}` } }),
-        fetch('/api/admin/exchange-rate', { headers: { Authorization: `Bearer ${token}` } })
+        fetch(apiUrl('/api/admin/dashboard'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl('/api/admin/orders'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl('/api/admin/audit-logs'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl('/api/products'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl('/api/admin/clubs'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${token}` } })
       ]);
       const dashboardData = await dashRes.json();
       const ordersData = await ordersRes.json();
@@ -98,7 +99,7 @@ const AdminPage = () => {
 
   const updateStatus = async (orderId, status) => {
     try {
-      const response = await fetch(`/api/admin/orders/${orderId}/status`, {
+      const response = await fetch(apiUrl(`/api/admin/orders/${orderId}/status`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: JSON.stringify({ status })
@@ -123,7 +124,7 @@ const AdminPage = () => {
 
     const imageUrls = parseImageUrls(form.image_urls);
 
-    const response = await fetch('/api/products', {
+    const response = await fetch(apiUrl('/api/products'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({
@@ -157,7 +158,7 @@ const AdminPage = () => {
   };
 
   const handleDeleteProduct = async (productId) => {
-    const response = await fetch(`/api/products/${productId}`, {
+    const response = await fetch(apiUrl(`/api/products/${productId}`), {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     });
@@ -190,7 +191,7 @@ const AdminPage = () => {
 
     const imageUrls = parseImageUrls(form.image_urls);
 
-    const response = await fetch(`/api/products/${editingProductId}`, {
+    const response = await fetch(apiUrl(`/api/products/${editingProductId}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({
