@@ -227,7 +227,7 @@ const AdminPage = () => {
 
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch(`/api/orders/${orderId}`, {
+      const response = await fetch(apiUrl(`/api/orders/${orderId}`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -240,7 +240,7 @@ const AdminPage = () => {
 
   const updateExchangeRate = async () => {
     const token = localStorage.getItem('token');
-    const response = await fetch('/api/admin/exchange-rate', {
+    const response = await fetch(apiUrl('/api/admin/exchange-rate'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ rate: Number(exchangeRateDraft) })
@@ -256,7 +256,7 @@ const AdminPage = () => {
 
   const loadClosureSummary = async (periodType = closurePeriod, referenceDate = closureDate) => {
     const token = localStorage.getItem('token');
-    const response = await fetch(`/api/admin/closures?period=${periodType}&date=${referenceDate}`, {
+    const response = await fetch(apiUrl(`/api/admin/closures?period=${periodType}&date=${referenceDate}`), {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (!response.ok) return null;
@@ -269,7 +269,7 @@ const AdminPage = () => {
     setIsClosing(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admin/closures', {
+      const response = await fetch(apiUrl('/api/admin/closures'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ periodType: closurePeriod, referenceDate: closureDate })
@@ -337,7 +337,7 @@ const AdminPage = () => {
   const handleSubmitClub = async (event) => {
     event.preventDefault();
     const method = editingClubId ? 'PUT' : 'POST';
-    const url = editingClubId ? `/api/admin/clubs/${editingClubId}` : '/api/admin/clubs';
+    const url = editingClubId ? apiUrl(`/api/admin/clubs/${editingClubId}`) : apiUrl('/api/admin/clubs');
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
@@ -357,7 +357,7 @@ const AdminPage = () => {
   };
 
   const handleDeleteClub = async (clubId) => {
-    const response = await fetch(`/api/admin/clubs/${clubId}`, {
+    const response = await fetch(apiUrl(`/api/admin/clubs/${clubId}`), {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
     });
@@ -383,7 +383,7 @@ const AdminPage = () => {
 
   const downloadInvoice = async (orderId) => {
     try {
-      const response = await fetch(`/api/orders/${orderId}/invoice`, {
+      const response = await fetch(apiUrl(`/api/orders/${orderId}/invoice`), {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       if (!response.ok) {
