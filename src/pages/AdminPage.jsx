@@ -52,6 +52,7 @@ const AdminPage = () => {
   const [closureDate, setClosureDate] = useState(new Date().toISOString().split('T')[0]);
   const [closureSummary, setClosureSummary] = useState(null);
   const [isClosing, setIsClosing] = useState(false);
+  const [isResettingMetrics, setIsResettingMetrics] = useState(false);
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -254,6 +255,24 @@ const AdminPage = () => {
     }
   };
 
+  const resetRevenueMetrics = async () => {
+    if (!window.confirm('Se reiniciaran las metricas de dinero recaudado desde este momento. Los pedidos no se eliminaran. ¿Continuar?')) return;
+    setIsResettingMetrics(true);
+    try {
+      const response = await fetch(apiUrl('/api/admin/metrics/reset'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('No se pudieron restablecer las metricas');
+      setMessage('Metricas de dinero recaudado restablecidas');
+      await loadDashboard();
+    } catch (error) {
+      setMessage('No se pudieron restablecer las metricas.');
+    } finally {
+      setIsResettingMetrics(false);
+    }
+  };
+
   const loadClosureSummary = async (periodType = closurePeriod, referenceDate = closureDate) => {
     const token = localStorage.getItem('token');
     const response = await fetch(apiUrl(`/api/admin/closures?period=${periodType}&date=${referenceDate}`), {
@@ -444,6 +463,9 @@ const AdminPage = () => {
                 <input type="number" min="1" step="0.01" value={exchangeRateDraft} onChange={(e) => setExchangeRateDraft(e.target.value)} />
                 <button className="primary-btn" onClick={updateExchangeRate}>Guardar</button>
               </div>
+              <button className="ghost-btn" onClick={resetRevenueMetrics} disabled={isResettingMetrics}>
+                {isResettingMetrics ? 'Restableciendo...' : 'Restablecer métricas'}
+              </button>
             </div>
           </div>
 
