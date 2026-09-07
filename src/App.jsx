@@ -199,7 +199,7 @@ const App = () => {
               </svg>
               <span>WhatsApp</span>
             </a>
-            <span>Términos y condiciones</span>
+            
           </div>
         </div>
       </footer>
