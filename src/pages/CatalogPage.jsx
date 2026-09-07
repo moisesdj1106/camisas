@@ -25,6 +25,9 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [dorsal, setDorsal] = useState('');
   const [size, setSize] = useState('');
+  const [dorsalMode, setDorsalMode] = useState('none');
+  const [customName, setCustomName] = useState('');
+  const [customNumber, setCustomNumber] = useState('');
   const [quantities, setQuantities] = useState({});
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [exchangeRate, setExchangeRate] = useState(36);
@@ -70,6 +73,9 @@ export const CatalogPage = ({ user, onAddToCart }) => {
     setSelectedProduct(data);
     setDorsal('');
     setSize('');
+    setDorsalMode('none');
+    setCustomName('');
+    setCustomNumber('');
     setSelectedQuantity(1);
   };
 
@@ -241,12 +247,25 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 <option value="">Selecciona talla *</option>
                 {sizeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
               </select>
-              <select value={dorsal} onChange={(e) => setDorsal(e.target.value)}>
-                <option value="">Selecciona dorsal</option>
-                {selectedProduct.dorsals?.filter((item) => item.is_available).map((item) => (
-                  <option key={item.id} value={item.id}>{item.dorsal_number} - {item.player_name || 'Disponible'}</option>
-                ))}
+              <select value={dorsalMode} onChange={(e) => setDorsalMode(e.target.value)}>
+                <option value="none">Sin dorsal</option>
+                <option value="catalog">Dorsal de jugador</option>
+                <option value="custom">Camiseta personalizada</option>
               </select>
+              {dorsalMode === 'catalog' ? (
+                <select value={dorsal} onChange={(e) => setDorsal(e.target.value)}>
+                  <option value="">Selecciona dorsal *</option>
+                  {selectedProduct.dorsals?.filter((item) => item.is_available).map((item) => (
+                    <option key={item.id} value={item.id}>{item.dorsal_number} - {item.player_name || 'Disponible'}</option>
+                  ))}
+                </select>
+              ) : null}
+              {dorsalMode === 'custom' ? (
+                <div className="customization-fields">
+                  <input placeholder="Nombre para la camiseta *" value={customName} onChange={(e) => setCustomName(e.target.value)} />
+                  <input placeholder="Número para la camiseta *" inputMode="numeric" value={customNumber} onChange={(e) => setCustomNumber(e.target.value)} />
+                </div>
+              ) : null}
               <div className="quantity-control">
                 <label>Cantidad</label>
                 <input type="number" min="1" max="10" value={selectedQuantity} onChange={(e) => setSelectedQuantity(Math.max(1, Number(e.target.value) || 1))} />
@@ -254,8 +273,10 @@ export const CatalogPage = ({ user, onAddToCart }) => {
               <button className="primary-btn" onClick={() => {
                 if (!user) return alert('Debes iniciar sesión para comprar');
                 if (!size) return alert('Selecciona una talla para continuar');
+                if (dorsalMode === 'catalog' && !dorsal) return alert('Selecciona un dorsal o elige otra opción');
+                if (dorsalMode === 'custom' && (!customName.trim() || !customNumber.trim())) return alert('Completa el nombre y número de la camiseta personalizada');
                 const selectedDorsal = selectedProduct.dorsals?.find((item) => String(item.id) === String(dorsal));
-                onAddToCart(selectedProduct, selectedDorsal?.dorsal_number || '', selectedQuantity, size, selectedDorsal?.player_name || '');
+                onAddToCart(selectedProduct, dorsalMode === 'catalog' ? selectedDorsal?.dorsal_number || '' : '', selectedQuantity, size, selectedDorsal?.player_name || '', { noDorsal: dorsalMode === 'none', name: dorsalMode === 'custom' ? customName.trim() : '', number: dorsalMode === 'custom' ? customNumber.trim() : '' });
                 setSelectedProduct(null);
               }}>Agregar al carrito</button>
             </div>

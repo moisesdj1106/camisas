@@ -36,10 +36,10 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
   const [shippingDetails, setShippingDetails] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
-    state: '',
+    cedula: '',
+    agency: '',
     city: '',
-    address: '',
-    reference: ''
+    state: ''
   });
 
   const total = useMemo(() => cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0), [cart]);
@@ -77,8 +77,8 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
       setStatus('Debes iniciar sesión antes de confirmar un pedido.');
       return;
     }
-    if (deliveryMethod === 'national' && (!shippingDetails.name.trim() || !shippingDetails.phone.trim() || !shippingDetails.state.trim() || !shippingDetails.city.trim() || !shippingDetails.address.trim())) {
-      setStatus('Para el envío nacional debes completar nombre, teléfono, estado, ciudad y dirección.');
+    if (deliveryMethod === 'national' && (!shippingDetails.name.trim() || !shippingDetails.phone.trim() || !shippingDetails.cedula.trim() || !shippingDetails.agency.trim() || !shippingDetails.city.trim() || !shippingDetails.state.trim())) {
+      setStatus('Para el envío nacional debes completar nombre y apellido, teléfono, cédula, agencia, ciudad y estado.');
       return;
     }
 
@@ -89,8 +89,11 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
     formData.append('items', JSON.stringify(cart.map((item) => ({
       product_id: item.id,
       size: item.selectedSize || null,
+      no_dorsal: Boolean(item.selectedNoDorsal),
       dorsal_number: item.selectedDorsal || null,
       dorsal_name: item.selectedDorsalName || null,
+      custom_name: item.customName || null,
+      custom_number: item.customNumber || null,
       quantity: item.quantity || 1,
       unit_price: item.price
     }))));
@@ -147,16 +150,16 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
       onClose();
       let whatsappUrl = '';
       if (deliveryMethod === 'national') {
-        const orderLines = cart.map((item) => `${item.title} · Talla ${item.selectedSize} x${item.quantity || 1}`).join(', ');
+        const orderLines = cart.map((item) => `${item.title} · Talla ${item.selectedSize} · ${item.selectedNoDorsal ? 'Sin dorsal' : item.customName ? `Personalizada ${item.customName} #${item.customNumber}` : `Dorsal ${item.selectedDorsal}`} x${item.quantity || 1}`).join(', ');
         const message = [
           `Hola, quiero coordinar el envío nacional de mi pedido #${data.order?.id || ''} de MDJ Soccer.`,
           `Productos: ${orderLines}.`,
           `Nombre: ${shippingDetails.name}`,
           `Teléfono: ${shippingDetails.phone}`,
-          `Estado: ${shippingDetails.state}`,
+          `Cédula: ${shippingDetails.cedula}`,
+          `Agencia: ${shippingDetails.agency}`,
           `Ciudad: ${shippingDetails.city}`,
-          `Dirección: ${shippingDetails.address}`,
-          shippingDetails.reference ? `Referencia: ${shippingDetails.reference}` : ''
+          `Estado: ${shippingDetails.state}`
         ].filter(Boolean).join('\n');
         whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
       }
@@ -190,7 +193,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
               return (
                 <li key={index} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.5rem' }}>
                   <span>
-                    {item.title} · Talla {item.selectedSize || 'No indicada'} · {item.quantity || 1} und. · {formatCurrency(lineTotal, 'USD')}<br />
+                    {item.title} · Talla {item.selectedSize || 'No indicada'} · {item.selectedNoDorsal ? 'Sin dorsal' : item.customName ? `Personalizada: ${item.customName} #${item.customNumber}` : item.selectedDorsal ? `Dorsal ${item.selectedDorsal}` : 'Sin dorsal'} · {item.quantity || 1} und. · {formatCurrency(lineTotal, 'USD')}<br />
                     <small className="price-bs">{formatCurrency(lineTotalBs, 'BS')}</small>
                   </span>
                   <button className="ghost-btn" onClick={() => onRemoveFromCart(index)}>Eliminar</button>
@@ -241,14 +244,14 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           {deliveryMethod === 'national' ? (
           <div className="shipping-form">
             <p className="shipping-form__hint">Completa estos datos para coordinar el envío por WhatsApp.</p>
-            <input placeholder="Nombre completo *" value={shippingDetails.name} onChange={(e) => setShippingDetails({ ...shippingDetails, name: e.target.value })} />
-            <input placeholder="Teléfono de contacto *" value={shippingDetails.phone} onChange={(e) => setShippingDetails({ ...shippingDetails, phone: e.target.value })} />
+            <input placeholder="Nombre y apellido *" value={shippingDetails.name} onChange={(e) => setShippingDetails({ ...shippingDetails, name: e.target.value })} required />
+            <input placeholder="Teléfono de contacto *" value={shippingDetails.phone} onChange={(e) => setShippingDetails({ ...shippingDetails, phone: e.target.value })} required />
+            <input placeholder="Cédula *" value={shippingDetails.cedula} onChange={(e) => setShippingDetails({ ...shippingDetails, cedula: e.target.value })} required />
+            <input placeholder="Agencia de envío *" value={shippingDetails.agency} onChange={(e) => setShippingDetails({ ...shippingDetails, agency: e.target.value })} required />
             <div className="shipping-form__row">
-              <input placeholder="Estado *" value={shippingDetails.state} onChange={(e) => setShippingDetails({ ...shippingDetails, state: e.target.value })} />
-              <input placeholder="Ciudad *" value={shippingDetails.city} onChange={(e) => setShippingDetails({ ...shippingDetails, city: e.target.value })} />
+              <input placeholder="Estado *" value={shippingDetails.state} onChange={(e) => setShippingDetails({ ...shippingDetails, state: e.target.value })} required />
+              <input placeholder="Ciudad *" value={shippingDetails.city} onChange={(e) => setShippingDetails({ ...shippingDetails, city: e.target.value })} required />
             </div>
-            <textarea placeholder="Dirección de entrega *" value={shippingDetails.address} onChange={(e) => setShippingDetails({ ...shippingDetails, address: e.target.value })} />
-            <input placeholder="Punto de referencia (opcional)" value={shippingDetails.reference} onChange={(e) => setShippingDetails({ ...shippingDetails, reference: e.target.value })} />
           </div>
           ) : null}
           <div className="checkout-actions">

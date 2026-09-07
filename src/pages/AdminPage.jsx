@@ -733,9 +733,9 @@ const AdminPage = () => {
                   <h5>Datos de envío nacional</h5>
                   <p><strong>Nombre:</strong> {orderDetails[expandedOrderId].order.shipping_details?.name}</p>
                   <p><strong>Teléfono:</strong> {orderDetails[expandedOrderId].order.shipping_details?.phone}</p>
+                  <p><strong>Cédula:</strong> {orderDetails[expandedOrderId].order.shipping_details?.cedula}</p>
+                  <p><strong>Agencia:</strong> {orderDetails[expandedOrderId].order.shipping_details?.agency}</p>
                   <p><strong>Destino:</strong> {orderDetails[expandedOrderId].order.shipping_details?.city}, {orderDetails[expandedOrderId].order.shipping_details?.state}</p>
-                  <p><strong>Dirección:</strong> {orderDetails[expandedOrderId].order.shipping_details?.address}</p>
-                  {orderDetails[expandedOrderId].order.shipping_details?.reference ? <p><strong>Referencia:</strong> {orderDetails[expandedOrderId].order.shipping_details.reference}</p> : null}
                 </div>
               ) : <p className="delivery-summary">Entrega personal en San Cristóbal</p>}
               {orderDetails[expandedOrderId].order?.payment_proof_url ? (
@@ -749,7 +749,7 @@ const AdminPage = () => {
               <ul className="dashboard-list">
                 {orderDetails[expandedOrderId].items?.map((item) => (
                   <li key={item.id}>
-                    <span>{item.product_title || `Producto #${item.product_id}`} · Talla {item.size || 'No indicada'} · {item.quantity} und.{item.dorsal_number ? ` · Dorsal ${item.dorsal_number}${item.dorsal_name ? ` (${item.dorsal_name})` : ''}` : ''}</span>
+                    <span>{item.product_title || `Producto #${item.product_id}`} · Talla {item.size || 'No indicada'} · {item.no_dorsal ? 'Sin dorsal' : item.custom_name ? `Personalizada: ${item.custom_name} #${item.custom_number}` : item.dorsal_number ? `Dorsal ${item.dorsal_number}${item.dorsal_name ? ` (${item.dorsal_name})` : ''}` : 'Sin dorsal'} · {item.quantity} und.</span>
                     <strong>{formatCurrency(Number(item.unit_price || 0) * Number(item.quantity || 1), 'USD')}</strong>
                   </li>
                 ))}

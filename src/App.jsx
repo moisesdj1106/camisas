@@ -61,8 +61,8 @@ const App = () => {
     navigate('/');
   };
 
-  const addToCart = (product, dorsal, quantity = 1, size, dorsalName = '') => {
-    setCart((current) => [...current, { ...product, selectedDorsal: dorsal, selectedDorsalName: dorsalName, selectedSize: size, quantity: Math.max(1, Number(quantity) || 1) }]);
+  const addToCart = (product, dorsal, quantity = 1, size, dorsalName = '', customization = {}) => {
+    setCart((current) => [...current, { ...product, selectedDorsal: dorsal, selectedDorsalName: dorsalName, selectedSize: size, selectedNoDorsal: Boolean(customization.noDorsal), customName: customization.name || '', customNumber: customization.number || '', quantity: Math.max(1, Number(quantity) || 1) }]);
     setCheckoutOpen(true);
   };
 
