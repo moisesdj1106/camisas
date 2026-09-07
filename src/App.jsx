@@ -177,7 +177,24 @@ const App = () => {
       <OrderHistoryModal open={orderHistoryOpen} onClose={() => setOrderHistoryOpen(false)} user={user} />
 
       <footer className="footer">
-        <p>Contacta con nosotros · Instagram · WhatsApp · Términos y condiciones</p>
+        <div className="footer-content">
+          <div>
+            <strong>MDJ SOCCER</strong>
+            <p>Tienda online de camisetas de fútbol con envíos nacionales a toda Venezuela.</p>
+            <p>También realizamos entregas personales en la ciudad de San Cristóbal.</p>
+          </div>
+          <div className="footer-links">
+            <a className="instagram-link" href="https://www.instagram.com/mdj_soccer/" target="_blank" rel="noreferrer" aria-label="Visita MDJ Soccer en Instagram">
+              <svg className="instagram-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="5" />
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="17.5" cy="6.5" r="1" className="instagram-icon__dot" />
+              </svg>
+              <span>@mdj_soccer</span>
+            </a>
+            <span>Términos y condiciones</span>
+          </div>
+        </div>
       </footer>
     </div>
   );
