@@ -182,7 +182,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           }} style={{ display: 'block', marginTop: '0.4rem' }} />
         </label>
         {proofPreview ? <img src={proofPreview} alt="Vista previa del comprobante" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px', marginTop: '0.6rem' }} /> : null}
-        <textarea placeholder="También puedes pegar una URL de comprobante" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} style={{ marginTop: '0.75rem' }} />
+        <textarea placeholder=" añade la talla de tu camiseta" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} style={{ marginTop: '0.75rem' }} />
         <button className="primary-btn" onClick={submitOrder} disabled={submitting || !cart.length}>
           {submitting ? 'Procesando...' : 'Confirmar pedido'}
         </button>
