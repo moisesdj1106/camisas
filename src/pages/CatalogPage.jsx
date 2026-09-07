@@ -199,7 +199,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                   <input type="number" min="1" max="10" value={quantities[product.id] || 1} onChange={(e) => updateQuantity(product.id, e.target.value)} />
                 </div>
                 <div className="product-card__actions">
-                  <button className="ghost-btn" onClick={() => openDetail(product.id)}>Ver detalle</button>
+                  <button className="ghost-btn" onClick={() => openDetail(product.id)}>Personalizar</button>
                   <button className="primary-btn" onClick={() => {
                     if (!user) return alert('Debes iniciar sesión para comprar');
                     onAddToCart(product, '', quantities[product.id] || 1);

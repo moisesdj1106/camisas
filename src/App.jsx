@@ -192,6 +192,13 @@ const App = () => {
               </svg>
               <span>@mdj_soccer</span>
             </a>
+            <a className="whatsapp-link" href={`https://wa.me/584147146602?text=${encodeURIComponent('Hola, quiero consultar por las camisetas y los envíos de MDJ Soccer.')}`} target="_blank" rel="noreferrer" aria-label="Contacta con MDJ Soccer por WhatsApp">
+              <svg className="whatsapp-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20.5 11.2a8.4 8.4 0 0 1-12.4 7.4L3.5 20l1.5-4.4A8.5 8.5 0 1 1 20.5 11.2Z" />
+                <path d="M8.2 8.1c.2-.4.4-.4.7-.4h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4-.1.6l-.6.7c.5 1 1.3 1.8 2.3 2.3l.7-.6c.2-.2.4-.2.6-.1l1.7.7c.3.1.4.3.4.5v.5c0 .3 0 .5-.4.7-.4.2-1 .3-1.4.2-1.3-.3-2.6-.9-3.7-2-1.1-1-1.8-2.3-2.1-3.6-.1-.5 0-1.1.2-1.4Z" />
+              </svg>
+              <span>WhatsApp</span>
+            </a>
             <span>Términos y condiciones</span>
           </div>
         </div>
