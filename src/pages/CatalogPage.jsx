@@ -15,6 +15,7 @@ const formatCurrency = (value, currency = 'USD') => {
 };
 
 const spotlightVideos = ['/video1.mp4', '/video2.mp4', '/video6.mp4', '/video5.mp4'];
+const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 
 export const CatalogPage = ({ user, onAddToCart }) => {
   const [products, setProducts] = useState([]);
@@ -23,6 +24,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const [filters, setFilters] = useState({ q: '', club: '', type: '', minPrice: '', maxPrice: '' });
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [dorsal, setDorsal] = useState('');
+  const [size, setSize] = useState('');
   const [quantities, setQuantities] = useState({});
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [exchangeRate, setExchangeRate] = useState(36);
@@ -67,6 +69,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
     const data = await response.json();
     setSelectedProduct(data);
     setDorsal('');
+    setSize('');
     setSelectedQuantity(1);
   };
 
@@ -202,7 +205,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                   <button className="ghost-btn" onClick={() => openDetail(product.id)}>Personalizar</button>
                   <button className="primary-btn" onClick={() => {
                     if (!user) return alert('Debes iniciar sesión para comprar');
-                    onAddToCart(product, '', quantities[product.id] || 1);
+                    openDetail(product.id);
                   }}>Comprar</button>
                 </div>
               </div>
@@ -234,6 +237,10 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 <p className="price-bs">{formatCurrency(Number(selectedProduct.price) * exchangeRate, 'BS')}</p>
               </div>
               <p className="card__club">Club: {selectedProduct.club?.name || 'Sin club'}</p>
+              <select value={size} onChange={(e) => setSize(e.target.value)}>
+                <option value="">Selecciona talla *</option>
+                {sizeOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
               <select value={dorsal} onChange={(e) => setDorsal(e.target.value)}>
                 <option value="">Selecciona dorsal</option>
                 {selectedProduct.dorsals?.filter((item) => item.is_available).map((item) => (
@@ -246,7 +253,8 @@ export const CatalogPage = ({ user, onAddToCart }) => {
               </div>
               <button className="primary-btn" onClick={() => {
                 if (!user) return alert('Debes iniciar sesión para comprar');
-                onAddToCart(selectedProduct, dorsal, selectedQuantity);
+                if (!size) return alert('Selecciona una talla para continuar');
+                onAddToCart(selectedProduct, dorsal, selectedQuantity, size);
                 setSelectedProduct(null);
               }}>Agregar al carrito</button>
             </div>

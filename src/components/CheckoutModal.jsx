@@ -14,6 +14,8 @@ const paymentDetails = {
   }
 };
 
+const whatsappNumber = '584147146602';
+
 const formatCurrency = (value, currency = 'USD') => {
   const amount = Number(value || 0);
   return currency === 'BS'
@@ -29,6 +31,15 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
   const [status, setStatus] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [exchangeRate, setExchangeRate] = useState(36);
+  const [deliveryMethod, setDeliveryMethod] = useState('personal');
+  const [shippingDetails, setShippingDetails] = useState({
+    name: user?.name || '',
+    phone: user?.phone || '',
+    state: '',
+    city: '',
+    address: '',
+    reference: ''
+  });
 
   const total = useMemo(() => cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1), 0), [cart]);
   const totalBs = useMemo(() => total * exchangeRate, [total, exchangeRate]);
@@ -64,19 +75,30 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
       setStatus('Debes iniciar sesión antes de confirmar un pedido.');
       return;
     }
+    if (deliveryMethod === 'national' && (!shippingDetails.name.trim() || !shippingDetails.phone.trim() || !shippingDetails.state.trim() || !shippingDetails.city.trim() || !shippingDetails.address.trim())) {
+      setStatus('Para el envío nacional debes completar nombre, teléfono, estado, ciudad y dirección.');
+      return;
+    }
 
     setSubmitting(true);
     setStatus('');
 
+    const whatsappWindow = deliveryMethod === 'national' ? window.open('', '_blank') : null;
+
     const formData = new FormData();
     formData.append('items', JSON.stringify(cart.map((item) => ({
       product_id: item.id,
+      size: item.selectedSize || null,
       dorsal_number: item.selectedDorsal || null,
       dorsal_name: item.selectedDorsal ? `Dorsal ${item.selectedDorsal}` : null,
       quantity: item.quantity || 1,
       unit_price: item.price
     }))));
     formData.append('payment_method', paymentMethod);
+    formData.append('delivery_method', deliveryMethod);
+    if (deliveryMethod === 'national') {
+      formData.append('shipping_details', JSON.stringify(shippingDetails));
+    }
     if (proofFile) {
       formData.append('proof', proofFile);
     }
@@ -124,7 +146,22 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
       onClearCart();
       onClose();
       onOrderSubmitted?.(data.order?.id);
+      if (whatsappWindow) {
+        const orderLines = cart.map((item) => `${item.title} · Talla ${item.selectedSize} x${item.quantity || 1}`).join(', ');
+        const message = [
+          `Hola, quiero coordinar el envío nacional de mi pedido #${data.order?.id || ''} de MDJ Soccer.`,
+          `Productos: ${orderLines}.`,
+          `Nombre: ${shippingDetails.name}`,
+          `Teléfono: ${shippingDetails.phone}`,
+          `Estado: ${shippingDetails.state}`,
+          `Ciudad: ${shippingDetails.city}`,
+          `Dirección: ${shippingDetails.address}`,
+          shippingDetails.reference ? `Referencia: ${shippingDetails.reference}` : ''
+        ].filter(Boolean).join('\n');
+        whatsappWindow.location.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+      }
     } catch (error) {
+      whatsappWindow?.close();
       setStatus('No se pudo conectar con el servidor.');
     } finally {
       setSubmitting(false);
@@ -148,7 +185,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
               return (
                 <li key={index} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.5rem' }}>
                   <span>
-                    {item.title} · {item.quantity || 1} und. · {formatCurrency(lineTotal, 'USD')}<br />
+                    {item.title} · Talla {item.selectedSize || 'No indicada'} · {item.quantity || 1} und. · {formatCurrency(lineTotal, 'USD')}<br />
                     <small className="price-bs">{formatCurrency(lineTotalBs, 'BS')}</small>
                   </span>
                   <button className="ghost-btn" onClick={() => onRemoveFromCart(index)}>Eliminar</button>
@@ -168,6 +205,30 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           <p style={{ margin: '0.3rem 0 0' }}>{paymentDetails[paymentMethod].number}</p>
           <p style={{ margin: '0.25rem 0 0', color: '#64748b' }}>{paymentDetails[paymentMethod].message}</p>
         </div>
+        <fieldset className="delivery-options">
+          <legend>¿Cómo deseas recibir tu pedido?</legend>
+          <label>
+            <input type="radio" name="delivery-method" value="personal" checked={deliveryMethod === 'personal'} onChange={() => setDeliveryMethod('personal')} />
+            Entrega personal en San Cristóbal
+          </label>
+          <label>
+            <input type="radio" name="delivery-method" value="national" checked={deliveryMethod === 'national'} onChange={() => setDeliveryMethod('national')} />
+            Envío nacional a cualquier estado de Venezuela
+          </label>
+        </fieldset>
+        {deliveryMethod === 'national' ? (
+          <div className="shipping-form">
+            <p className="shipping-form__hint">Completa estos datos para coordinar el envío por WhatsApp.</p>
+            <input placeholder="Nombre completo *" value={shippingDetails.name} onChange={(e) => setShippingDetails({ ...shippingDetails, name: e.target.value })} />
+            <input placeholder="Teléfono de contacto *" value={shippingDetails.phone} onChange={(e) => setShippingDetails({ ...shippingDetails, phone: e.target.value })} />
+            <div className="shipping-form__row">
+              <input placeholder="Estado *" value={shippingDetails.state} onChange={(e) => setShippingDetails({ ...shippingDetails, state: e.target.value })} />
+              <input placeholder="Ciudad *" value={shippingDetails.city} onChange={(e) => setShippingDetails({ ...shippingDetails, city: e.target.value })} />
+            </div>
+            <textarea placeholder="Dirección de entrega *" value={shippingDetails.address} onChange={(e) => setShippingDetails({ ...shippingDetails, address: e.target.value })} />
+            <input placeholder="Punto de referencia (opcional)" value={shippingDetails.reference} onChange={(e) => setShippingDetails({ ...shippingDetails, reference: e.target.value })} />
+          </div>
+        ) : null}
         <label style={{ display: 'block', marginTop: '0.75rem', color: '#334155', fontSize: '0.95rem' }}>
           Adjuntar comprobante de pago (imagen)
           <input type="file" accept="image/*" onChange={(event) => {
@@ -182,7 +243,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           }} style={{ display: 'block', marginTop: '0.4rem' }} />
         </label>
         {proofPreview ? <img src={proofPreview} alt="Vista previa del comprobante" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px', marginTop: '0.6rem' }} /> : null}
-        <textarea placeholder=" Añade la talla de tu camiseta o si la deseas personalizada añade el nombre y dorsal que llevara tu camiseta " value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} style={{ marginTop: '0.75rem' }} />
+        <textarea placeholder="Añade el nombre y dorsal que llevará tu camiseta, si deseas personalizarla" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} style={{ marginTop: '0.75rem' }} />
         <button className="primary-btn" onClick={submitOrder} disabled={submitting || !cart.length}>
           {submitting ? 'Procesando...' : 'Confirmar pedido'}
         </button>

@@ -728,6 +728,16 @@ const AdminPage = () => {
           {expandedOrderId && orderDetails[expandedOrderId] ? (
             <div className="card" style={{ margin: '1rem 0' }}>
               <h4>Detalle del pedido #{expandedOrderId}</h4>
+              {orderDetails[expandedOrderId].order?.delivery_method === 'national' ? (
+                <div className="shipping-summary">
+                  <h5>Datos de envío nacional</h5>
+                  <p><strong>Nombre:</strong> {orderDetails[expandedOrderId].order.shipping_details?.name}</p>
+                  <p><strong>Teléfono:</strong> {orderDetails[expandedOrderId].order.shipping_details?.phone}</p>
+                  <p><strong>Destino:</strong> {orderDetails[expandedOrderId].order.shipping_details?.city}, {orderDetails[expandedOrderId].order.shipping_details?.state}</p>
+                  <p><strong>Dirección:</strong> {orderDetails[expandedOrderId].order.shipping_details?.address}</p>
+                  {orderDetails[expandedOrderId].order.shipping_details?.reference ? <p><strong>Referencia:</strong> {orderDetails[expandedOrderId].order.shipping_details.reference}</p> : null}
+                </div>
+              ) : <p className="delivery-summary">Entrega personal en San Cristóbal</p>}
               {orderDetails[expandedOrderId].order?.payment_proof_url ? (
                 <div style={{ marginBottom: '1rem' }}>
                   <h5 style={{ marginBottom: '0.5rem' }}>Comprobante adjunto</h5>
@@ -739,7 +749,7 @@ const AdminPage = () => {
               <ul className="dashboard-list">
                 {orderDetails[expandedOrderId].items?.map((item) => (
                   <li key={item.id}>
-                    <span>{item.product_title || `Producto #${item.product_id}`} · {item.quantity} und.</span>
+                    <span>{item.product_title || `Producto #${item.product_id}`} · Talla {item.size || 'No indicada'} · {item.quantity} und.{item.dorsal_number ? ` · Dorsal ${item.dorsal_number}` : ''}</span>
                     <strong>{formatCurrency(Number(item.unit_price || 0) * Number(item.quantity || 1), 'USD')}</strong>
                   </li>
                 ))}

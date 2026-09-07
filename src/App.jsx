@@ -60,8 +60,8 @@ const App = () => {
     navigate('/');
   };
 
-  const addToCart = (product, dorsal, quantity = 1) => {
-    setCart((current) => [...current, { ...product, selectedDorsal: dorsal, quantity: Math.max(1, Number(quantity) || 1) }]);
+  const addToCart = (product, dorsal, quantity = 1, size) => {
+    setCart((current) => [...current, { ...product, selectedDorsal: dorsal, selectedSize: size, quantity: Math.max(1, Number(quantity) || 1) }]);
     setCheckoutOpen(true);
   };
 
