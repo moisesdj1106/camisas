@@ -32,6 +32,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
   const [submitting, setSubmitting] = useState(false);
   const [exchangeRate, setExchangeRate] = useState(36);
   const [deliveryMethod, setDeliveryMethod] = useState('personal');
+  const [checkoutStep, setCheckoutStep] = useState(1);
   const [shippingDetails, setShippingDetails] = useState({
     name: user?.name || '',
     phone: user?.phone || '',
@@ -46,6 +47,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
 
   useEffect(() => {
     if (!open) return;
+    setCheckoutStep(1);
 
     const loadExchangeRate = async () => {
       try {
@@ -83,14 +85,12 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
     setSubmitting(true);
     setStatus('');
 
-    const whatsappWindow = deliveryMethod === 'national' ? window.open('', '_blank') : null;
-
     const formData = new FormData();
     formData.append('items', JSON.stringify(cart.map((item) => ({
       product_id: item.id,
       size: item.selectedSize || null,
       dorsal_number: item.selectedDorsal || null,
-      dorsal_name: item.selectedDorsal ? `Dorsal ${item.selectedDorsal}` : null,
+      dorsal_name: item.selectedDorsalName || null,
       quantity: item.quantity || 1,
       unit_price: item.price
     }))));
@@ -145,8 +145,8 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
       setProofPreview('');
       onClearCart();
       onClose();
-      onOrderSubmitted?.(data.order?.id);
-      if (whatsappWindow) {
+      let whatsappUrl = '';
+      if (deliveryMethod === 'national') {
         const orderLines = cart.map((item) => `${item.title} · Talla ${item.selectedSize} x${item.quantity || 1}`).join(', ');
         const message = [
           `Hola, quiero coordinar el envío nacional de mi pedido #${data.order?.id || ''} de MDJ Soccer.`,
@@ -158,10 +158,10 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           `Dirección: ${shippingDetails.address}`,
           shippingDetails.reference ? `Referencia: ${shippingDetails.reference}` : ''
         ].filter(Boolean).join('\n');
-        whatsappWindow.location.href = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+        whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
       }
+      onOrderSubmitted?.(data.order?.id, whatsappUrl);
     } catch (error) {
-      whatsappWindow?.close();
       setStatus('No se pudo conectar con el servidor.');
     } finally {
       setSubmitting(false);
@@ -177,7 +177,12 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           <p className="price" style={{ marginBottom: '0.2rem' }}>Total: {formatCurrency(total, 'USD')}</p>
           <p className="price-bs">≈ {formatCurrency(totalBs, 'BS')} · Tasa actual: {exchangeRate} BS/USD</p>
         </div>
-        {cart.length ? (
+        <div className="checkout-steps" aria-label="Progreso del checkout">
+          <span className={checkoutStep === 1 ? 'checkout-step checkout-step--active' : 'checkout-step'}>1. Productos y pago</span>
+          <span className={checkoutStep === 2 ? 'checkout-step checkout-step--active' : 'checkout-step'}>2. Entrega</span>
+        </div>
+        {checkoutStep === 1 ? <>
+          {cart.length ? (
           <ul>
             {cart.map((item, index) => {
               const lineTotal = Number(item.price || 0) * Number(item.quantity || 1);
@@ -193,19 +198,36 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
               );
             })}
           </ul>
-        ) : (
+          ) : (
           <p style={{ color: '#64748b' }}>Tu carrito está vacío.</p>
-        )}
-        <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+          )}
+          <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
           <option value="whatsapp">WhatsApp</option>
           <option value="pago_movil">Pago Móvil</option>
-        </select>
-        <div className="card" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
+          </select>
+          <div className="card" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
           <strong>{paymentDetails[paymentMethod].title}</strong>
           <p style={{ margin: '0.3rem 0 0' }}>{paymentDetails[paymentMethod].number}</p>
           <p style={{ margin: '0.25rem 0 0', color: '#64748b' }}>{paymentDetails[paymentMethod].message}</p>
-        </div>
-        <fieldset className="delivery-options">
+          </div>
+          <label style={{ display: 'block', marginTop: '0.75rem', color: '#334155', fontSize: '0.95rem' }}>
+            Adjuntar comprobante de pago (imagen)
+            <input type="file" accept="image/*" onChange={(event) => {
+              const file = event.target.files?.[0] || null;
+              setProofFile(file);
+              if (file) {
+                const previewUrl = URL.createObjectURL(file);
+                setProofPreview(previewUrl);
+              } else {
+                setProofPreview('');
+              }
+            }} style={{ display: 'block', marginTop: '0.4rem' }} />
+          </label>
+          {proofPreview ? <img src={proofPreview} alt="Vista previa del comprobante" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px', marginTop: '0.6rem' }} /> : null}
+          <textarea placeholder="Añade el nombre y dorsal que llevará tu camiseta, si deseas personalizarla" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} style={{ marginTop: '0.75rem' }} />
+          <button className="primary-btn" onClick={() => setCheckoutStep(2)} disabled={!cart.length}>Continuar con la entrega</button>
+        </> : <>
+          <fieldset className="delivery-options">
           <legend>¿Cómo deseas recibir tu pedido?</legend>
           <label>
             <input type="radio" name="delivery-method" value="personal" checked={deliveryMethod === 'personal'} onChange={() => setDeliveryMethod('personal')} />
@@ -215,8 +237,8 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
             <input type="radio" name="delivery-method" value="national" checked={deliveryMethod === 'national'} onChange={() => setDeliveryMethod('national')} />
             Envío nacional a cualquier estado de Venezuela
           </label>
-        </fieldset>
-        {deliveryMethod === 'national' ? (
+          </fieldset>
+          {deliveryMethod === 'national' ? (
           <div className="shipping-form">
             <p className="shipping-form__hint">Completa estos datos para coordinar el envío por WhatsApp.</p>
             <input placeholder="Nombre completo *" value={shippingDetails.name} onChange={(e) => setShippingDetails({ ...shippingDetails, name: e.target.value })} />
@@ -228,25 +250,14 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
             <textarea placeholder="Dirección de entrega *" value={shippingDetails.address} onChange={(e) => setShippingDetails({ ...shippingDetails, address: e.target.value })} />
             <input placeholder="Punto de referencia (opcional)" value={shippingDetails.reference} onChange={(e) => setShippingDetails({ ...shippingDetails, reference: e.target.value })} />
           </div>
-        ) : null}
-        <label style={{ display: 'block', marginTop: '0.75rem', color: '#334155', fontSize: '0.95rem' }}>
-          Adjuntar comprobante de pago (imagen)
-          <input type="file" accept="image/*" onChange={(event) => {
-            const file = event.target.files?.[0] || null;
-            setProofFile(file);
-            if (file) {
-              const previewUrl = URL.createObjectURL(file);
-              setProofPreview(previewUrl);
-            } else {
-              setProofPreview('');
-            }
-          }} style={{ display: 'block', marginTop: '0.4rem' }} />
-        </label>
-        {proofPreview ? <img src={proofPreview} alt="Vista previa del comprobante" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px', marginTop: '0.6rem' }} /> : null}
-        <textarea placeholder="Añade el nombre y dorsal que llevará tu camiseta, si deseas personalizarla" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} style={{ marginTop: '0.75rem' }} />
-        <button className="primary-btn" onClick={submitOrder} disabled={submitting || !cart.length}>
-          {submitting ? 'Procesando...' : 'Confirmar pedido'}
-        </button>
+          ) : null}
+          <div className="checkout-actions">
+            <button className="ghost-btn" onClick={() => setCheckoutStep(1)} disabled={submitting}>Atrás</button>
+            <button className="primary-btn" onClick={submitOrder} disabled={submitting || !cart.length}>
+              {submitting ? 'Procesando...' : 'Confirmar pedido'}
+            </button>
+          </div>
+        </>}
         {status ? <p>{status}</p> : null}
       </div>
     </div>

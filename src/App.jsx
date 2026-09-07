@@ -20,6 +20,7 @@ const App = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [orderReviewOpen, setOrderReviewOpen] = useState(false);
+  const [orderWhatsappUrl, setOrderWhatsappUrl] = useState('');
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -60,8 +61,8 @@ const App = () => {
     navigate('/');
   };
 
-  const addToCart = (product, dorsal, quantity = 1, size) => {
-    setCart((current) => [...current, { ...product, selectedDorsal: dorsal, selectedSize: size, quantity: Math.max(1, Number(quantity) || 1) }]);
+  const addToCart = (product, dorsal, quantity = 1, size, dorsalName = '') => {
+    setCart((current) => [...current, { ...product, selectedDorsal: dorsal, selectedDorsalName: dorsalName, selectedSize: size, quantity: Math.max(1, Number(quantity) || 1) }]);
     setCheckoutOpen(true);
   };
 
@@ -73,7 +74,8 @@ const App = () => {
     setCart([]);
   };
 
-  const handleOrderSubmitted = () => {
+  const handleOrderSubmitted = (_orderId, whatsappUrl = '') => {
+    setOrderWhatsappUrl(whatsappUrl);
     setOrderReviewOpen(true);
   };
 
@@ -169,7 +171,8 @@ const App = () => {
             <h3>Tu pedido está en revisión</h3>
             <p>Tu pedido fue enviado correctamente. Está pendiente de aprobación y recibirás una notificación cuando sea aprobado.</p>
             <p className="review-modal__hint">Si la notificación no aparece de inmediato, la página seguirá revisando automáticamente tu estado.</p>
-            <button className="primary-btn" onClick={() => setOrderReviewOpen(false)} style={{ marginTop: '0.75rem' }}>Entendido</button>
+            {orderWhatsappUrl ? <a className="whatsapp-link review-modal__whatsapp" href={orderWhatsappUrl} target="_blank" rel="noreferrer">Coordinar envío por WhatsApp</a> : null}
+            <button className="primary-btn" onClick={() => { setOrderReviewOpen(false); setOrderWhatsappUrl(''); }} style={{ marginTop: '0.75rem' }}>Entendido</button>
           </div>
         </div>
       ) : null}

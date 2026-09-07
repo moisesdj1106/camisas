@@ -749,7 +749,7 @@ const AdminPage = () => {
               <ul className="dashboard-list">
                 {orderDetails[expandedOrderId].items?.map((item) => (
                   <li key={item.id}>
-                    <span>{item.product_title || `Producto #${item.product_id}`} · Talla {item.size || 'No indicada'} · {item.quantity} und.{item.dorsal_number ? ` · Dorsal ${item.dorsal_number}` : ''}</span>
+                    <span>{item.product_title || `Producto #${item.product_id}`} · Talla {item.size || 'No indicada'} · {item.quantity} und.{item.dorsal_number ? ` · Dorsal ${item.dorsal_number}${item.dorsal_name ? ` (${item.dorsal_name})` : ''}` : ''}</span>
                     <strong>{formatCurrency(Number(item.unit_price || 0) * Number(item.quantity || 1), 'USD')}</strong>
                   </li>
                 ))}

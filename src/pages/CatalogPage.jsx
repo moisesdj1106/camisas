@@ -254,7 +254,8 @@ export const CatalogPage = ({ user, onAddToCart }) => {
               <button className="primary-btn" onClick={() => {
                 if (!user) return alert('Debes iniciar sesión para comprar');
                 if (!size) return alert('Selecciona una talla para continuar');
-                onAddToCart(selectedProduct, dorsal, selectedQuantity, size);
+                const selectedDorsal = selectedProduct.dorsals?.find((item) => String(item.id) === String(dorsal));
+                onAddToCart(selectedProduct, selectedDorsal?.dorsal_number || '', selectedQuantity, size, selectedDorsal?.player_name || '');
                 setSelectedProduct(null);
               }}>Agregar al carrito</button>
             </div>
