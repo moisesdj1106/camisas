@@ -148,10 +148,9 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
       setProofPreview('');
       onClearCart();
       onClose();
-      let whatsappUrl = '';
-      if (deliveryMethod === 'national') {
-        const orderLines = cart.map((item) => `${item.title} · Talla ${item.selectedSize} · ${item.selectedNoDorsal ? 'Sin dorsal' : item.customName ? `Personalizada ${item.customName} #${item.customNumber}` : `Dorsal ${item.selectedDorsal}`} x${item.quantity || 1}`).join(', ');
-        const message = [
+      const orderLines = cart.map((item) => `${item.title} · Talla ${item.selectedSize} · ${item.selectedNoDorsal ? 'Sin dorsal' : item.customName ? `Personalizada ${item.customName} #${item.customNumber}` : `Dorsal ${item.selectedDorsal}`} x${item.quantity || 1}`).join(', ');
+      const message = deliveryMethod === 'national'
+        ? [
           `Hola, quiero coordinar el envío nacional de mi pedido #${data.order?.id || ''} de MDJ Soccer.`,
           `Productos: ${orderLines}.`,
           `Nombre: ${shippingDetails.name}`,
@@ -160,9 +159,9 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           `Agencia: ${shippingDetails.agency}`,
           `Ciudad: ${shippingDetails.city}`,
           `Estado: ${shippingDetails.state}`
-        ].filter(Boolean).join('\n');
-        whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-      }
+        ].filter(Boolean).join('\n')
+        : `Hola, quiero coordinar la entrega personal de mi pedido #${data.order?.id || ''} de MDJ Soccer. Productos: ${orderLines}.`;
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
       onOrderSubmitted?.(data.order?.id, whatsappUrl);
     } catch (error) {
       setStatus('No se pudo conectar con el servidor.');
@@ -173,7 +172,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal checkout-modal" onClick={(e) => e.stopPropagation()}>
         <h3>Checkout</h3>
         {user ? <p>Cliente: {user.name}</p> : <p>Debes iniciar sesión</p>}
         <div style={{ marginBottom: '0.75rem' }}>

@@ -159,7 +159,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
           <span className="results-pill">{filtered.length} resultados</span>
         </div>
         <div className="filter-grid">
-          <input placeholder="Buscar por nombre" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
+          <input placeholder="Buscar por nombre del equipo" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
           <select value={filters.club} onChange={(e) => setFilters({ ...filters, club: e.target.value })}>
             <option value="">Todos los clubes</option>
             {clubs.map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}

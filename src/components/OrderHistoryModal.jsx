@@ -47,8 +47,8 @@ const OrderHistoryModal = ({ open, onClose, user }) => {
     if (!open || !user?.id) return;
     setPage(1);
 
-    const loadOrders = async () => {
-      setLoading(true);
+    const loadOrders = async (showLoading = false) => {
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('token');
       try {
         const response = await fetch(apiUrl('/api/orders/mine'), {
@@ -61,11 +61,13 @@ const OrderHistoryModal = ({ open, onClose, user }) => {
       } catch (error) {
         console.error('No se pudieron cargar los pedidos', error);
       } finally {
-        setLoading(false);
+        if (showLoading) setLoading(false);
       }
     };
 
-    loadOrders();
+    loadOrders(true);
+    const refreshTimer = window.setInterval(() => loadOrders(), 10000);
+    return () => window.clearInterval(refreshTimer);
   }, [open, user?.id]);
 
   if (!open) return null;

@@ -41,6 +41,7 @@ const orderStatusOptions = [
 ];
 
 const orderStatusLabel = Object.fromEntries(orderStatusOptions);
+const ORDERS_PER_PAGE = 8;
 
 const AdminPage = () => {
   const location = useLocation();
@@ -67,6 +68,9 @@ const AdminPage = () => {
   const [closureSummary, setClosureSummary] = useState(null);
   const [isClosing, setIsClosing] = useState(false);
   const [isResettingMetrics, setIsResettingMetrics] = useState(false);
+  const [orderFilter, setOrderFilter] = useState('all');
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderPage, setOrderPage] = useState(1);
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -110,6 +114,8 @@ const AdminPage = () => {
 
   useEffect(() => {
     loadDashboard();
+    const refreshTimer = window.setInterval(loadDashboard, 15000);
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   const updateStatus = async (orderId, status) => {
@@ -133,6 +139,32 @@ const AdminPage = () => {
       }
     } catch (error) {
       setMessage('No se pudo actualizar el pedido.');
+    }
+  };
+
+  const deleteOrder = async (orderId) => {
+    if (!window.confirm(`¿Eliminar definitivamente el pedido #${orderId}? Esta acción no se puede deshacer.`)) return;
+    try {
+      const response = await fetch(apiUrl(`/api/admin/orders/${orderId}`), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMessage(data.error || 'No se pudo eliminar el pedido.');
+        return;
+      }
+      setOrders((current) => current.filter((order) => order.id !== orderId));
+      setOrderPage(1);
+      setOrderDetails((current) => {
+        const next = { ...current };
+        delete next[orderId];
+        return next;
+      });
+      setExpandedOrderId(null);
+      setMessage(`Pedido #${orderId} eliminado.`);
+    } catch (error) {
+      setMessage('No se pudo eliminar el pedido.');
     }
   };
 
@@ -447,8 +479,21 @@ const AdminPage = () => {
 
   if (!dashboard) return <div className="container">Cargando...</div>;
 
-  const pendingOrders = orders.filter((order) => order.status === 'pending');
-  const processedOrders = orders.filter((order) => ['approved', 'rejected'].includes(order.status));
+  const normalizedOrderSearch = orderSearch.trim().toLowerCase();
+  const filteredOrders = orders.filter((order) => {
+    const matchesStatus = orderFilter === 'all' || order.status === orderFilter;
+    const matchesSearch = !normalizedOrderSearch
+      || String(order.id).includes(normalizedOrderSearch)
+      || String(order.client?.name || '').toLowerCase().includes(normalizedOrderSearch)
+      || String(order.client?.email || '').toLowerCase().includes(normalizedOrderSearch);
+    return matchesStatus && matchesSearch;
+  });
+  const totalOrderPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
+  const visibleOrders = filteredOrders.slice((orderPage - 1) * ORDERS_PER_PAGE, orderPage * ORDERS_PER_PAGE);
+  const setOrderFilterAndResetPage = (filter) => {
+    setOrderFilter(filter);
+    setOrderPage(1);
+  };
 
   return (
     <div className="container">
@@ -701,8 +746,29 @@ const AdminPage = () => {
 
       {activeView === 'orders' ? (
         <div className="card" style={{ marginBottom: '1rem' }}>
-          <h3>Pedidos pendientes</h3>
-          {pendingOrders.length ? (
+          <div className="filters-card__header" style={{ marginBottom: '1rem' }}>
+            <div>
+              <h3>Pedidos</h3>
+              <p style={{ margin: '0.2rem 0 0', color: '#64748b' }}>Busca, filtra y administra tus pedidos desde una sola bandeja.</p>
+            </div>
+            <span className="badge">{filteredOrders.length} resultado{filteredOrders.length === 1 ? '' : 's'}</span>
+          </div>
+          <div className="order-shortcuts" role="group" aria-label="Filtrar pedidos por estado">
+            <button className={`ghost-btn ${orderFilter === 'all' ? 'active' : ''}`} onClick={() => setOrderFilterAndResetPage('all')}>Todos ({orders.length})</button>
+            {orderStatusOptions.map(([value, label]) => (
+              <button key={value} className={`ghost-btn ${orderFilter === value ? 'active' : ''}`} onClick={() => setOrderFilterAndResetPage(value)}>{label} ({orders.filter((order) => order.status === value).length})</button>
+            ))}
+          </div>
+          <div className="orders-toolbar">
+            <input
+              type="search"
+              placeholder="Buscar por ID, nombre o correo..."
+              value={orderSearch}
+              onChange={(event) => { setOrderSearch(event.target.value); setOrderPage(1); }}
+            />
+            <span className="orders-toolbar__count">Página {orderPage} de {totalOrderPages}</span>
+          </div>
+          {visibleOrders.length ? (
             <table className="table">
               <thead>
                 <tr>
@@ -711,11 +777,12 @@ const AdminPage = () => {
                   <th>Total</th>
                   <th>Comprobante</th>
                   <th>Detalle</th>
+                  <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {pendingOrders.map((order) => (
+                {visibleOrders.map((order) => (
                   <tr key={order.id}>
                     <td>#{order.id}</td>
                     <td>{order.client?.name}</td>
@@ -737,13 +804,24 @@ const AdminPage = () => {
                       <select value={order.status} onChange={(event) => updateStatus(order.id, event.target.value)} aria-label={`Estado del pedido ${order.id}`}>
                         {orderStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       </select>
+                    </td>
+                    <td>
                       <button className="ghost-btn" onClick={() => downloadInvoice(order.id)}>Factura</button>
+                      <button className="icon-btn icon-btn--danger" onClick={() => deleteOrder(order.id)} title={`Eliminar pedido #${order.id}`} aria-label={`Eliminar pedido #${order.id}`}>🗑</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          ) : <p style={{ color: '#64748b' }}>No hay pedidos pendientes.</p>}
+          ) : <p style={{ color: '#64748b' }}>No hay pedidos que coincidan con estos filtros.</p>}
+
+          {filteredOrders.length > 0 ? (
+            <div className="orders-pagination">
+              <button className="ghost-btn" onClick={() => setOrderPage((current) => Math.max(1, current - 1))} disabled={orderPage === 1}>Anterior</button>
+              <span>{(orderPage - 1) * ORDERS_PER_PAGE + 1}-{Math.min(orderPage * ORDERS_PER_PAGE, filteredOrders.length)} de {filteredOrders.length}</span>
+              <button className="ghost-btn" onClick={() => setOrderPage((current) => Math.min(totalOrderPages, current + 1))} disabled={orderPage === totalOrderPages}>Siguiente</button>
+            </div>
+          ) : null}
 
           {expandedOrderId && orderDetails[expandedOrderId] ? (
             <div className="card" style={{ margin: '1rem 0' }}>
@@ -777,51 +855,6 @@ const AdminPage = () => {
             </div>
           ) : null}
 
-          <h3 style={{ marginTop: '1.25rem' }}>Pedidos procesados</h3>
-          {processedOrders.length ? (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Cliente</th>
-                  <th>Total</th>
-                  <th>Comprobante</th>
-                  <th>Detalle</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {processedOrders.map((order) => (
-                  <tr key={order.id}>
-                    <td>#{order.id}</td>
-                    <td>{order.client?.name}</td>
-                    <td>
-                      <div>{formatCurrency(order.total_amount, 'USD')}</div>
-                      <div className="price-bs">{formatCurrency(Number(order.total_amount) * exchangeRate, 'BS')}</div>
-                    </td>
-                    <td>
-                      {order.payment_proof_url ? (
-                        <a href={getProofUrl(order.payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '38px', borderRadius: '999px', background: '#eff6ff', color: '#2563eb', textDecoration: 'none' }}>
-                          👁️
-                        </a>
-                      ) : <span className="badge">Sin comprobante</span>}
-                    </td>
-                    <td>
-                      <button className="ghost-btn" onClick={() => loadOrderDetail(order.id)}>{expandedOrderId === order.id ? 'Ocultar' : 'Ver productos'}</button>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <select value={order.status} onChange={(event) => updateStatus(order.id, event.target.value)} aria-label={`Estado del pedido ${order.id}`}>
-                          {orderStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                        </select>
-                        <button className="ghost-btn" onClick={() => downloadInvoice(order.id)}>Factura</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : <p style={{ color: '#64748b' }}>Todavía no hay pedidos aprobados o rechazados.</p>}
         </div>
       ) : null}
 
