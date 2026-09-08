@@ -5,11 +5,14 @@ import { apiUrl } from '../api';
 const AuthPage = ({ onAuth }) => {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
   const submit = async (event) => {
     event.preventDefault();
-    const endpoint = mode === 'login' ? apiUrl('/api/auth/login') : apiUrl('/api/auth/register');
+    const endpoint = mode === 'login'
+      ? apiUrl('/api/auth/login')
+      : mode === 'register' ? apiUrl('/api/auth/register') : apiUrl('/api/auth/forgot-password');
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -17,6 +20,12 @@ const AuthPage = ({ onAuth }) => {
     });
     const data = await response.json();
     if (!response.ok) return alert(data.error || 'Error');
+    if (mode === 'forgot') {
+      setMessage(data.message);
+      setMode('login');
+      setForm({ name: '', email: form.email, phone: '', password: '' });
+      return;
+    }
     localStorage.setItem('token', data.token);
     localStorage.setItem('user', JSON.stringify(data.user));
     onAuth(data.user);
@@ -26,12 +35,15 @@ const AuthPage = ({ onAuth }) => {
   return (
     <div className="auth-shell">
       <div className="auth-card">
-        <div className="auth-toggle">
-          <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')}>Iniciar sesión</button>
-          <button className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')}>Registrarse</button>
-        </div>
-        <h2>{mode === 'login' ? 'Bienvenido de nuevo' : 'Crea tu cuenta'}</h2>
-        <p>{mode === 'login' ? 'Accede para seguir tu compra y ver tus pedidos.' : 'Únete a SportWear Club y compra tus camisetas favoritas.'}</p>
+        {mode !== 'forgot' ? (
+          <div className="auth-toggle">
+            <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => { setMode('login'); setMessage(''); }}>Iniciar sesión</button>
+            <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => { setMode('register'); setMessage(''); }}>Registrarse</button>
+          </div>
+        ) : null}
+        <h2>{mode === 'login' ? 'Bienvenido de nuevo' : mode === 'register' ? 'Crea tu cuenta' : 'Recupera tu contraseña'}</h2>
+        <p>{mode === 'login' ? 'Accede para seguir tu compra y ver tus pedidos.' : mode === 'register' ? 'Únete a SportWear Club y compra tus camisetas favoritas.' : 'Verifica tu correo y teléfono registrados para crear una nueva contraseña.'}</p>
+        {message ? <p className="auth-message">{message}</p> : null}
         <form className="form" onSubmit={submit}>
           {mode === 'register' ? (
             <>
@@ -40,9 +52,12 @@ const AuthPage = ({ onAuth }) => {
             </>
           ) : null}
           <input type="email" placeholder="Correo electrónico" onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          {mode === 'forgot' ? <input placeholder="Teléfono registrado" onChange={(e) => setForm({ ...form, phone: e.target.value })} /> : null}
           <input type="password" placeholder="Contraseña" onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          <button className="submit-btn" type="submit">{mode === 'login' ? 'Ingresar' : 'Crear cuenta'}</button>
+          <button className="submit-btn" type="submit">{mode === 'login' ? 'Ingresar' : mode === 'register' ? 'Crear cuenta' : 'Cambiar contraseña'}</button>
         </form>
+        {mode !== 'forgot' ? <button type="button" className="auth-link" onClick={() => { setMode('forgot'); setMessage(''); setForm({ name: '', email: '', phone: '', password: '' }); }}>¿Olvidaste tu contraseña?</button> : null}
+        {mode === 'forgot' ? <button type="button" className="auth-link" onClick={() => { setMode('login'); setMessage(''); }}>Volver a iniciar sesión</button> : null}
       </div>
     </div>
   );

@@ -169,19 +169,21 @@ const AdminPage = () => {
     }
   };
 
-  const handleEditProduct = (product) => {
+  const handleEditProduct = async (product) => {
+    const response = await fetch(apiUrl(`/api/products/${product.id}`));
+    const detailedProduct = response.ok ? await response.json() : product;
     setEditingProductId(product.id);
     setForm({
-      title: product.title || '',
-      description: product.description || '',
-      price: product.price ?? '',
-      stock: product.stock ?? '',
-      club_id: product.club_id ?? '1',
-      type: product.type || 'local',
-      image_url: product.image_url || '',
-      image_urls: Array.isArray(product.image_urls) ? product.image_urls.join(', ') : '',
-      dorsal_options: product.dorsal_options || '',
-      is_active: product.is_active !== false
+      title: detailedProduct.title || '',
+      description: detailedProduct.description || '',
+      price: detailedProduct.price ?? '',
+      stock: detailedProduct.stock ?? '',
+      club_id: detailedProduct.club_id ?? '1',
+      type: detailedProduct.type || 'local',
+      image_url: detailedProduct.image_url || '',
+      image_urls: Array.isArray(detailedProduct.image_urls) ? detailedProduct.image_urls.join(', ') : '',
+      dorsal_options: Array.isArray(detailedProduct.dorsals) ? detailedProduct.dorsals.map((item) => item.dorsal_number).join(', ') : '',
+      is_active: detailedProduct.is_active !== false
     });
     setShowCreateForm(true);
   };
@@ -766,6 +768,7 @@ const AdminPage = () => {
                   <th>Cliente</th>
                   <th>Total</th>
                   <th>Comprobante</th>
+                  <th>Detalle</th>
                   <th>Estado</th>
                 </tr>
               </thead>
@@ -784,6 +787,9 @@ const AdminPage = () => {
                           👁️
                         </a>
                       ) : <span className="badge">Sin comprobante</span>}
+                    </td>
+                    <td>
+                      <button className="ghost-btn" onClick={() => loadOrderDetail(order.id)}>{expandedOrderId === order.id ? 'Ocultar' : 'Ver productos'}</button>
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>

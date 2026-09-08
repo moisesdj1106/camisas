@@ -26,6 +26,8 @@ button, input, select, textarea { font: inherit; }
 }
 .brand h1 { margin: 0; font-size: 1rem; }
 .brand p { margin: 0; color: #64748b; font-size: 0.9rem; }
+.auth-link { margin-top: 0.9rem; border: 0; background: transparent; color: #2563eb; cursor: pointer; font-weight: 600; }
+.auth-message { color: #166534; font-weight: 600; }
 .nav-links { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
 .nav-links a, .ghost-btn { background: #f1f6ff; color: #1d4ed8; border: 1px solid #dbeafe; padding: 0.7rem 0.95rem; border-radius: 999px; cursor: pointer; transition: all 0.2s ease; }
 .nav-links a:hover, .ghost-btn:hover { background: #e0edff; transform: translateY(-1px); }
