@@ -193,7 +193,7 @@ const App = () => {
                 <circle cx="12" cy="12" r="4" />
                 <circle cx="17.5" cy="6.5" r="1" className="instagram-icon__dot" />
               </svg>
-              <span>@mdj_soccer</span>
+              <span className='insta'>@mdj_soccer</span>
             </a>
             <a className="whatsapp-link" href={`https://wa.me/584147146602?text=${encodeURIComponent('Hola, quiero consultar por las camisetas y los envíos de MDJ Soccer.')}`} target="_blank" rel="noreferrer" aria-label="Contacta con MDJ Soccer por WhatsApp">
               <svg className="whatsapp-icon" viewBox="0 0 24 24" aria-hidden="true">

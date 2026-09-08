@@ -4,13 +4,25 @@ import { apiUrl } from '../api';
 const statusLabels = {
   pending: 'En revisión',
   approved: 'Aprobado',
-  rejected: 'Rechazado'
+  requires_info: 'Requiere información',
+  preparing: 'En preparación',
+  ready_pickup: 'Listo para retirar',
+  shipped: 'Enviado',
+  delivered: 'Entregado',
+  rejected: 'Rechazado',
+  cancelled: 'Cancelado'
 };
 
 const statusDescriptions = {
   pending: 'Tu pedido está pendiente de revisión por el administrador.',
   approved: 'Tu pedido fue aprobado y está listo para continuar.',
-  rejected: 'Tu pedido fue rechazado. Revisa los detalles o intenta nuevamente.'
+  requires_info: 'El administrador necesita información adicional sobre tu pedido.',
+  preparing: 'Tu pedido está siendo preparado.',
+  ready_pickup: 'Tu pedido está listo para retirar.',
+  shipped: 'Tu pedido fue enviado.',
+  delivered: 'Tu pedido aparece como entregado.',
+  rejected: 'Tu pedido fue rechazado. Revisa los detalles o intenta nuevamente.',
+  cancelled: 'Tu pedido fue cancelado.'
 };
 
 const paymentMethodLabels = {
@@ -19,8 +31,8 @@ const paymentMethodLabels = {
 };
 
 const statusClassName = (status) => {
-  if (status === 'approved') return 'status-badge status-badge--approved';
-  if (status === 'rejected') return 'status-badge status-badge--rejected';
+  if (['approved', 'preparing', 'ready_pickup', 'shipped', 'delivered'].includes(status)) return 'status-badge status-badge--approved';
+  if (['rejected', 'cancelled'].includes(status)) return 'status-badge status-badge--rejected';
   return 'status-badge status-badge--pending';
 };
 
@@ -109,6 +121,12 @@ const OrderHistoryModal = ({ open, onClose, user }) => {
                 <span>Método: {paymentMethodLabels[order.payment_method] || order.payment_method || '—'}</span>
               </div>
               <p style={{ margin: '0.45rem 0 0', color: '#64748b', fontSize: '0.92rem' }}>{statusDescriptions[order.status] || 'Estado pendiente de revisión.'}</p>
+              <div className="order-progress" aria-label="Progreso del pedido">
+                {['pending', 'approved', 'preparing', order.delivery_method === 'national' ? 'shipped' : 'ready_pickup', 'delivered'].map((step) => (
+                  <span key={step} className={step === order.status ? 'order-progress__step order-progress__step--active' : 'order-progress__step'}>{statusLabels[step]}</span>
+                ))}
+              </div>
+              <a className="order-whatsapp-link" href={`https://wa.me/584147146602?text=${encodeURIComponent(`Hola, consulto el estado de mi pedido #${order.id} de MDJ Soccer.`)}`} target="_blank" rel="noreferrer">Contactar por WhatsApp</a>
               {order.items?.length ? (
                 <div className="order-items-block">
                   <strong>Productos</strong>

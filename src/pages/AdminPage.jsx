@@ -28,6 +28,20 @@ const createEmptyClubForm = () => ({
   logo_url: ''
 });
 
+const orderStatusOptions = [
+  ['pending', 'Pendiente'],
+  ['approved', 'Aprobado'],
+  ['requires_info', 'Requiere información'],
+  ['preparing', 'En preparación'],
+  ['ready_pickup', 'Listo para retirar'],
+  ['shipped', 'Enviado'],
+  ['delivered', 'Entregado'],
+  ['rejected', 'Rechazado'],
+  ['cancelled', 'Cancelado']
+];
+
+const orderStatusLabel = Object.fromEntries(orderStatusOptions);
+
 const AdminPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -112,7 +126,10 @@ const AdminPage = () => {
         data = { id: orderId };
       }
       if (response.ok) {
-        setOrders((current) => current.map((item) => item.id === data.id ? { ...item, status } : item));
+        setOrders((current) => current.map((item) => item.id === data.id ? { ...item, status: data.status || status } : item));
+        setMessage(`Pedido #${orderId}: ${orderStatusLabel[status] || status}`);
+      } else {
+        setMessage(data?.error || 'No se pudo actualizar el pedido.');
       }
     } catch (error) {
       setMessage('No se pudo actualizar el pedido.');
@@ -717,8 +734,9 @@ const AdminPage = () => {
                       <button className="ghost-btn" onClick={() => loadOrderDetail(order.id)}>{expandedOrderId === order.id ? 'Ocultar' : 'Ver productos'}</button>
                     </td>
                     <td>
-                      <button className="ghost-btn" onClick={() => updateStatus(order.id, 'approved')}>Aprobar</button>
-                      <button className="ghost-btn" onClick={() => updateStatus(order.id, 'rejected')}>Rechazar</button>
+                      <select value={order.status} onChange={(event) => updateStatus(order.id, event.target.value)} aria-label={`Estado del pedido ${order.id}`}>
+                        {orderStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                      </select>
                       <button className="ghost-btn" onClick={() => downloadInvoice(order.id)}>Factura</button>
                     </td>
                   </tr>
@@ -793,7 +811,9 @@ const AdminPage = () => {
                     </td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                        {order.status === 'approved' ? <span className="badge">Aprobado</span> : <span className="badge">Rechazado</span>}
+                        <select value={order.status} onChange={(event) => updateStatus(order.id, event.target.value)} aria-label={`Estado del pedido ${order.id}`}>
+                          {orderStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                        </select>
                         <button className="ghost-btn" onClick={() => downloadInvoice(order.id)}>Factura</button>
                       </div>
                     </td>
