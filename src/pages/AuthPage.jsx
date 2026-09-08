@@ -54,9 +54,9 @@ const AuthPage = ({ onAuth }) => {
           <input type="email" placeholder="Correo electrónico" onChange={(e) => setForm({ ...form, email: e.target.value })} />
           {mode === 'forgot' ? <input placeholder="Teléfono registrado" onChange={(e) => setForm({ ...form, phone: e.target.value })} /> : null}
           <input type="password" placeholder="Contraseña" onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          {mode !== 'forgot' ? <button type="button" className="auth-link" onClick={() => { setMode('forgot'); setMessage(''); setForm({ name: '', email: '', phone: '', password: '' }); }}>¿Olvidaste tu contraseña?</button> : null}
           <button className="submit-btn" type="submit">{mode === 'login' ? 'Ingresar' : mode === 'register' ? 'Crear cuenta' : 'Cambiar contraseña'}</button>
         </form>
-        {mode !== 'forgot' ? <button type="button" className="auth-link" onClick={() => { setMode('forgot'); setMessage(''); setForm({ name: '', email: '', phone: '', password: '' }); }}>¿Olvidaste tu contraseña?</button> : null}
         {mode === 'forgot' ? <button type="button" className="auth-link" onClick={() => { setMode('login'); setMessage(''); }}>Volver a iniciar sesión</button> : null}
       </div>
     </div>

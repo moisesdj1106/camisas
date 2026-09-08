@@ -227,7 +227,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
             }} style={{ display: 'block', marginTop: '0.4rem' }} />
           </label>
           {proofPreview ? <img src={proofPreview} alt="Vista previa del comprobante" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px', marginTop: '0.6rem' }} /> : null}
-          <textarea placeholder="Añade el nombre y dorsal que llevará tu camiseta, si deseas personalizarla" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} style={{ marginTop: '0.75rem' }} />
+          <textarea placeholder="Descripcion (opcional)" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} style={{ marginTop: '0.75rem' }} />
           <button className="primary-btn" onClick={() => setCheckoutStep(2)} disabled={!cart.length}>Continuar con la entrega</button>
         </> : <>
           <fieldset className="delivery-options">
