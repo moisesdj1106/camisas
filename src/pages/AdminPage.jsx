@@ -42,6 +42,7 @@ const orderStatusOptions = [
 
 const orderStatusLabel = Object.fromEntries(orderStatusOptions);
 const ORDERS_PER_PAGE = 8;
+const USERS_PER_PAGE = 8;
 
 const AdminPage = () => {
   const location = useLocation();
@@ -71,6 +72,11 @@ const AdminPage = () => {
   const [orderFilter, setOrderFilter] = useState('all');
   const [orderSearch, setOrderSearch] = useState('');
   const [orderPage, setOrderPage] = useState(1);
+  const [users, setUsers] = useState([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [userPage, setUserPage] = useState(1);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', role: 'client' });
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -86,13 +92,14 @@ const AdminPage = () => {
   const loadDashboard = async () => {
     const token = localStorage.getItem('token');
     try {
-      const [dashRes, ordersRes, auditsRes, inventoryRes, clubsRes, rateRes] = await Promise.all([
+      const [dashRes, ordersRes, auditsRes, inventoryRes, clubsRes, rateRes, usersRes] = await Promise.all([
         fetch(apiUrl('/api/admin/dashboard'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/orders'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/audit-logs'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/products'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/clubs'), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${token}` } })
+        fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl('/api/admin/users'), { headers: { Authorization: `Bearer ${token}` } })
       ]);
       const dashboardData = await dashRes.json();
       const ordersData = await ordersRes.json();
@@ -100,6 +107,7 @@ const AdminPage = () => {
       const inventoryData = await inventoryRes.json();
       const clubsData = await clubsRes.json();
       const rateData = await rateRes.json().catch(() => ({ exchangeRate: 36 }));
+      const usersData = await usersRes.json().catch(() => []);
       setDashboard(dashboardData);
       setOrders(Array.isArray(ordersData) ? ordersData : []);
       setAuditLogs(Array.isArray(auditLogsData) ? auditLogsData : []);
@@ -107,6 +115,7 @@ const AdminPage = () => {
       setClubs(Array.isArray(clubsData) ? clubsData : []);
       setExchangeRate(Number(rateData.exchangeRate || 36));
       setExchangeRateDraft(String(rateData.exchangeRate || 36));
+      setUsers(Array.isArray(usersData) ? usersData : []);
     } catch (error) {
       setMessage('No se pudo cargar la información del panel.');
     }
@@ -166,6 +175,44 @@ const AdminPage = () => {
     } catch (error) {
       setMessage('No se pudo eliminar el pedido.');
     }
+  };
+
+  const startEditUser = (user) => {
+    setEditingUserId(user.id);
+    setUserForm({ name: user.name || '', email: user.email || '', phone: user.phone || '', role: user.role || 'client' });
+  };
+
+  const saveUser = async (event) => {
+    event.preventDefault();
+    const response = await fetch(apiUrl(`/api/admin/users/${editingUserId}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(userForm)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'No se pudo actualizar el usuario.');
+      return;
+    }
+    setUsers((current) => current.map((user) => user.id === data.id ? { ...user, ...data } : user));
+    setEditingUserId(null);
+    setMessage('Usuario actualizado.');
+  };
+
+  const deleteUser = async (user) => {
+    if (!window.confirm(`¿Eliminar definitivamente a ${user.name}?`)) return;
+    const response = await fetch(apiUrl(`/api/admin/users/${user.id}`), {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'No se pudo eliminar el usuario.');
+      return;
+    }
+    setUsers((current) => current.filter((item) => item.id !== user.id));
+    setUserPage(1);
+    setMessage('Usuario eliminado.');
   };
 
   const handleCreateProduct = async (event) => {
@@ -507,6 +554,7 @@ const AdminPage = () => {
         <button className={`ghost-btn ${activeView === 'inventory' ? 'active' : ''}`} onClick={() => setView('inventory')}>Inventario</button>
         <button className={`ghost-btn ${activeView === 'clubs' ? 'active' : ''}`} onClick={() => setView('clubs')}>Clubes</button>
         <button className={`ghost-btn ${activeView === 'orders' ? 'active' : ''}`} onClick={() => setView('orders')}>Pedidos</button>
+        <button className={`ghost-btn ${activeView === 'users' ? 'active' : ''}`} onClick={() => setView('users')}>Usuarios</button>
         <button className={`ghost-btn ${activeView === 'audit' ? 'active' : ''}`} onClick={() => setView('audit')}>Auditoría</button>
       </div>
 
@@ -743,6 +791,64 @@ const AdminPage = () => {
           </div>
         </div>
       ) : null}
+
+      {activeView === 'users' ? (() => {
+        const normalizedUserSearch = userSearch.trim().toLowerCase();
+        const filteredUsers = users.filter((user) => [user.name, user.email, user.phone, user.role].some((value) => String(value || '').toLowerCase().includes(normalizedUserSearch)));
+        const totalUserPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+        const visibleUsers = filteredUsers.slice((userPage - 1) * USERS_PER_PAGE, userPage * USERS_PER_PAGE);
+        return (
+          <div className="card" style={{ marginBottom: '1rem' }}>
+            <div className="filters-card__header" style={{ marginBottom: '1rem' }}>
+              <div>
+                <h3>Usuarios registrados</h3>
+                <p style={{ margin: '0.2rem 0 0', color: '#64748b' }}>Consulta los datos principales, pedidos y compras aprobadas.</p>
+              </div>
+              <span className="badge">{filteredUsers.length} usuario{filteredUsers.length === 1 ? '' : 's'}</span>
+            </div>
+            {editingUserId ? (
+              <form className="inventory-form" onSubmit={saveUser}>
+                <div className="filter-grid">
+                  <input required placeholder="Nombre completo" value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} />
+                  <input required type="email" placeholder="Correo" value={userForm.email} onChange={(event) => setUserForm({ ...userForm, email: event.target.value })} />
+                  <input placeholder="Teléfono" value={userForm.phone} onChange={(event) => setUserForm({ ...userForm, phone: event.target.value })} />
+                  <select value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })}>
+                    <option value="client">Cliente</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button className="primary-btn" type="submit">Guardar cambios</button>
+                  <button className="ghost-btn" type="button" onClick={() => setEditingUserId(null)}>Cancelar</button>
+                </div>
+              </form>
+            ) : null}
+            <div className="orders-toolbar">
+              <input type="search" placeholder="Buscar por nombre, correo, teléfono o rol..." value={userSearch} onChange={(event) => { setUserSearch(event.target.value); setUserPage(1); }} />
+              <span className="orders-toolbar__count">Página {userPage} de {totalUserPages}</span>
+            </div>
+            {visibleUsers.length ? (
+              <table className="table">
+                <thead><tr><th>Usuario</th><th>Contacto</th><th>Rol</th><th>Pedidos</th><th>Aprobado</th><th>Registro</th><th>Acciones</th></tr></thead>
+                <tbody>
+                  {visibleUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td><strong>{user.name}</strong><br /><small>ID #{user.id}</small></td>
+                      <td>{user.email}<br /><small>{user.phone || 'Sin teléfono'}</small></td>
+                      <td><span className="badge">{user.role === 'admin' ? 'Administrador' : 'Cliente'}</span></td>
+                      <td>{user.orders_count}</td>
+                      <td>{formatCurrency(user.approved_total, 'USD')}</td>
+                      <td>{new Date(user.created_at).toLocaleDateString('es-VE')}</td>
+                      <td><button className="ghost-btn" onClick={() => startEditUser(user)} title="Editar usuario">Editar</button> <button className="icon-btn icon-btn--danger" onClick={() => deleteUser(user)} title="Eliminar usuario" aria-label={`Eliminar usuario ${user.name}`}>🗑</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : <p style={{ color: '#64748b' }}>No hay usuarios que coincidan con la búsqueda.</p>}
+            {filteredUsers.length ? <div className="orders-pagination"><button className="ghost-btn" disabled={userPage === 1} onClick={() => setUserPage((current) => Math.max(1, current - 1))}>Anterior</button><span>{(userPage - 1) * USERS_PER_PAGE + 1}-{Math.min(userPage * USERS_PER_PAGE, filteredUsers.length)} de {filteredUsers.length}</span><button className="ghost-btn" disabled={userPage === totalUserPages} onClick={() => setUserPage((current) => Math.min(totalUserPages, current + 1))}>Siguiente</button></div> : null}
+          </div>
+        );
+      })() : null}
 
       {activeView === 'orders' ? (
         <div className="card" style={{ marginBottom: '1rem' }}>
