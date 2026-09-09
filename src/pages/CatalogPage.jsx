@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { apiUrl } from '../api';
+import Modal from '../components/Modal';
 
 const typeLabels = {
   local: 'Local',
@@ -31,6 +32,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const [quantities, setQuantities] = useState({});
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [exchangeRate, setExchangeRate] = useState(36);
+  const [feedbackModal, setFeedbackModal] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -210,7 +212,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 <div className="product-card__actions">
                   <button className="ghost-btn" onClick={() => openDetail(product.id)}>Personalizar</button>
                   <button className="primary-btn" onClick={() => {
-                    if (!user) return alert('Debes iniciar sesión para comprar');
+                    if (!user) return setFeedbackModal({ title: 'Inicia sesión', message: 'Debes iniciar sesión para comprar.' });
                     openDetail(product.id);
                   }}>Comprar</button>
                 </div>
@@ -229,6 +231,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
       {selectedProduct ? (
         <div className="modal-backdrop" onClick={() => setSelectedProduct(null)}>
           <div className="modal product-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" type="button" onClick={() => setSelectedProduct(null)} aria-label="Cerrar detalle del producto" title="Cerrar">×</button>
             <div className="product-modal__gallery">
               {(Array.isArray(selectedProduct.image_urls) && selectedProduct.image_urls.length ? selectedProduct.image_urls : [selectedProduct.image_url || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80']).map((image, index) => (
                 <img key={`${selectedProduct.id}-${index}`} src={image} alt={`${selectedProduct.title} vista ${index + 1}`} />
@@ -271,10 +274,10 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 <input type="number" min="1" max="10" value={selectedQuantity} onChange={(e) => setSelectedQuantity(Math.max(1, Number(e.target.value) || 1))} />
               </div>
               <button className="primary-btn" onClick={() => {
-                if (!user) return alert('Debes iniciar sesión para comprar');
-                if (!size) return alert('Selecciona una talla para continuar');
-                if (dorsalMode === 'catalog' && !dorsal) return alert('Selecciona un dorsal o elige otra opción');
-                if (dorsalMode === 'custom' && (!customName.trim() || !customNumber.trim())) return alert('Completa el nombre y número de la camiseta personalizada');
+                if (!user) return setFeedbackModal({ title: 'Inicia sesión', message: 'Debes iniciar sesión para comprar.' });
+                if (!size) return setFeedbackModal({ title: 'Selecciona una talla', message: 'Selecciona una talla para continuar.' });
+                if (dorsalMode === 'catalog' && !dorsal) return setFeedbackModal({ title: 'Selecciona un dorsal', message: 'Selecciona un dorsal o elige otra opción.' });
+                if (dorsalMode === 'custom' && (!customName.trim() || !customNumber.trim())) return setFeedbackModal({ title: 'Completa la personalización', message: 'Completa el nombre y número de la camiseta personalizada.' });
                 const selectedDorsal = selectedProduct.dorsals?.find((item) => String(item.id) === String(dorsal));
                 onAddToCart(selectedProduct, dorsalMode === 'catalog' ? selectedDorsal?.dorsal_number || '' : '', selectedQuantity, size, selectedDorsal?.player_name || '', { noDorsal: dorsalMode === 'none', name: dorsalMode === 'custom' ? customName.trim() : '', number: dorsalMode === 'custom' ? customNumber.trim() : '' });
                 setSelectedProduct(null);
@@ -283,6 +286,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
           </div>
         </div>
       ) : null}
+      <Modal open={Boolean(feedbackModal)} title={feedbackModal?.title} message={feedbackModal?.message} onClose={() => setFeedbackModal(null)} />
     </div>
   );
 };

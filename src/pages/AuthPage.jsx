@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiUrl } from '../api';
+import Modal from '../components/Modal';
 
 const AuthPage = ({ onAuth }) => {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [message, setMessage] = useState('');
+  const [errorModal, setErrorModal] = useState(null);
   const navigate = useNavigate();
 
   const submit = async (event) => {
@@ -19,7 +21,10 @@ const AuthPage = ({ onAuth }) => {
       body: JSON.stringify(form)
     });
     const data = await response.json();
-    if (!response.ok) return alert(data.error || 'Error');
+    if (!response.ok) {
+      setErrorModal({ title: 'No se pudo continuar', message: data.error || 'Ocurrió un error.' });
+      return;
+    }
     if (mode === 'forgot') {
       setMessage(data.message);
       setMode('login');
@@ -59,6 +64,7 @@ const AuthPage = ({ onAuth }) => {
         </form>
         {mode === 'forgot' ? <button type="button" className="auth-link" onClick={() => { setMode('login'); setMessage(''); }}>Volver a iniciar sesión</button> : null}
       </div>
+      <Modal open={Boolean(errorModal)} title={errorModal?.title} message={errorModal?.message} onClose={() => setErrorModal(null)} />
     </div>
   );
 };

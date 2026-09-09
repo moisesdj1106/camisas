@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiUrl } from '../api';
+import Modal from '../components/Modal';
 
 const formatCurrency = (value, currency = 'USD') => {
   const amount = Number(value || 0);
@@ -78,6 +79,7 @@ const AdminPage = () => {
   const [editingUserId, setEditingUserId] = useState(null);
   const [showCreateUserForm, setShowCreateUserForm] = useState(false);
   const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', password: '', role: 'client' });
+  const [confirmation, setConfirmation] = useState(null);
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -154,7 +156,6 @@ const AdminPage = () => {
   };
 
   const deleteOrder = async (orderId) => {
-    if (!window.confirm(`¿Eliminar definitivamente el pedido #${orderId}? Esta acción no se puede deshacer.`)) return;
     try {
       const response = await fetch(apiUrl(`/api/admin/orders/${orderId}`), {
         method: 'DELETE',
@@ -213,7 +214,6 @@ const AdminPage = () => {
   };
 
   const deleteUser = async (user) => {
-    if (!window.confirm(`¿Eliminar definitivamente a ${user.name}?`)) return;
     const response = await fetch(apiUrl(`/api/admin/users/${user.id}`), {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -366,8 +366,7 @@ const AdminPage = () => {
     }
   };
 
-  const resetRevenueMetrics = async () => {
-    if (!window.confirm('Se reiniciaran las metricas de dinero recaudado desde este momento. Los pedidos no se eliminaran. ¿Continuar?')) return;
+  const performResetRevenueMetrics = async () => {
     setIsResettingMetrics(true);
     try {
       const response = await fetch(apiUrl('/api/admin/metrics/reset'), {
@@ -383,6 +382,22 @@ const AdminPage = () => {
       setIsResettingMetrics(false);
     }
   };
+
+  const requestConfirmation = (title, message, action) => {
+    setConfirmation({ title, message, action });
+  };
+
+  const confirmAction = async () => {
+    const action = confirmation?.action;
+    setConfirmation(null);
+    await action?.();
+  };
+
+  const resetRevenueMetrics = () => requestConfirmation(
+    'Reiniciar métricas',
+    'Se reiniciarán las métricas de dinero recaudado desde este momento. Los pedidos no se eliminarán.',
+    performResetRevenueMetrics
+  );
 
   const loadClosureSummary = async (periodType = closurePeriod, referenceDate = closureDate) => {
     const token = localStorage.getItem('token');
@@ -856,7 +871,7 @@ const AdminPage = () => {
                       <td>{user.orders_count}</td>
                       <td>{formatCurrency(user.approved_total, 'USD')}</td>
                       <td>{new Date(user.created_at).toLocaleDateString('es-VE')}</td>
-                      <td><button className="ghost-btn" onClick={() => startEditUser(user)} title="Editar usuario">Editar</button> <button className="icon-btn icon-btn--danger" onClick={() => deleteUser(user)} title="Eliminar usuario" aria-label={`Eliminar usuario ${user.name}`}>🗑</button></td>
+                      <td><button className="ghost-btn" onClick={() => startEditUser(user)} title="Editar usuario">Editar</button> <button className="icon-btn icon-btn--danger" onClick={() => requestConfirmation('Eliminar usuario', `¿Eliminar definitivamente a ${user.name}?`, () => deleteUser(user))} title="Eliminar usuario" aria-label={`Eliminar usuario ${user.name}`}>🗑</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -930,7 +945,7 @@ const AdminPage = () => {
                     </td>
                     <td>
                       <button className="ghost-btn" onClick={() => downloadInvoice(order.id)}>Factura</button>
-                      <button className="icon-btn icon-btn--danger" onClick={() => deleteOrder(order.id)} title={`Eliminar pedido #${order.id}`} aria-label={`Eliminar pedido #${order.id}`}>🗑</button>
+                      <button className="icon-btn icon-btn--danger" onClick={() => requestConfirmation('Eliminar pedido', `¿Eliminar definitivamente el pedido #${order.id}? Esta acción no se puede deshacer.`, () => deleteOrder(order.id))} title={`Eliminar pedido #${order.id}`} aria-label={`Eliminar pedido #${order.id}`}>🗑</button>
                     </td>
                   </tr>
                 ))}
@@ -1009,14 +1024,18 @@ const AdminPage = () => {
         </div>
       ) : null}
 
-      {activeLog ? (
-        <div className="modal-backdrop" onClick={() => setActiveLog(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Detalle del cambio</h3>
-            <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(activeLog.changes, null, 2)}</pre>
-          </div>
-        </div>
-      ) : null}
+      <Modal open={Boolean(activeLog)} title="Detalle del cambio" onClose={() => setActiveLog(null)}>
+        <pre style={{ whiteSpace: 'pre-wrap' }}>{activeLog ? JSON.stringify(activeLog.changes, null, 2) : ''}</pre>
+      </Modal>
+      <Modal
+        open={Boolean(confirmation)}
+        title={confirmation?.title}
+        message={confirmation?.message}
+        tone="danger"
+        onClose={() => setConfirmation(null)}
+        onConfirm={confirmAction}
+        confirmLabel="Confirmar"
+      />
     </div>
   );
 };

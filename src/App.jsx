@@ -166,6 +166,7 @@ const App = () => {
       {orderReviewOpen ? (
         <div className="modal-backdrop" onClick={() => setOrderReviewOpen(false)}>
           <div className="modal review-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" type="button" onClick={() => { setOrderReviewOpen(false); setOrderWhatsappUrl(''); }} aria-label="Cerrar confirmación" title="Cerrar">×</button>
             <div className="review-modal__icon">✓</div>
             <p className="eyebrow">Pedido recibido</p>
             <h3>Tu pedido está en revisión</h3>
