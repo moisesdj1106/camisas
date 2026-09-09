@@ -76,7 +76,8 @@ const AdminPage = () => {
   const [userSearch, setUserSearch] = useState('');
   const [userPage, setUserPage] = useState(1);
   const [editingUserId, setEditingUserId] = useState(null);
-  const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', role: 'client' });
+  const [showCreateUserForm, setShowCreateUserForm] = useState(false);
+  const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', password: '', role: 'client' });
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -92,7 +93,7 @@ const AdminPage = () => {
   const loadDashboard = async () => {
     const token = localStorage.getItem('token');
     try {
-      const [dashRes, ordersRes, auditsRes, inventoryRes, clubsRes, rateRes, usersRes] = await Promise.all([
+      const [dashRes, ordersRes, auditsRes, inventoryRes, clubsRes, rateRes, usersRes] = await Promise.allSettled([
         fetch(apiUrl('/api/admin/dashboard'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/orders'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/audit-logs'), { headers: { Authorization: `Bearer ${token}` } }),
@@ -101,13 +102,14 @@ const AdminPage = () => {
         fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/users'), { headers: { Authorization: `Bearer ${token}` } })
       ]);
-      const dashboardData = await dashRes.json();
-      const ordersData = await ordersRes.json();
-      const auditLogsData = await auditsRes.json();
-      const inventoryData = await inventoryRes.json();
-      const clubsData = await clubsRes.json();
-      const rateData = await rateRes.json().catch(() => ({ exchangeRate: 36 }));
-      const usersData = await usersRes.json().catch(() => []);
+      const readResponse = async (result, fallback) => result.status === 'fulfilled' ? result.value.json().catch(() => fallback) : fallback;
+      const dashboardData = await readResponse(dashRes, null);
+      const ordersData = await readResponse(ordersRes, []);
+      const auditLogsData = await readResponse(auditsRes, []);
+      const inventoryData = await readResponse(inventoryRes, []);
+      const clubsData = await readResponse(clubsRes, []);
+      const rateData = await readResponse(rateRes, { exchangeRate: 36 });
+      const usersData = await readResponse(usersRes, []);
       setDashboard(dashboardData);
       setOrders(Array.isArray(ordersData) ? ordersData : []);
       setAuditLogs(Array.isArray(auditLogsData) ? auditLogsData : []);
@@ -179,13 +181,21 @@ const AdminPage = () => {
 
   const startEditUser = (user) => {
     setEditingUserId(user.id);
-    setUserForm({ name: user.name || '', email: user.email || '', phone: user.phone || '', role: user.role || 'client' });
+    setShowCreateUserForm(false);
+    setUserForm({ name: user.name || '', email: user.email || '', phone: user.phone || '', password: '', role: user.role || 'client' });
+  };
+
+  const startCreateUser = () => {
+    setEditingUserId(null);
+    setUserForm({ name: '', email: '', phone: '', password: '', role: 'client' });
+    setShowCreateUserForm(true);
   };
 
   const saveUser = async (event) => {
     event.preventDefault();
-    const response = await fetch(apiUrl(`/api/admin/users/${editingUserId}`), {
-      method: 'PUT',
+    const isCreating = showCreateUserForm;
+    const response = await fetch(apiUrl(isCreating ? '/api/admin/users' : `/api/admin/users/${editingUserId}`), {
+      method: isCreating ? 'POST' : 'PUT',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify(userForm)
     });
@@ -194,9 +204,12 @@ const AdminPage = () => {
       setMessage(data.error || 'No se pudo actualizar el usuario.');
       return;
     }
-    setUsers((current) => current.map((user) => user.id === data.id ? { ...user, ...data } : user));
+    if (isCreating) setUsers((current) => [data, ...current]);
+    else setUsers((current) => current.map((user) => user.id === data.id ? { ...user, ...data } : user));
     setEditingUserId(null);
-    setMessage('Usuario actualizado.');
+    setShowCreateUserForm(false);
+    setUserForm({ name: '', email: '', phone: '', password: '', role: 'client' });
+    setMessage(isCreating ? 'Usuario creado.' : 'Usuario actualizado.');
   };
 
   const deleteUser = async (user) => {
@@ -804,22 +817,26 @@ const AdminPage = () => {
                 <h3>Usuarios registrados</h3>
                 <p style={{ margin: '0.2rem 0 0', color: '#64748b' }}>Consulta los datos principales, pedidos y compras aprobadas.</p>
               </div>
-              <span className="badge">{filteredUsers.length} usuario{filteredUsers.length === 1 ? '' : 's'}</span>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <span className="badge">{filteredUsers.length} usuario{filteredUsers.length === 1 ? '' : 's'}</span>
+                <button className="primary-btn" type="button" onClick={startCreateUser}>Nuevo usuario</button>
+              </div>
             </div>
-            {editingUserId ? (
+            {editingUserId || showCreateUserForm ? (
               <form className="inventory-form" onSubmit={saveUser}>
                 <div className="filter-grid">
                   <input required placeholder="Nombre completo" value={userForm.name} onChange={(event) => setUserForm({ ...userForm, name: event.target.value })} />
                   <input required type="email" placeholder="Correo" value={userForm.email} onChange={(event) => setUserForm({ ...userForm, email: event.target.value })} />
                   <input placeholder="Teléfono" value={userForm.phone} onChange={(event) => setUserForm({ ...userForm, phone: event.target.value })} />
+                  {showCreateUserForm ? <input required type="password" minLength="6" placeholder="Contraseña (mínimo 6 caracteres)" value={userForm.password} onChange={(event) => setUserForm({ ...userForm, password: event.target.value })} /> : null}
                   <select value={userForm.role} onChange={(event) => setUserForm({ ...userForm, role: event.target.value })}>
                     <option value="client">Cliente</option>
                     <option value="admin">Administrador</option>
                   </select>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button className="primary-btn" type="submit">Guardar cambios</button>
-                  <button className="ghost-btn" type="button" onClick={() => setEditingUserId(null)}>Cancelar</button>
+                  <button className="primary-btn" type="submit">{showCreateUserForm ? 'Crear usuario' : 'Guardar cambios'}</button>
+                  <button className="ghost-btn" type="button" onClick={() => { setEditingUserId(null); setShowCreateUserForm(false); }}>Cancelar</button>
                 </div>
               </form>
             ) : null}
