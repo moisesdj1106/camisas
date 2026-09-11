@@ -253,15 +253,15 @@ export const CatalogPage = ({ user, onAddToCart }) => {
               </div>
               <p className="card__club">Club: {selectedProduct.club?.name || 'Sin club'}</p>
               <select value={size} onChange={(e) => setSize(e.target.value)}>
-                <option value="">Selecciona talla *</option>
+                <option value="">Selecciona talla </option>
                 {getAvailableSizes(selectedProduct).map((option) => (
-                  <option key={option} value={option}>{option}{selectedProduct.stock_by_size?.[option] ? ` (${selectedProduct.stock_by_size[option]} disponibles)` : ''}</option>
+                  <option key={option} value={option}>{option}{selectedProduct.stock_by_size?.[option] ? `  - > ${selectedProduct.stock_by_size[option]} disponibles` : ''}</option>
                 ))}
               </select>
               {!getAvailableSizes(selectedProduct).length ? <p className="card__description">No hay tallas disponibles para este producto.</p> : null}
               <select value={dorsalMode} onChange={(e) => setDorsalMode(e.target.value)}>
                 <option value="none">Sin dorsal</option>
-                <option value="catalog">Dorsal de jugador</option>
+                <option value="catalog">Con dorsal de jugador</option>
                 <option value="custom">Camiseta personalizada</option>
               </select>
               {dorsalMode === 'catalog' ? (
@@ -274,8 +274,8 @@ export const CatalogPage = ({ user, onAddToCart }) => {
               ) : null}
               {dorsalMode === 'custom' ? (
                 <div className="customization-fields">
-                  <input placeholder="Nombre para la camiseta *" value={customName} onChange={(e) => setCustomName(e.target.value)} />
-                  <input placeholder="Número para la camiseta *" inputMode="numeric" value={customNumber} onChange={(e) => setCustomNumber(e.target.value)} />
+                  <input placeholder="Nombre para la camiseta " value={customName} onChange={(e) => setCustomName(e.target.value)} />
+                  <input placeholder="Número para la camiseta " inputMode="numeric" value={customNumber} onChange={(e) => setCustomNumber(e.target.value)} />
                 </div>
               ) : null}
               <div className="quantity-control">

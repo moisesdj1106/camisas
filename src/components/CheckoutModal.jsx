@@ -212,6 +212,18 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           <strong>{paymentDetails[paymentMethod].title}</strong>
           <p style={{ margin: '0.3rem 0 0' }}>{paymentDetails[paymentMethod].number}</p>
           <p style={{ margin: '0.25rem 0 0', color: '#64748b' }}>{paymentDetails[paymentMethod].message}</p>
+          {paymentMethod === 'pago_movil' ? (
+            <div className="payment-qr">
+              <p className="payment-qr__title">Escanea el código QR para cargar los datos</p>
+              <img
+                className="payment-qr__image"
+                src="/pago.png"
+                alt="Código QR de Pago Móvil MDJ Soccer"
+                onError={(event) => { event.currentTarget.hidden = true; }}
+              />
+              <p className="payment-qr__fallback">Si no puedes escanearlo, usa los datos indicados arriba.</p>
+            </div>
+          ) : null}
           </div>
           <label style={{ display: 'block', marginTop: '0.75rem', color: '#334155', fontSize: '0.95rem' }}>
             Adjuntar comprobante de pago (imagen)
