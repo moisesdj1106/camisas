@@ -8,9 +8,9 @@ const paymentDetails = {
     message: 'Envíanos tu usuario y comprobante por WhatsApp para confirmar el pago, el monto en bs es el indicado en la pagina a la tasa del dia actual.'
   },
   pago_movil: {
-    title: 'Pago Móvil',
+    title: 'Realiza el pago a los siguientes datos: ',
     number: 'Bco Vzla',
-    message: 'CI: V-31.800.900 · Responsable: MDJ Soccer · 0414-714-6602 * Sube tu comprobante de pago para confirmar tu pedido.'
+    message: 'Responsable: MDJ Soccer ·  Sube tu comprobante de pago para confirmar tu pedido.'
   }
 };
 
@@ -214,14 +214,14 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           <p style={{ margin: '0.25rem 0 0', color: '#64748b' }}>{paymentDetails[paymentMethod].message}</p>
           {paymentMethod === 'pago_movil' ? (
             <div className="payment-qr">
-              <p className="payment-qr__title">Escanea el código QR para cargar los datos</p>
+              <p className="payment-qr__title">Escanea el código QR para cargar los datos automaticos</p>
               <img
                 className="payment-qr__image"
                 src="/pago.png"
                 alt="Código QR de Pago Móvil MDJ Soccer"
                 onError={(event) => { event.currentTarget.hidden = true; }}
               />
-              <p className="payment-qr__fallback">Si no puedes escanearlo, usa los datos indicados arriba.</p>
+              <p className="payment-qr__fallback">Si no puedes escanearlo, usa los datos indicados en la imagen.</p>
             </div>
           ) : null}
           </div>
