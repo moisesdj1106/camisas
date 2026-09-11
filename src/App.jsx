@@ -7,6 +7,8 @@ import AdminPage from './pages/AdminPage';
 import CheckoutModal from './components/CheckoutModal';
 import OrderHistoryModal from './components/OrderHistoryModal';
 
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+
 const getUser = () => {
   const raw = localStorage.getItem('user');
   return raw ? JSON.parse(raw) : null;
@@ -29,6 +31,29 @@ const App = () => {
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return undefined;
+
+    let idleTimer;
+    const logoutAfterInactivity = () => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+      navigate('/');
+    };
+    const resetIdleTimer = () => {
+      window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(logoutAfterInactivity, IDLE_TIMEOUT_MS);
+    };
+
+    ['mousedown', 'keydown', 'touchstart', 'scroll'].forEach((eventName) => window.addEventListener(eventName, resetIdleTimer));
+    resetIdleTimer();
+    return () => {
+      window.clearTimeout(idleTimer);
+      ['mousedown', 'keydown', 'touchstart', 'scroll'].forEach((eventName) => window.removeEventListener(eventName, resetIdleTimer));
+    };
+  }, [user?.id, navigate]);
 
   useEffect(() => {
     if (!user?.id) return;

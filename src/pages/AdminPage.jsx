@@ -10,11 +10,15 @@ const formatCurrency = (value, currency = 'USD') => {
     : `$${amount.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`;
 };
 
+const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+const emptyStockBySize = () => Object.fromEntries(sizeOptions.map((size) => [size, '']));
+
 const createEmptyForm = () => ({
   title: '',
   description: '',
   price: '',
   stock: '',
+  stock_by_size: emptyStockBySize(),
   club_id: '1',
   type: 'local',
   image_url: '',
@@ -243,6 +247,7 @@ const AdminPage = () => {
         image_urls: imageUrls,
         price: Number(form.price),
         stock: Number(form.stock),
+        stock_by_size: Object.fromEntries(sizeOptions.map((size) => [size, Number(form.stock_by_size[size]) || 0])),
         club_id: Number(form.club_id),
         is_active: form.is_active
       })
@@ -287,6 +292,7 @@ const AdminPage = () => {
       description: detailedProduct.description || '',
       price: detailedProduct.price ?? '',
       stock: detailedProduct.stock ?? '',
+      stock_by_size: { ...emptyStockBySize(), ...(detailedProduct.stock_by_size || {}) },
       club_id: detailedProduct.club_id ?? '1',
       type: detailedProduct.type || 'local',
       image_url: detailedProduct.image_url || '',
@@ -312,6 +318,7 @@ const AdminPage = () => {
         image_urls: imageUrls,
         price: Number(form.price),
         stock: Number(form.stock),
+        stock_by_size: Object.fromEntries(sizeOptions.map((size) => [size, Number(form.stock_by_size[size]) || 0])),
         club_id: Number(form.club_id),
         is_active: form.is_active
       })
@@ -752,7 +759,7 @@ const AdminPage = () => {
               <div className="filter-grid">
                 <input required placeholder="Nombre de la camiseta" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 <input required type="number" min="0" step="0.01" placeholder="Precio" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-                <input required type="number" min="0" placeholder="Stock" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
+                <input type="number" min="0" placeholder="Stock total (opcional)" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
                 <input required type="number" placeholder="Club ID" value={form.club_id} onChange={(e) => setForm({ ...form, club_id: e.target.value })} />
                 <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                   <option value="local">Local</option>
@@ -760,6 +767,11 @@ const AdminPage = () => {
                   <option value="tercera">Tercera</option>
                 </select>
                 <input placeholder="Imagen principal" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
+              </div>
+              <div className="filter-grid">
+                {sizeOptions.map((size) => (
+                  <input key={size} type="number" min="0" placeholder={`Talla ${size}`} value={form.stock_by_size[size]} onChange={(e) => setForm({ ...form, stock_by_size: { ...form.stock_by_size, [size]: e.target.value } })} />
+                ))}
               </div>
               <input placeholder="Más imágenes (separadas por comas)" value={form.image_urls} onChange={(e) => setForm({ ...form, image_urls: e.target.value })} />
               <input placeholder="Dorsales disponibles (ej: 10, 11, 7)" value={form.dorsal_options} onChange={(e) => setForm({ ...form, dorsal_options: e.target.value })} />
@@ -778,6 +790,7 @@ const AdminPage = () => {
                 <strong>{product.title}</strong>
                 <span>{product.club?.name || 'Club sin asignar'}</span>
                 <span>Stock: {product.stock}</span>
+                <span>Tallas: {sizeOptions.map((size) => `${size}: ${product.stock_by_size?.[size] || 0}`).join(' · ')}</span>
                 <span>Precio: ${Number(product.price).toFixed(2)}</span>
                 <div className="inventory-item__actions">
                   <button className="ghost-btn" onClick={() => handleEditProduct(product)}>Editar</button>
