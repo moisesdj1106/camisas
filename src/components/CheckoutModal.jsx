@@ -255,14 +255,14 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           </fieldset>
           {deliveryMethod === 'national' ? (
           <div className="shipping-form">
-            <p className="shipping-form__hint">Completa estos datos para coordinar el envío por WhatsApp.</p>
-            <input placeholder="Nombre y apellido *" value={shippingDetails.name} onChange={(e) => setShippingDetails({ ...shippingDetails, name: e.target.value })} required />
-            <input placeholder="Teléfono de contacto *" value={shippingDetails.phone} onChange={(e) => setShippingDetails({ ...shippingDetails, phone: e.target.value })} required />
-            <input placeholder="Cédula *" value={shippingDetails.cedula} onChange={(e) => setShippingDetails({ ...shippingDetails, cedula: e.target.value })} required />
-            <input placeholder="Agencia de envío *" value={shippingDetails.agency} onChange={(e) => setShippingDetails({ ...shippingDetails, agency: e.target.value })} required />
+            <p className="shipping-form__hint">Completa estos datos para coordinar el envío de tu pedido.</p>
+            <input placeholder="Nombre y apellido " value={shippingDetails.name} onChange={(e) => setShippingDetails({ ...shippingDetails, name: e.target.value })} required />
+            <input placeholder="Teléfono de contacto " value={shippingDetails.phone} onChange={(e) => setShippingDetails({ ...shippingDetails, phone: e.target.value })} required />
+            <input placeholder="Cédula " value={shippingDetails.cedula} onChange={(e) => setShippingDetails({ ...shippingDetails, cedula: e.target.value })} required />
+            <input placeholder="Agencia de envío " value={shippingDetails.agency} onChange={(e) => setShippingDetails({ ...shippingDetails, agency: e.target.value })} required />
             <div className="shipping-form__row">
-              <input placeholder="Estado *" value={shippingDetails.state} onChange={(e) => setShippingDetails({ ...shippingDetails, state: e.target.value })} required />
-              <input placeholder="Ciudad *" value={shippingDetails.city} onChange={(e) => setShippingDetails({ ...shippingDetails, city: e.target.value })} required />
+              <input placeholder="Estado " value={shippingDetails.state} onChange={(e) => setShippingDetails({ ...shippingDetails, state: e.target.value })} required />
+              <input placeholder="Ciudad " value={shippingDetails.city} onChange={(e) => setShippingDetails({ ...shippingDetails, city: e.target.value })} required />
             </div>
           </div>
           ) : null}
