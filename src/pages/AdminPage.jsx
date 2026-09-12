@@ -33,6 +33,16 @@ const createEmptyClubForm = () => ({
   logo_url: ''
 });
 
+const createEmptyContentForm = () => ({
+  type: 'banner',
+  media_url: '',
+  title: '',
+  description: '',
+  link_url: '',
+  sort_order: 0,
+  is_active: true
+});
+
 const orderStatusOptions = [
   ['pending', 'Pendiente'],
   ['approved', 'Aprobado'],
@@ -84,6 +94,10 @@ const AdminPage = () => {
   const [showCreateUserForm, setShowCreateUserForm] = useState(false);
   const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', password: '', role: 'client' });
   const [confirmation, setConfirmation] = useState(null);
+  const [content, setContent] = useState([]);
+  const [contentForm, setContentForm] = useState(createEmptyContentForm());
+  const [editingContentId, setEditingContentId] = useState(null);
+  const [isUploadingContent, setIsUploadingContent] = useState(false);
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -99,14 +113,15 @@ const AdminPage = () => {
   const loadDashboard = async () => {
     const token = localStorage.getItem('token');
     try {
-      const [dashRes, ordersRes, auditsRes, inventoryRes, clubsRes, rateRes, usersRes] = await Promise.allSettled([
+      const [dashRes, ordersRes, auditsRes, inventoryRes, clubsRes, rateRes, usersRes, contentRes] = await Promise.allSettled([
         fetch(apiUrl('/api/admin/dashboard'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/orders'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/audit-logs'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/products'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/clubs'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(apiUrl('/api/admin/users'), { headers: { Authorization: `Bearer ${token}` } })
+        fetch(apiUrl('/api/admin/users'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl('/api/admin/content'), { headers: { Authorization: `Bearer ${token}` } })
       ]);
       const readResponse = async (result, fallback) => result.status === 'fulfilled' ? result.value.json().catch(() => fallback) : fallback;
       const dashboardData = await readResponse(dashRes, null);
@@ -116,6 +131,7 @@ const AdminPage = () => {
       const clubsData = await readResponse(clubsRes, []);
       const rateData = await readResponse(rateRes, { exchangeRate: 36 });
       const usersData = await readResponse(usersRes, []);
+      const contentData = await readResponse(contentRes, []);
       setDashboard(dashboardData);
       setOrders(Array.isArray(ordersData) ? ordersData : []);
       setAuditLogs(Array.isArray(auditLogsData) ? auditLogsData : []);
@@ -124,6 +140,7 @@ const AdminPage = () => {
       setExchangeRate(Number(rateData.exchangeRate || 36));
       setExchangeRateDraft(String(rateData.exchangeRate || 36));
       setUsers(Array.isArray(usersData) ? usersData : []);
+      setContent(Array.isArray(contentData) ? contentData : []);
     } catch (error) {
       setMessage('No se pudo cargar la información del panel.');
     }
@@ -134,6 +151,51 @@ const AdminPage = () => {
     const refreshTimer = window.setInterval(loadDashboard, 15000);
     return () => window.clearInterval(refreshTimer);
   }, []);
+
+  const saveContent = async (event) => {
+    event.preventDefault();
+    const response = await fetch(apiUrl(editingContentId ? `/api/admin/content/${editingContentId}` : '/api/admin/content'), {
+      method: editingContentId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ ...contentForm, sort_order: Number(contentForm.sort_order) || 0 })
+    });
+    if (!response.ok) return setMessage('No se pudo guardar el contenido.');
+    setMessage(editingContentId ? 'Contenido actualizado' : 'Contenido publicado');
+    setContentForm(createEmptyContentForm());
+    setEditingContentId(null);
+    loadDashboard();
+  };
+
+  const uploadContentFile = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setIsUploadingContent(true);
+    const body = new FormData();
+    body.append('file', file);
+    try {
+      const response = await fetch(apiUrl('/api/admin/content/upload'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) setContentForm((current) => ({ ...current, media_url: apiUrl(data.media_url) }));
+      else setMessage(data.error || 'No se pudo subir el archivo.');
+    } finally {
+      setIsUploadingContent(false);
+      event.target.value = '';
+    }
+  };
+
+  const editContent = (item) => {
+    setEditingContentId(item.id);
+    setContentForm({ type: item.type, media_url: item.media_url, title: item.title || '', description: item.description || '', link_url: item.link_url || '', sort_order: item.sort_order || 0, is_active: item.is_active !== false });
+  };
+
+  const removeContent = async (id) => {
+    const response = await fetch(apiUrl(`/api/admin/content/${id}`), { method: 'DELETE', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    if (response.ok) setContent((current) => current.filter((item) => item.id !== id));
+  };
 
   const updateStatus = async (orderId, status) => {
     try {
@@ -798,6 +860,53 @@ const AdminPage = () => {
                 </div>
               </div>
             )) : <p style={{ color: '#64748b' }}>Todavía no hay camisetas registradas.</p>}
+          </div>
+        </div>
+      ) : null}
+
+      {activeView === 'content' ? (
+        <div className="card" style={{ marginBottom: '1rem' }}>
+          <div className="filters-card__header" style={{ marginBottom: '1rem' }}>
+            <div>
+              <h3>Contenido de la tienda</h3>
+              <p style={{ margin: '0.2rem 0 0', color: '#64748b' }}>Publica banners, imágenes o videos promocionales en el catálogo.</p>
+            </div>
+          </div>
+          <form className="inventory-form" onSubmit={saveContent}>
+            <div className="filter-grid">
+              <select value={contentForm.type} onChange={(e) => setContentForm({ ...contentForm, type: e.target.value })}>
+                <option value="banner">Banner</option>
+                <option value="image">Imagen</option>
+                <option value="video">Video</option>
+              </select>
+              <input required placeholder="URL del archivo multimedia" value={contentForm.media_url} onChange={(e) => setContentForm({ ...contentForm, media_url: e.target.value })} />
+              <label className="file-upload-field">{isUploadingContent ? 'Subiendo archivo...' : 'Subir archivo'}<input type="file" accept="image/*,video/*" onChange={uploadContentFile} disabled={isUploadingContent} /></label>
+              <input placeholder="Título" value={contentForm.title} onChange={(e) => setContentForm({ ...contentForm, title: e.target.value })} />
+              <input placeholder="Enlace de la promoción (opcional)" value={contentForm.link_url} onChange={(e) => setContentForm({ ...contentForm, link_url: e.target.value })} />
+              <input type="number" min="0" placeholder="Orden" value={contentForm.sort_order} onChange={(e) => setContentForm({ ...contentForm, sort_order: e.target.value })} />
+            </div>
+            <textarea rows="3" placeholder="Descripción breve" value={contentForm.description} onChange={(e) => setContentForm({ ...contentForm, description: e.target.value })} />
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569' }}>
+              <input type="checkbox" checked={contentForm.is_active} onChange={(e) => setContentForm({ ...contentForm, is_active: e.target.checked })} />
+              Visible en el catálogo
+            </label>
+            <div className="inventory-item__actions">
+              <button className="primary-btn" type="submit">{editingContentId ? 'Actualizar contenido' : 'Publicar contenido'}</button>
+              {editingContentId ? <button className="ghost-btn" type="button" onClick={() => { setEditingContentId(null); setContentForm(createEmptyContentForm()); }}>Cancelar</button> : null}
+            </div>
+          </form>
+          <div className="inventory-grid" style={{ marginTop: '1rem' }}>
+            {content.length ? content.map((item) => (
+              <div className="inventory-item" key={item.id}>
+                <strong>{item.title || 'Contenido sin título'}</strong>
+                <span>{item.type} · {item.is_active ? 'Visible' : 'Oculto'} · Orden {item.sort_order}</span>
+                <span style={{ overflowWrap: 'anywhere' }}>{item.media_url}</span>
+                <div className="inventory-item__actions">
+                  <button className="ghost-btn" type="button" onClick={() => editContent(item)}>Editar</button>
+                  <button className="ghost-btn" type="button" onClick={() => removeContent(item.id)}>Eliminar</button>
+                </div>
+              </div>
+            )) : <p style={{ color: '#64748b' }}>Todavía no hay contenido publicado.</p>}
           </div>
         </div>
       ) : null}

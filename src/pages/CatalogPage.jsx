@@ -17,6 +17,7 @@ const formatCurrency = (value, currency = 'USD') => {
 
 const spotlightVideos = ['/video1.mp4', '/video2.mp4', '/video6.mp4', '/video5.mp4'];
 const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+const PRODUCTS_PER_PAGE = 8;
 
 export const CatalogPage = ({ user, onAddToCart }) => {
   const [products, setProducts] = useState([]);
@@ -33,16 +34,23 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const [selectedQuantity, setSelectedQuantity] = useState(1);
   const [exchangeRate, setExchangeRate] = useState(36);
   const [feedbackModal, setFeedbackModal] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [zoomedImage, setZoomedImage] = useState(null);
+  const [content, setContent] = useState([]);
+  const [likedProducts, setLikedProducts] = useState({});
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [productsResponse, rateResponse] = await Promise.all([
+        const [productsResponse, rateResponse, contentResponse] = await Promise.all([
           fetch(apiUrl('/api/products')),
-          fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+          fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }),
+          fetch(apiUrl('/api/content'))
         ]);
         const data = await productsResponse.json();
         const rateData = await rateResponse.json().catch(() => ({ exchangeRate: 36 }));
+        const contentData = await contentResponse.json().catch(() => []);
         const normalizedProducts = Array.isArray(data) ? data : [];
         const uniqueClubs = [...new Map(normalizedProducts.filter((product) => product.club).map((product) => [product.club.id, product.club])).values()];
         const uniqueTypes = [...new Set(normalizedProducts.map((product) => product.type).filter(Boolean))];
@@ -50,12 +58,17 @@ export const CatalogPage = ({ user, onAddToCart }) => {
         setClubs(uniqueClubs);
         setAvailableTypes(uniqueTypes);
         setExchangeRate(Number(rateData.exchangeRate || 36));
+        setContent(Array.isArray(contentData) ? contentData : []);
       } catch (error) {
         console.error('No se pudieron cargar los productos', error);
       }
     };
     load();
   }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters.q, filters.club, filters.type, filters.minPrice, filters.maxPrice]);
 
   const filtered = products.filter((product) => {
     const matchesQ = !filters.q || product.title.toLowerCase().includes(filters.q.toLowerCase());
@@ -68,17 +81,44 @@ export const CatalogPage = ({ user, onAddToCart }) => {
 
   const stockTotal = products.reduce((sum, product) => sum + Number(product.stock || 0), 0);
   const featuredClubs = clubs.slice(0, 3);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
+  const visibleProducts = filtered.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE);
 
   const openDetail = async (productId) => {
     const response = await fetch(apiUrl(`/api/products/${productId}`));
     const data = await response.json();
     setSelectedProduct(data);
+    setActiveImageIndex(0);
     setDorsal('');
     setSize('');
     setDorsalMode('none');
     setCustomName('');
     setCustomNumber('');
     setSelectedQuantity(1);
+  };
+
+  const toggleLike = async (productId) => {
+    if (!user) return setFeedbackModal({ title: 'Inicia sesión', message: 'Debes iniciar sesión para marcar tus productos favoritos.' });
+    try {
+      const response = await fetch(apiUrl(`/api/products/${productId}/like`), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) return;
+      const result = await response.json();
+      setLikedProducts((current) => ({ ...current, [productId]: result.liked }));
+      setProducts((current) => current.map((product) => product.id === productId ? { ...product, likes_count: result.likes_count } : product));
+      setSelectedProduct((current) => current?.id === productId ? { ...current, likes_count: result.likes_count } : current);
+    } catch (error) {
+      setFeedbackModal({ title: 'No se pudo actualizar', message: 'Intenta nuevamente en unos segundos.' });
+    }
+  };
+
+  const getSelectedImages = () => getProductImages(selectedProduct || {});
+
+  const moveGallery = (direction) => {
+    const images = getSelectedImages();
+    setActiveImageIndex((current) => (current + direction + images.length) % images.length);
   };
 
   const updateQuantity = (productId, value) => {
@@ -158,6 +198,21 @@ export const CatalogPage = ({ user, onAddToCart }) => {
         </div>
       </section>
 
+      {content.length ? (
+        <section className="store-content-strip" aria-label="Novedades de la tienda">
+          {content.map((item) => (
+            <article className={`store-content-card store-content-card--${item.type}`} key={item.id}>
+              {item.type === 'video' ? <video src={item.media_url} muted autoPlay loop playsInline /> : <img src={item.media_url} alt={item.title || 'Contenido de la tienda'} />}
+              <div className="store-content-card__copy">
+                {item.title ? <h3>{item.title}</h3> : null}
+                {item.description ? <p>{item.description}</p> : null}
+                {item.link_url ? <a href={item.link_url} target="_blank" rel="noreferrer">Ver promoción</a> : null}
+              </div>
+            </article>
+          ))}
+        </section>
+      ) : null}
+
       <section className="filters-card">
         <div className="filters-card__header">
           <div>
@@ -192,13 +247,14 @@ export const CatalogPage = ({ user, onAddToCart }) => {
 
       {filtered.length ? (
         <div className="grid">
-          {filtered.map((product) => {
+          {visibleProducts.map((product) => {
             const productImages = getProductImages(product);
             return (
             <article className="card product-card" key={product.id}>
-              <div className="product-card__image">
+              <button className="product-card__image" type="button" onClick={() => openDetail(product.id)} aria-label={`Ver imágenes de ${product.title}`}>
                 <img src={productImages[0]} alt={product.title} />
-              </div>
+                <span className="product-card__image-hint">Ver galería</span>
+              </button>
               <div className="product-card__content">
                 <div className="card__meta">
                   <span className="badge">{typeLabels[product.type] || product.type}</span>
@@ -206,6 +262,9 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 </div>
                 <h3 className="product-card__title">{product.title}</h3>
                 <p className="card__club">{product.club?.name || 'Club'}</p>
+                <button className={`like-button ${likedProducts[product.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(product.id)} aria-label={`Me gusta ${product.title}`}>
+                  {likedProducts[product.id] ? '♥' : '♡'} <span>{Number(product.likes_count || 0)} likes</span>
+                </button>
                 <p className="card__description">{product.description || 'Camiseta oficial con diseño premium y detalles exclusivos.'}</p>
                 <div className="price-stack">
                   <p className="product-card__price">{formatCurrency(product.price, 'USD')}</p>
@@ -234,14 +293,34 @@ export const CatalogPage = ({ user, onAddToCart }) => {
         </div>
       )}
 
+      {filtered.length ? (
+        <nav className="catalog-pagination" aria-label="Paginación del catálogo">
+          <button className="ghost-btn" type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => page - 1)}>Anterior</button>
+          <span>Página {currentPage} de {totalPages}</span>
+          <button className="ghost-btn" type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => page + 1)}>Siguiente</button>
+        </nav>
+      ) : null}
+
       {selectedProduct ? (
         <div className="modal-backdrop" onClick={() => setSelectedProduct(null)}>
           <div className="modal product-modal" onClick={(e) => e.stopPropagation()}>
             <button className="modal-close" type="button" onClick={() => setSelectedProduct(null)} aria-label="Cerrar detalle del producto" title="Cerrar">×</button>
             <div className="product-modal__gallery">
-              {(Array.isArray(selectedProduct.image_urls) && selectedProduct.image_urls.length ? selectedProduct.image_urls : [selectedProduct.image_url || 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80']).map((image, index) => (
-                <img key={`${selectedProduct.id}-${index}`} src={image} alt={`${selectedProduct.title} vista ${index + 1}`} />
-              ))}
+              <div className="product-gallery__main">
+                <button className="gallery-arrow gallery-arrow--prev" type="button" onClick={() => moveGallery(-1)} aria-label="Imagen anterior">‹</button>
+                <button className="gallery-main-image" type="button" onClick={() => setZoomedImage(getSelectedImages()[activeImageIndex])} aria-label="Ampliar imagen">
+                  <img src={getSelectedImages()[activeImageIndex]} alt={`${selectedProduct.title} vista ${activeImageIndex + 1}`} />
+                  <span>Haz clic para ampliar</span>
+                </button>
+                <button className="gallery-arrow gallery-arrow--next" type="button" onClick={() => moveGallery(1)} aria-label="Imagen siguiente">›</button>
+              </div>
+              <div className="product-gallery__thumbs">
+                {getSelectedImages().map((image, index) => (
+                  <button className={index === activeImageIndex ? 'product-gallery__thumb active' : 'product-gallery__thumb'} type="button" key={`${selectedProduct.id}-${index}`} onClick={() => setActiveImageIndex(index)}>
+                    <img src={image} alt={`${selectedProduct.title} miniatura ${index + 1}`} />
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="product-modal__details">
               <p className="eyebrow">Detalle de producto</p>
@@ -252,6 +331,9 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 <p className="price-bs">{formatCurrency(Number(selectedProduct.price) * exchangeRate, 'BS')}</p>
               </div>
               <p className="card__club">Club: {selectedProduct.club?.name || 'Sin club'}</p>
+              <button className={`like-button like-button--large ${likedProducts[selectedProduct.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(selectedProduct.id)}>
+                {likedProducts[selectedProduct.id] ? '♥' : '♡'} {Number(selectedProduct.likes_count || 0)} personas indicaron que les gusta
+              </button>
               <select value={size} onChange={(e) => setSize(e.target.value)}>
                 <option value="">Selecciona talla </option>
                 {getAvailableSizes(selectedProduct).map((option) => (
@@ -295,6 +377,12 @@ export const CatalogPage = ({ user, onAddToCart }) => {
               }}>Agregar al carrito</button>
             </div>
           </div>
+        </div>
+      ) : null}
+      {zoomedImage ? (
+        <div className="image-zoom-backdrop" onClick={() => setZoomedImage(null)}>
+          <img src={zoomedImage} alt="Vista ampliada del producto" onClick={(event) => event.stopPropagation()} />
+          <button className="modal-close" type="button" onClick={() => setZoomedImage(null)} aria-label="Cerrar imagen ampliada">×</button>
         </div>
       ) : null}
       <Modal open={Boolean(feedbackModal)} title={feedbackModal?.title} message={feedbackModal?.message} onClose={() => setFeedbackModal(null)} />

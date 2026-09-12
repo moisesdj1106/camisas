@@ -141,6 +141,7 @@ const App = () => {
                   <Link to="/admin?view=overview" onClick={() => setMenuOpen(false)}>Panel admin</Link>
                   <Link to="/admin?view=inventory" onClick={() => setMenuOpen(false)}>Inventario</Link>
                   <Link to="/admin?view=clubs" onClick={() => setMenuOpen(false)}>Clubes</Link>
+                  <Link to="/admin?view=content" onClick={() => setMenuOpen(false)}>Contenido visual</Link>
                 </div>
               ) : null}
             </div>
