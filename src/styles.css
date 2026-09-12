@@ -210,10 +210,11 @@ button, input, select, textarea { font: inherit; }
 .content-gallery__copy h3 { margin: 0.35rem 0; color: #0f172a; }
 .content-gallery__copy p { margin: 0.35rem 0 0.7rem; color: #64748b; line-height: 1.5; }
 .content-gallery__copy a { color: #0f766e; font-weight: 800; }
-.visual-template { display: grid; gap: 1.2rem; margin-top: 1.4rem; }
+.visual-template { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.85fr); gap: 1.2rem; margin-top: 1.4rem; align-items: stretch; }
 .visual-slot { overflow: hidden; border: 1px solid #dbe4ef; border-radius: 22px; background: white; box-shadow: 0 14px 34px rgba(15, 23, 42, 0.09); }
-.visual-slot--banner { position: relative; min-height: 360px; background: #0f172a; color: white; }
-.visual-slot__media { height: 430px; background: linear-gradient(135deg, #dbeafe, #ccfbf1); }
+.visual-slot--banner { position: relative; min-height: 530px; background: #0f172a; color: white; }
+.visual-slot--gallery { align-self: start; transform: translateY(2.2rem); }
+.visual-slot__media { height: 530px; background: linear-gradient(135deg, #dbeafe, #ccfbf1); }
 .visual-slot__media img, .visual-slot__media video { width: 100%; height: 100%; object-fit: contain; display: block; }
 .visual-slot--banner .visual-slot__copy { position: absolute; right: 0; bottom: 0; left: 0; padding: 5rem 2rem 1.5rem; background: linear-gradient(transparent, rgba(2, 6, 23, 0.94)); }
 .visual-slot__copy h3, .visual-slot__heading h3 { margin: 0.25rem 0; }
@@ -222,7 +223,7 @@ button, input, select, textarea { font: inherit; }
 .visual-slot__heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.2rem 1.35rem 0.9rem; color: #0f172a; }
 .visual-slot__heading > span { color: #64748b; font-size: 0.85rem; font-weight: 700; }
 .visual-carousel { display: grid; grid-template-columns: 2.5rem 1fr 2.5rem; align-items: center; gap: 0.7rem; padding: 0 1rem 1rem; }
-.visual-carousel__media { position: relative; height: 390px; overflow: hidden; border-radius: 16px; background: #e2e8f0; }
+.visual-carousel__media { position: relative; height: 330px; overflow: hidden; border-radius: 16px; background: #e2e8f0; }
 .visual-carousel__media img, .visual-carousel__media video { width: 100%; height: 100%; object-fit: contain; display: block; }
 .visual-carousel__arrow { width: 2.3rem; height: 2.3rem; border: 1px solid #cbd5e1; border-radius: 50%; background: white; color: #0f766e; font-size: 1.7rem; cursor: pointer; }
 .visual-carousel__overlay { position: absolute; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; gap: 0.25rem; padding: 3rem 1.1rem 0.9rem; color: white; background: linear-gradient(transparent, rgba(2, 6, 23, 0.8)); pointer-events: none; }
@@ -231,6 +232,7 @@ button, input, select, textarea { font: inherit; }
 .visual-counter, .visual-video__live { color: #0f766e !important; font-size: 0.75rem !important; font-weight: 800; }
 .visual-video__live { color: #e11d48 !important; letter-spacing: 0.06em; }
 .visual-slot__caption { padding: 0 1.1rem 1rem; color: #64748b; }
+.visual-slot--video { grid-column: 1 / -1; margin-top: 1.2rem; }
 .visual-video { height: 480px; background: #07111f; }
 .visual-video video { width: 100%; height: 100%; object-fit: contain; display: block; }
 .visual-slot__empty { display: grid; place-items: center; min-height: 240px; padding: 2rem; color: #64748b; background: #f8fafc; text-align: center; }
@@ -387,6 +389,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .product-card__actions button { width: 100%; }
   .product-modal { grid-template-columns: 1fr; }
   .content-gallery__item, .content-gallery__item--banner { grid-column: span 6; }
+  .visual-template { grid-template-columns: 1fr; }
+  .visual-slot--gallery { transform: none; }
   .card__footer { flex-direction: column; align-items: flex-start; }
   .auth-card { padding: 1.25rem; }
 }
@@ -421,6 +425,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .content-page { padding: 0.8rem 0.7rem 2rem; }
   .content-page__hero { border-radius: 16px; }
   .content-gallery__item, .content-gallery__item--banner { grid-column: span 12; }
+  .visual-template { grid-template-columns: 1fr; }
+  .visual-slot--gallery { transform: none; }
   .visual-slot__media, .visual-carousel__media { height: 250px; }
   .visual-video { height: 270px; }
   .visual-slot--banner .visual-slot__copy { padding: 3rem 1rem 1rem; }

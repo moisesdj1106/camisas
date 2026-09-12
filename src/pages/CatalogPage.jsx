@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiUrl, assetUrl } from '../api';
+import { apiUrl } from '../api';
 import Modal from '../components/Modal';
 
 const typeLabels = {
@@ -37,20 +37,17 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [zoomedImage, setZoomedImage] = useState(null);
-  const [content, setContent] = useState([]);
   const [likedProducts, setLikedProducts] = useState({});
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [productsResponse, rateResponse, contentResponse] = await Promise.all([
+        const [productsResponse, rateResponse] = await Promise.all([
           fetch(apiUrl('/api/products')),
-          fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }),
-          fetch(apiUrl('/api/content'))
+          fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
         ]);
         const data = await productsResponse.json();
         const rateData = await rateResponse.json().catch(() => ({ exchangeRate: 36 }));
-        const contentData = await contentResponse.json().catch(() => []);
         const normalizedProducts = Array.isArray(data) ? data : [];
         const uniqueClubs = [...new Map(normalizedProducts.filter((product) => product.club).map((product) => [product.club.id, product.club])).values()];
         const uniqueTypes = [...new Set(normalizedProducts.map((product) => product.type).filter(Boolean))];
@@ -58,7 +55,6 @@ export const CatalogPage = ({ user, onAddToCart }) => {
         setClubs(uniqueClubs);
         setAvailableTypes(uniqueTypes);
         setExchangeRate(Number(rateData.exchangeRate || 36));
-        setContent(Array.isArray(contentData) ? contentData : []);
       } catch (error) {
         console.error('No se pudieron cargar los productos', error);
       }
@@ -204,21 +200,6 @@ export const CatalogPage = ({ user, onAddToCart }) => {
           </div>
         </div>
       </section>
-
-      {content.length ? (
-        <section className="store-content-strip" aria-label="Novedades de la tienda">
-          {content.map((item) => (
-            <article className={`store-content-card store-content-card--${item.type}`} key={item.id}>
-              {item.type === 'video' ? <video src={assetUrl(item.media_url)} muted autoPlay loop playsInline controls /> : <img src={assetUrl(item.media_url)} alt={item.title || 'Contenido de la tienda'} />}
-              <div className="store-content-card__copy">
-                {item.title ? <h3>{item.title}</h3> : null}
-                {item.description ? <p>{item.description}</p> : null}
-                {item.link_url ? <a href={item.link_url} target="_blank" rel="noreferrer">Ver promoción</a> : null}
-              </div>
-            </article>
-          ))}
-        </section>
-      ) : null}
 
       <section className="filters-card">
         <div className="filters-card__header">
