@@ -99,6 +99,7 @@ const AdminPage = () => {
   const [contentForm, setContentForm] = useState(createEmptyContentForm());
   const [editingContentId, setEditingContentId] = useState(null);
   const [isUploadingContent, setIsUploadingContent] = useState(false);
+  const [isUploadingProductImages, setIsUploadingProductImages] = useState(false);
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -199,6 +200,39 @@ const AdminPage = () => {
   const removeContent = async (id) => {
     const response = await fetch(apiUrl(`/api/admin/content/${id}`), { method: 'DELETE', headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     if (response.ok) setContent((current) => current.filter((item) => item.id !== id));
+  };
+
+  const uploadProductImages = async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
+    setIsUploadingProductImages(true);
+    const body = new FormData();
+    files.forEach((file) => body.append('files', file));
+    try {
+      const response = await fetch(apiUrl('/api/admin/products/upload-images'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setMessage(data.error || 'No se pudieron subir las imágenes.');
+        return;
+      }
+      const uploadedUrls = Array.isArray(data.image_urls) ? data.image_urls : [];
+      const currentUrls = parseImageUrls(form.image_urls);
+      setForm((current) => ({
+        ...current,
+        image_url: current.image_url || uploadedUrls[0] || '',
+        image_urls: [...currentUrls, ...uploadedUrls].join(', ')
+      }));
+      setMessage(`${uploadedUrls.length} imagen(es) subida(s) correctamente.`);
+    } catch (error) {
+      setMessage('No se pudieron subir las imágenes.');
+    } finally {
+      setIsUploadingProductImages(false);
+      event.target.value = '';
+    }
   };
 
   const updateStatus = async (orderId, status) => {
@@ -832,14 +866,18 @@ const AdminPage = () => {
                   <option value="visitante">Visitante</option>
                   <option value="tercera">Tercera</option>
                 </select>
-                <input placeholder="Imagen principal" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
+                <input type="url" placeholder="Imagen principal (URL opcional)" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
               </div>
               <div className="filter-grid">
                 {sizeOptions.map((size) => (
                   <input key={size} type="number" min="0" placeholder={`Talla ${size}`} value={form.stock_by_size[size]} onChange={(e) => setForm({ ...form, stock_by_size: { ...form.stock_by_size, [size]: e.target.value } })} />
                 ))}
               </div>
-              <input placeholder="Más imágenes (separadas por comas)" value={form.image_urls} onChange={(e) => setForm({ ...form, image_urls: e.target.value })} />
+              <input placeholder="Más imágenes (URLs separadas por comas, opcional)" value={form.image_urls} onChange={(e) => setForm({ ...form, image_urls: e.target.value })} />
+              <label className="file-upload-field">
+                {isUploadingProductImages ? 'Subiendo imágenes a Cloudinary...' : 'Subir imágenes desde el PC'}
+                <input type="file" accept="image/*" multiple onChange={uploadProductImages} disabled={isUploadingProductImages} />
+              </label>
               <input placeholder="Dorsales disponibles (ej: 10, 11, 7)" value={form.dorsal_options} onChange={(e) => setForm({ ...form, dorsal_options: e.target.value })} />
               <textarea rows="3" placeholder="Descripción" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569' }}>
