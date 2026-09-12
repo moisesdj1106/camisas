@@ -42,6 +42,8 @@ const ContentPage = () => {
       : <img src={assetUrl(item.media_url)} alt={item.title || 'Contenido de MDJ Soccer'} />;
   };
 
+  const slide = gallery[slideIndex];
+
   return (
     <main className="content-page">
       <section className="content-page__hero">
@@ -58,13 +60,13 @@ const ContentPage = () => {
         </article>
 
         <article className="visual-slot visual-slot--gallery">
-          <div className="visual-slot__heading"><div><span className="content-gallery__type">Galería</span><h3>Últimas novedades</h3></div>{gallery.length > 1 ? <span>{slideIndex + 1} / {gallery.length}</span> : null}</div>
-          {gallery.length ? <div className="visual-carousel"><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex - 1 + gallery.length) % gallery.length)} aria-label="Foto anterior">‹</button><div className="visual-carousel__media">{renderMedia(gallery[slideIndex])}</div><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex + 1) % gallery.length)} aria-label="Foto siguiente">›</button></div> : <div className="visual-slot__empty">Aquí aparecerán las fotos del carrusel</div>}
-          {gallery[slideIndex]?.title ? <p className="visual-slot__caption">{gallery[slideIndex].title}</p> : null}
+          <div className="visual-slot__heading"><div><span className="content-gallery__type">Colección visual</span><h3>En el foco</h3></div>{gallery.length > 1 ? <span className="visual-counter">{slideIndex + 1} / {gallery.length}</span> : null}</div>
+          {gallery.length ? <div className="visual-carousel"><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex - 1 + gallery.length) % gallery.length)} aria-label="Foto anterior">‹</button><div className="visual-carousel__media">{renderMedia(slide)}<div className="visual-carousel__overlay"><span>MDJ / DROP</span>{slide?.title ? <strong>{slide.title}</strong> : null}</div></div><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex + 1) % gallery.length)} aria-label="Foto siguiente">›</button></div> : <div className="visual-slot__empty">Aquí aparecerán las fotos del carrusel</div>}
+          {slide?.description ? <p className="visual-slot__caption">{slide.description}</p> : null}
         </article>
 
         <article className="visual-slot visual-slot--video">
-          <div className="visual-slot__heading"><div><span className="content-gallery__type">Video</span><h3>Conoce nuestras novedades</h3></div></div>
+          <div className="visual-slot__heading"><div><span className="content-gallery__type">Play / now</span><h3>La camiseta en movimiento</h3></div><span className="visual-video__live">● EN VIVO</span></div>
           {video ? <div className="visual-video">{renderMedia(video)}</div> : <div className="visual-slot__empty">Aquí aparecerá tu video destacado</div>}
           {video?.description ? <p className="visual-slot__caption">{video.description}</p> : null}
         </article>
