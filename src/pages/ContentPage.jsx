@@ -49,9 +49,9 @@ const ContentPage = () => {
   return (
     <main className="content-page">
       <section className="content-page__hero">
-        <p className="eyebrow">MDJ Soccer · Comunidad y novedades</p>
-        <h2>Vive la camiseta más allá del catálogo</h2>
-        <p>Descubre promociones, lanzamientos, videos y momentos de nuestra tienda.</p>
+        <p>MDJ Soccer · Comunidad y novedades</p>
+        <h2>Vive la camiseta más allá de la pantalla</h2>
+        <p>Descubre promociones, lanzamientos, videos y momentos de nuestra Comunidad.</p>
       </section>
 
       {loading ? <div className="empty-state">Cargando contenido...</div> : null}
@@ -62,13 +62,13 @@ const ContentPage = () => {
         </article>
 
         <article className="visual-slot visual-slot--gallery">
-          <div className="visual-slot__heading"><div><span className="content-gallery__type">Colección visual</span><h3>En el foco</h3></div>{gallery.length > 1 ? <span className="visual-counter">{slideIndex + 1} / {gallery.length}</span> : null}</div>
+          <div className="visual-slot__heading"><div><span className="content-gallery__type">Colección Tendencia</span><h3>¿ QUE ESPERAS A PEDIR LA TUYA ?</h3></div>{gallery.length > 1 ? <span className="visual-counter">{slideIndex + 1} / {gallery.length}</span> : null}</div>
           {gallery.length ? <div className="visual-carousel"><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex - 1 + gallery.length) % gallery.length)} aria-label="Foto anterior">‹</button><div className="visual-carousel__media">{renderMedia(slide)}<div className="visual-carousel__overlay"><span>MDJ / DROP</span>{slide?.title ? <strong>{slide.title}</strong> : null}</div></div><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex + 1) % gallery.length)} aria-label="Foto siguiente">›</button></div> : <div className="visual-slot__empty">Aquí aparecerán las fotos del carrusel</div>}
           {slide?.description ? <p className="visual-slot__caption">{slide.description}</p> : null}
         </article>
 
         <article className="visual-slot visual-slot--video">
-          <div className="visual-slot__heading"><div><span className="content-gallery__type">Play / now</span><h3>La camiseta en movimiento</h3></div><span className="visual-video__live">● AUTOPLAY</span></div>
+          <div className="visual-slot__heading"><div><span className="content-gallery__type">Play / now</span><h3>Calidad Garantizada</h3></div><span className="visual-video__live">● AUTOPLAY</span></div>
           {videos.length ? (
             <div className="video-mosaic">
               <div className="video-mosaic__verticals">

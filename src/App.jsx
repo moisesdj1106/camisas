@@ -150,7 +150,6 @@ const App = () => {
           ) : null}
           {user ? (
             <>
-              <button className="ghost-btn" onClick={() => setOrderHistoryOpen(true)}>Mis pedidos</button>
               <div style={{ position: 'relative' }}>
                 <button className="ghost-btn" onClick={() => setNotificationsOpen((open) => !open)}>🔔 {notifications.filter((item) => !item.read).length ? `(${notifications.filter((item) => !item.read).length})` : ''}</button>
                 {notificationsOpen ? (
@@ -174,6 +173,7 @@ const App = () => {
                   </div>
                 ) : null}
               </div>
+              <button className="ghost-btn" onClick={() => setOrderHistoryOpen(true)}>Mis pedidos</button>
               <button className="ghost-btn" onClick={() => setCheckoutOpen(true)}>Carrito ({cart.reduce((sum, item) => sum + Number(item.quantity || 1), 0)})</button>
               <button className="ghost-btn" onClick={logout}>Cerrar sesión</button>
             </>
