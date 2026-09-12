@@ -270,7 +270,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
               </div>
               </article>
               <button className={`like-button like-button--floating ${likedProducts[product.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(product.id)} aria-label={`${likedProducts[product.id] ? 'Quitar me gusta de' : 'Me gusta'} ${product.title}`} title={likedProducts[product.id] ? 'Quitar me gusta' : 'Me gusta'}>
-                <span aria-hidden="true">{likedProducts[product.id] ? '♥' : '♡'}</span><small>{Number(product.likes_count || 0)}</small>
+                <svg className="like-thumb-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3Zm2 11V10l4.2-7.6a1.7 1.7 0 0 1 3.1 1.2L15.5 8H20a2 2 0 0 1 1.9 2.6l-2.1 8A3.2 3.2 0 0 1 16.7 21H9Z" /></svg><small>{Number(product.likes_count || 0)}</small>
               </button>
             </div>
             );
@@ -322,7 +322,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
               </div>
               <p className="card__club">Club: {selectedProduct.club?.name || 'Sin club'}</p>
               <button className={`like-button like-button--large ${likedProducts[selectedProduct.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(selectedProduct.id)} aria-label={likedProducts[selectedProduct.id] ? 'Quitar me gusta' : 'Me gusta'} title={likedProducts[selectedProduct.id] ? 'Quitar me gusta' : 'Me gusta'}>
-                <span aria-hidden="true">{likedProducts[selectedProduct.id] ? '♥' : '♡'}</span><small>{Number(selectedProduct.likes_count || 0)}</small>
+                <svg className="like-thumb-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3Zm2 11V10l4.2-7.6a1.7 1.7 0 0 1 3.1 1.2L15.5 8H20a2 2 0 0 1 1.9 2.6l-2.1 8A3.2 3.2 0 0 1 16.7 21H9Z" /></svg><small>{Number(selectedProduct.likes_count || 0)}</small>
               </button>
               <select value={size} onChange={(e) => setSize(e.target.value)}>
                 <option value="">Selecciona talla </option>
