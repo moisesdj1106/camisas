@@ -23,7 +23,9 @@ const ContentPage = () => {
 
   const banner = content.find((item) => item.slot === 'banner') || content.find((item) => item.type === 'banner');
   const gallery = content.filter((item) => item.slot === 'gallery' || (!item.slot && item.type === 'image'));
-  const video = content.find((item) => item.slot === 'video') || content.find((item) => item.type === 'video');
+  const videos = content.filter((item) => item.slot === 'video' || item.type === 'video');
+  const verticalVideos = videos.slice(0, 2);
+  const horizontalVideo = videos[2];
 
   useEffect(() => {
     if (gallery.length < 2) return undefined;
@@ -66,9 +68,16 @@ const ContentPage = () => {
         </article>
 
         <article className="visual-slot visual-slot--video">
-          <div className="visual-slot__heading"><div><span className="content-gallery__type">Play / now</span><h3>La camiseta en movimiento</h3></div><span className="visual-video__live">● EN VIVO</span></div>
-          {video ? <div className="visual-video">{renderMedia(video, { autoPlay: true })}</div> : <div className="visual-slot__empty">Aquí aparecerá tu video destacado</div>}
-          {video?.description ? <p className="visual-slot__caption">{video.description}</p> : null}
+          <div className="visual-slot__heading"><div><span className="content-gallery__type">Play / now</span><h3>La camiseta en movimiento</h3></div><span className="visual-video__live">● AUTOPLAY</span></div>
+          {videos.length ? (
+            <div className="video-mosaic">
+              <div className="video-mosaic__verticals">
+                {verticalVideos.map((item) => <div className="video-tile video-tile--vertical" key={item.id}>{renderMedia(item, { autoPlay: true })}</div>)}
+                {!verticalVideos.length ? <div className="visual-slot__empty">Aquí aparecerán los videos verticales</div> : null}
+              </div>
+              <div className="video-tile video-tile--horizontal">{horizontalVideo ? renderMedia(horizontalVideo, { autoPlay: true }) : <div className="visual-slot__empty">Aquí aparecerá el video horizontal</div>}</div>
+            </div>
+          ) : <div className="visual-slot__empty">Aquí aparecerán tus videos destacados</div>}
         </article>
       </section>
     </main>
