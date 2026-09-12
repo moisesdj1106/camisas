@@ -173,7 +173,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal checkout-modal" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close" type="button" onClick={onClose} aria-label="Cerrar checkout" title="Cerrar">×</button>
+        <button className="modal-close checkout-modal__close" type="button" onClick={onClose} aria-label="Cerrar carrito" title="Cerrar carrito">×</button>
         <h3>Checkout</h3>
         {user ? <p>Cliente: {user.name}</p> : <p>Debes iniciar sesión</p>}
         <div style={{ marginBottom: '0.75rem' }}>

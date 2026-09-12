@@ -308,7 +308,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .badge { display: inline-block; padding: 0.35rem 0.65rem; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-weight: 600; }
 .modal-backdrop { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.55); display: flex; justify-content: center; align-items: center; padding: 1rem; z-index: 100; overflow-y: auto; }
 .modal { position: relative; width: min(700px, 100%); max-height: calc(100vh - 2rem); overflow-y: auto; padding: 1.25rem; box-shadow: 0 25px 70px rgba(15, 23, 42, 0.22); }
-.modal-close { position: absolute; top: 0.7rem; right: 0.7rem; display: grid; place-items: center; width: 2.2rem; height: 2.2rem; padding: 0; border: 1px solid #dbeafe; border-radius: 50%; background: #ffffff; color: #334155; font-size: 1.5rem; line-height: 1; cursor: pointer; }
+.modal-close { position: absolute; top: 0.7rem; right: 0.7rem; z-index: 10; display: grid; place-items: center; width: 2.2rem; height: 2.2rem; padding: 0; border: 1px solid #dbeafe; border-radius: 50%; background: #ffffff; color: #334155; font-size: 1.5rem; line-height: 1; cursor: pointer; pointer-events: auto; }
 .modal-close:hover { background: #eff6ff; color: #1d4ed8; }
 .app-modal__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-right: 2.4rem; }
 .app-modal__header h3 { margin: 0; color: #0f172a; }
@@ -316,8 +316,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .app-modal__actions { display: flex; justify-content: flex-end; gap: 0.65rem; flex-wrap: wrap; margin-top: 1.2rem; }
 .app-modal--danger { border: 1px solid #fecaca; }
 .app-modal--danger .app-modal__header h3 { color: #991b1b; }
-.checkout-modal > h3 { padding-right: 2.4rem; }
+.checkout-modal > h3 { padding-right: 3.2rem; }
 .checkout-modal { max-height: min(88vh, 760px); }
+.checkout-modal__close { position: sticky; float: right; margin: -0.35rem -0.35rem 0 0; }
 .review-modal { text-align: center; padding: 2rem 1.5rem; background: linear-gradient(140deg, #ffffff 0%, #f8fbff 100%); border: 1px solid #dbeafe; }
 .review-modal__icon { width: 64px; height: 64px; margin: 0 auto 0.9rem; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(135deg, #2563eb, #3b82f6); color: white; font-size: 1.8rem; font-weight: 700; box-shadow: 0 14px 28px rgba(37, 99, 235, 0.25); }
 .review-modal h3 { margin: 0.2rem 0 0.45rem; color: #0f172a; }
