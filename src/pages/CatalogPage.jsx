@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiUrl } from '../api';
+import { apiUrl, assetUrl } from '../api';
 import Modal from '../components/Modal';
 
 const typeLabels = {
@@ -85,8 +85,15 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const visibleProducts = filtered.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE);
 
   const openDetail = async (productId) => {
-    const response = await fetch(apiUrl(`/api/products/${productId}`));
-    const data = await response.json();
+    const [productResponse, likeResponse] = await Promise.all([
+      fetch(apiUrl(`/api/products/${productId}`)),
+      user ? fetch(apiUrl(`/api/products/${productId}/like`), { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }) : Promise.resolve(null)
+    ]);
+    const data = await productResponse.json();
+    if (likeResponse?.ok) {
+      const likeData = await likeResponse.json();
+      setLikedProducts((current) => ({ ...current, [productId]: likeData.liked }));
+    }
     setSelectedProduct(data);
     setActiveImageIndex(0);
     setDorsal('');
@@ -202,7 +209,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
         <section className="store-content-strip" aria-label="Novedades de la tienda">
           {content.map((item) => (
             <article className={`store-content-card store-content-card--${item.type}`} key={item.id}>
-              {item.type === 'video' ? <video src={item.media_url} muted autoPlay loop playsInline /> : <img src={item.media_url} alt={item.title || 'Contenido de la tienda'} />}
+              {item.type === 'video' ? <video src={assetUrl(item.media_url)} muted autoPlay loop playsInline controls /> : <img src={assetUrl(item.media_url)} alt={item.title || 'Contenido de la tienda'} />}
               <div className="store-content-card__copy">
                 {item.title ? <h3>{item.title}</h3> : null}
                 {item.description ? <p>{item.description}</p> : null}
@@ -262,8 +269,8 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 </div>
                 <h3 className="product-card__title">{product.title}</h3>
                 <p className="card__club">{product.club?.name || 'Club'}</p>
-                <button className={`like-button ${likedProducts[product.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(product.id)} aria-label={`Me gusta ${product.title}`}>
-                  {likedProducts[product.id] ? '♥' : '♡'} <span>{Number(product.likes_count || 0)} likes</span>
+                <button className={`like-button ${likedProducts[product.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(product.id)} aria-label={`${likedProducts[product.id] ? 'Quitar me gusta de' : 'Me gusta'} ${product.title}`} title={likedProducts[product.id] ? 'Quitar me gusta' : 'Me gusta'}>
+                  <span aria-hidden="true">{likedProducts[product.id] ? '♥' : '♡'}</span><small>{Number(product.likes_count || 0)}</small>
                 </button>
                 <p className="card__description">{product.description || 'Camiseta oficial con diseño premium y detalles exclusivos.'}</p>
                 <div className="price-stack">
@@ -331,8 +338,8 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 <p className="price-bs">{formatCurrency(Number(selectedProduct.price) * exchangeRate, 'BS')}</p>
               </div>
               <p className="card__club">Club: {selectedProduct.club?.name || 'Sin club'}</p>
-              <button className={`like-button like-button--large ${likedProducts[selectedProduct.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(selectedProduct.id)}>
-                {likedProducts[selectedProduct.id] ? '♥' : '♡'} {Number(selectedProduct.likes_count || 0)} personas indicaron que les gusta
+              <button className={`like-button like-button--large ${likedProducts[selectedProduct.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(selectedProduct.id)} aria-label={likedProducts[selectedProduct.id] ? 'Quitar me gusta' : 'Me gusta'} title={likedProducts[selectedProduct.id] ? 'Quitar me gusta' : 'Me gusta'}>
+                <span aria-hidden="true">{likedProducts[selectedProduct.id] ? '♥' : '♡'}</span><small>{Number(selectedProduct.likes_count || 0)}</small>
               </button>
               <select value={size} onChange={(e) => setSize(e.target.value)}>
                 <option value="">Selecciona talla </option>

@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import { apiUrl } from './api';
 import AuthPage from './pages/AuthPage';
 import CatalogPage from './pages/CatalogPage';
+import ContentPage from './pages/ContentPage';
 import AdminPage from './pages/AdminPage';
 import CheckoutModal from './components/CheckoutModal';
 import OrderHistoryModal from './components/OrderHistoryModal';
@@ -131,6 +132,7 @@ const App = () => {
         </div>
         <nav className="nav-links">
           <Link to="/">Catálogo</Link>
+          <Link to="/contenido">Novedades</Link>
           {user?.role === 'admin' ? (
             <div className="dropdown">
               <button className="ghost-btn dropdown-toggle" onClick={() => setMenuOpen((open) => !open)}>
@@ -183,6 +185,7 @@ const App = () => {
 
       <Routes>
         <Route path="/" element={<CatalogPage user={user} onAddToCart={addToCart} />} />
+        <Route path="/contenido" element={<ContentPage />} />
         <Route path="/auth" element={user ? <Navigate to="/" replace /> : <AuthPage onAuth={setUser} />} />
         <Route path="/admin" element={user?.role === 'admin' ? <AdminPage /> : <Navigate to="/" replace />} />
       </Routes>

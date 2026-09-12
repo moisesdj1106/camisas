@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { apiUrl } from '../api';
+import { apiUrl, assetUrl } from '../api';
 import Modal from '../components/Modal';
 
 const formatCurrency = (value, currency = 'USD') => {
@@ -170,6 +170,9 @@ const AdminPage = () => {
     const file = event.target.files?.[0];
     if (!file) return;
     setIsUploadingContent(true);
+    if (file.type.startsWith('video/')) {
+      setContentForm((current) => ({ ...current, type: 'video' }));
+    }
     const body = new FormData();
     body.append('file', file);
     try {
@@ -179,7 +182,7 @@ const AdminPage = () => {
         body
       });
       const data = await response.json().catch(() => ({}));
-      if (response.ok) setContentForm((current) => ({ ...current, media_url: apiUrl(data.media_url) }));
+      if (response.ok) setContentForm((current) => ({ ...current, media_url: assetUrl(data.media_url || '') }));
       else setMessage(data.error || 'No se pudo subir el archivo.');
     } finally {
       setIsUploadingContent(false);
@@ -879,7 +882,7 @@ const AdminPage = () => {
                 <option value="image">Imagen</option>
                 <option value="video">Video</option>
               </select>
-              <input required placeholder="URL del archivo multimedia" value={contentForm.media_url} onChange={(e) => setContentForm({ ...contentForm, media_url: e.target.value })} />
+              <input required type="url" placeholder="URL directa del archivo multimedia" value={contentForm.media_url} onChange={(e) => setContentForm({ ...contentForm, media_url: e.target.value })} />
               <label className="file-upload-field">{isUploadingContent ? 'Subiendo archivo...' : 'Subir archivo'}<input type="file" accept="image/*,video/*" onChange={uploadContentFile} disabled={isUploadingContent} /></label>
               <input placeholder="Título" value={contentForm.title} onChange={(e) => setContentForm({ ...contentForm, title: e.target.value })} />
               <input placeholder="Enlace de la promoción (opcional)" value={contentForm.link_url} onChange={(e) => setContentForm({ ...contentForm, link_url: e.target.value })} />
