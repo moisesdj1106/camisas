@@ -35,6 +35,7 @@ const createEmptyClubForm = () => ({
 
 const createEmptyContentForm = () => ({
   type: 'banner',
+  slot: 'banner',
   media_url: '',
   title: '',
   description: '',
@@ -171,7 +172,7 @@ const AdminPage = () => {
     if (!file) return;
     setIsUploadingContent(true);
     if (file.type.startsWith('video/')) {
-      setContentForm((current) => ({ ...current, type: 'video' }));
+      setContentForm((current) => ({ ...current, type: 'video', slot: 'video' }));
     }
     const body = new FormData();
     body.append('file', file);
@@ -192,7 +193,7 @@ const AdminPage = () => {
 
   const editContent = (item) => {
     setEditingContentId(item.id);
-    setContentForm({ type: item.type, media_url: item.media_url, title: item.title || '', description: item.description || '', link_url: item.link_url || '', sort_order: item.sort_order || 0, is_active: item.is_active !== false });
+    setContentForm({ type: item.type, slot: item.slot || (item.type === 'banner' ? 'banner' : item.type === 'video' ? 'video' : 'gallery'), media_url: item.media_url, title: item.title || '', description: item.description || '', link_url: item.link_url || '', sort_order: item.sort_order || 0, is_active: item.is_active !== false });
   };
 
   const removeContent = async (id) => {
@@ -877,10 +878,13 @@ const AdminPage = () => {
           </div>
           <form className="inventory-form" onSubmit={saveContent}>
             <div className="filter-grid">
-              <select value={contentForm.type} onChange={(e) => setContentForm({ ...contentForm, type: e.target.value })}>
-                <option value="banner">Banner</option>
-                <option value="image">Imagen</option>
-                <option value="video">Video</option>
+              <select value={contentForm.slot} onChange={(e) => {
+                const slot = e.target.value;
+                setContentForm({ ...contentForm, slot, type: slot === 'video' ? 'video' : slot === 'gallery' ? 'image' : 'banner' });
+              }}>
+                <option value="banner">Zona fija: Banner principal</option>
+                <option value="gallery">Zona fija: Carrusel de fotos</option>
+                <option value="video">Zona fija: Video destacado</option>
               </select>
               <input required type="url" placeholder="URL directa del archivo multimedia" value={contentForm.media_url} onChange={(e) => setContentForm({ ...contentForm, media_url: e.target.value })} />
               <label className="file-upload-field">{isUploadingContent ? 'Subiendo archivo...' : 'Subir archivo'}<input type="file" accept="image/*,video/*" onChange={uploadContentFile} disabled={isUploadingContent} /></label>
@@ -902,7 +906,7 @@ const AdminPage = () => {
             {content.length ? content.map((item) => (
               <div className="inventory-item" key={item.id}>
                 <strong>{item.title || 'Contenido sin título'}</strong>
-                <span>{item.type} · {item.is_active ? 'Visible' : 'Oculto'} · Orden {item.sort_order}</span>
+                <span>{item.slot === 'banner' ? 'Banner principal' : item.slot === 'video' ? 'Video destacado' : 'Foto del carrusel'} · {item.is_active ? 'Visible' : 'Oculto'}</span>
                 <span style={{ overflowWrap: 'anywhere' }}>{item.media_url}</span>
                 <div className="inventory-item__actions">
                   <button className="ghost-btn" type="button" onClick={() => editContent(item)}>Editar</button>

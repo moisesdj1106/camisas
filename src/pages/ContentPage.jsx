@@ -3,8 +3,8 @@ import { apiUrl, assetUrl } from '../api';
 
 const ContentPage = () => {
   const [content, setContent] = useState([]);
-  const [activeType, setActiveType] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [slideIndex, setSlideIndex] = useState(0);
 
   useEffect(() => {
     const loadContent = async () => {
@@ -21,7 +21,26 @@ const ContentPage = () => {
     loadContent();
   }, []);
 
-  const visibleContent = activeType === 'all' ? content : content.filter((item) => item.type === activeType);
+  const banner = content.find((item) => item.slot === 'banner') || content.find((item) => item.type === 'banner');
+  const gallery = content.filter((item) => item.slot === 'gallery' || (!item.slot && item.type === 'image'));
+  const video = content.find((item) => item.slot === 'video') || content.find((item) => item.type === 'video');
+
+  useEffect(() => {
+    if (gallery.length < 2) return undefined;
+    const timer = window.setInterval(() => setSlideIndex((current) => (current + 1) % gallery.length), 4500);
+    return () => window.clearInterval(timer);
+  }, [gallery.length]);
+
+  useEffect(() => {
+    if (slideIndex >= gallery.length) setSlideIndex(0);
+  }, [gallery.length, slideIndex]);
+
+  const renderMedia = (item, options = {}) => {
+    if (!item) return null;
+    return item.type === 'video'
+      ? <video src={assetUrl(item.media_url)} controls={options.controls !== false} autoPlay={options.autoPlay} muted={options.autoPlay} loop={options.autoPlay} playsInline />
+      : <img src={assetUrl(item.media_url)} alt={item.title || 'Contenido de MDJ Soccer'} />;
+  };
 
   return (
     <main className="content-page">
@@ -31,28 +50,24 @@ const ContentPage = () => {
         <p>Descubre promociones, lanzamientos, videos y momentos de nuestra tienda.</p>
       </section>
 
-      <div className="content-page__filters" role="tablist" aria-label="Filtrar contenido">
-        {[['all', 'Todo'], ['banner', 'Promociones'], ['image', 'Imágenes'], ['video', 'Videos']].map(([value, label]) => (
-          <button key={value} type="button" className={activeType === value ? 'content-filter active' : 'content-filter'} onClick={() => setActiveType(value)}>{label}</button>
-        ))}
-      </div>
-
       {loading ? <div className="empty-state">Cargando contenido...</div> : null}
-      {!loading && !visibleContent.length ? <div className="empty-state"><h3>Aún no hay contenido publicado</h3><p>Pronto encontrarás novedades de la tienda aquí.</p></div> : null}
-      <section className="content-gallery" aria-label="Contenido de la tienda">
-        {visibleContent.map((item) => (
-          <article className={`content-gallery__item content-gallery__item--${item.type}`} key={item.id}>
-            <div className="content-gallery__media">
-              {item.type === 'video' ? <video src={assetUrl(item.media_url)} controls playsInline poster={item.poster_url ? assetUrl(item.poster_url) : undefined} /> : <img src={assetUrl(item.media_url)} alt={item.title || 'Contenido de MDJ Soccer'} />}
-            </div>
-            <div className="content-gallery__copy">
-              <span className="content-gallery__type">{item.type === 'video' ? 'Video' : item.type === 'banner' ? 'Promoción' : 'Novedad'}</span>
-              {item.title ? <h3>{item.title}</h3> : null}
-              {item.description ? <p>{item.description}</p> : null}
-              {item.link_url ? <a href={item.link_url} target="_blank" rel="noreferrer">Ver más</a> : null}
-            </div>
-          </article>
-        ))}
+      {!loading && !content.length ? <div className="empty-state"><h3>Aún no hay contenido publicado</h3><p>Pronto encontrarás novedades de la tienda aquí.</p></div> : null}
+      <section className="visual-template" aria-label="Contenido visual de la tienda">
+        <article className="visual-slot visual-slot--banner">
+          {banner ? <><div className="visual-slot__media">{renderMedia(banner)}</div><div className="visual-slot__copy">{banner.title ? <h3>{banner.title}</h3> : null}{banner.description ? <p>{banner.description}</p> : null}{banner.link_url ? <a href={banner.link_url} target="_blank" rel="noreferrer">Ver promoción</a> : null}</div></> : <div className="visual-slot__empty">Aquí aparecerá tu banner principal</div>}
+        </article>
+
+        <article className="visual-slot visual-slot--gallery">
+          <div className="visual-slot__heading"><div><span className="content-gallery__type">Galería</span><h3>Últimas novedades</h3></div>{gallery.length > 1 ? <span>{slideIndex + 1} / {gallery.length}</span> : null}</div>
+          {gallery.length ? <div className="visual-carousel"><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex - 1 + gallery.length) % gallery.length)} aria-label="Foto anterior">‹</button><div className="visual-carousel__media">{renderMedia(gallery[slideIndex])}</div><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex + 1) % gallery.length)} aria-label="Foto siguiente">›</button></div> : <div className="visual-slot__empty">Aquí aparecerán las fotos del carrusel</div>}
+          {gallery[slideIndex]?.title ? <p className="visual-slot__caption">{gallery[slideIndex].title}</p> : null}
+        </article>
+
+        <article className="visual-slot visual-slot--video">
+          <div className="visual-slot__heading"><div><span className="content-gallery__type">Video</span><h3>Conoce nuestras novedades</h3></div></div>
+          {video ? <div className="visual-video">{renderMedia(video)}</div> : <div className="visual-slot__empty">Aquí aparecerá tu video destacado</div>}
+          {video?.description ? <p className="visual-slot__caption">{video.description}</p> : null}
+        </article>
       </section>
     </main>
   );
