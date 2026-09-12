@@ -62,7 +62,7 @@ const ContentPage = () => {
         </article>
 
         <article className="visual-slot visual-slot--gallery">
-          <div className="visual-slot__heading"><div><span className="content-gallery__type">Colección Tendencia</span><h3>¿ QUE ESPERAS A PEDIR LA TUYA ?</h3></div>{gallery.length > 1 ? <span className="visual-counter">{slideIndex + 1} / {gallery.length}</span> : null}</div>
+          <div className="visual-slot__heading"><div><span className="content-gallery__type">Colección Tendencia</span><h3>PIDE LA TUYA !!!</h3></div>{gallery.length > 1 ? <span className="visual-counter">{slideIndex + 1} / {gallery.length}</span> : null}</div>
           {gallery.length ? <div className="visual-carousel"><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex - 1 + gallery.length) % gallery.length)} aria-label="Foto anterior">‹</button><div className="visual-carousel__media">{renderMedia(slide)}<div className="visual-carousel__overlay"><span>MDJ / DROP</span>{slide?.title ? <strong>{slide.title}</strong> : null}</div></div><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex + 1) % gallery.length)} aria-label="Foto siguiente">›</button></div> : <div className="visual-slot__empty">Aquí aparecerán las fotos del carrusel</div>}
           {slide?.description ? <p className="visual-slot__caption">{slide.description}</p> : null}
         </article>
