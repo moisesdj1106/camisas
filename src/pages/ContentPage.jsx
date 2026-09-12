@@ -67,7 +67,7 @@ const ContentPage = () => {
 
         <article className="visual-slot visual-slot--video">
           <div className="visual-slot__heading"><div><span className="content-gallery__type">Play / now</span><h3>La camiseta en movimiento</h3></div><span className="visual-video__live">● EN VIVO</span></div>
-          {video ? <div className="visual-video">{renderMedia(video)}</div> : <div className="visual-slot__empty">Aquí aparecerá tu video destacado</div>}
+          {video ? <div className="visual-video">{renderMedia(video, { autoPlay: true })}</div> : <div className="visual-slot__empty">Aquí aparecerá tu video destacado</div>}
           {video?.description ? <p className="visual-slot__caption">{video.description}</p> : null}
         </article>
       </section>
