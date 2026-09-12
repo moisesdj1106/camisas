@@ -238,21 +238,19 @@ export const CatalogPage = ({ user, onAddToCart }) => {
           {visibleProducts.map((product) => {
             const productImages = getProductImages(product);
             return (
-            <article className="card product-card" key={product.id}>
-              <button className="product-card__image" type="button" onClick={() => openDetail(product.id)} aria-label={`Ver imágenes de ${product.title}`}>
-                <img src={productImages[0]} alt={product.title} />
-                <span className="product-card__image-hint">Ver galería</span>
-              </button>
-              <div className="product-card__content">
+            <div className="product-card-shell" key={product.id}>
+              <article className="card product-card">
+                <button className="product-card__image" type="button" onClick={() => openDetail(product.id)} aria-label={`Ver imágenes de ${product.title}`}>
+                  <img src={productImages[0]} alt={product.title} />
+                  <span className="product-card__image-hint">Ver galería</span>
+                </button>
+                <div className="product-card__content">
                 <div className="card__meta">
                   <span className="badge">{typeLabels[product.type] || product.type}</span>
                   <span className="stock-pill">{product.stock > 0 ? `${product.stock} disponibles` : 'Sin stock'}</span>
                 </div>
-                <h3 className="product-card__title">{product.title}</h3>
-                <p className="card__club">{product.club?.name || 'Club'}</p>
-                <button className={`like-button ${likedProducts[product.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(product.id)} aria-label={`${likedProducts[product.id] ? 'Quitar me gusta de' : 'Me gusta'} ${product.title}`} title={likedProducts[product.id] ? 'Quitar me gusta' : 'Me gusta'}>
-                  <span aria-hidden="true">{likedProducts[product.id] ? '♥' : '♡'}</span><small>{Number(product.likes_count || 0)}</small>
-                </button>
+                  <h3 className="product-card__title">{product.title}</h3>
+                  <p className="card__club">{product.club?.name || 'Club'}</p>
                 <p className="card__description">{product.description || 'Camiseta oficial con diseño premium y detalles exclusivos.'}</p>
                 <div className="price-stack">
                   <p className="product-card__price">{formatCurrency(product.price, 'USD')}</p>
@@ -270,7 +268,11 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                   }}>Comprar</button>
                 </div>
               </div>
-            </article>
+              </article>
+              <button className={`like-button like-button--floating ${likedProducts[product.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(product.id)} aria-label={`${likedProducts[product.id] ? 'Quitar me gusta de' : 'Me gusta'} ${product.title}`} title={likedProducts[product.id] ? 'Quitar me gusta' : 'Me gusta'}>
+                <span aria-hidden="true">{likedProducts[product.id] ? '♥' : '♡'}</span><small>{Number(product.likes_count || 0)}</small>
+              </button>
+            </div>
             );
           })}
         </div>
