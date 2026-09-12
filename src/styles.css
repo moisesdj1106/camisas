@@ -214,7 +214,7 @@ button, input, select, textarea { font: inherit; }
 .visual-slot { position: relative; overflow: hidden; border: 0; border-radius: 24px; background: white; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.11); animation: visual-reveal 0.7s ease both; }
 .visual-slot::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none; border: 1px solid rgba(255, 255, 255, 0.45); border-radius: inherit; }
 .visual-slot--banner { position: relative; min-height: 530px; background: #0f172a; color: white; }
-.visual-slot--gallery { align-self: start; transform: translateY(2.2rem); animation-name: visual-reveal-gallery; animation-delay: 0.12s; }
+.visual-slot--gallery { align-self: start; height: 530px; display: flex; flex-direction: column; animation-name: visual-reveal; animation-delay: 0.12s; }
 .visual-slot__media { height: 530px; background: linear-gradient(135deg, #dbeafe, #ccfbf1); }
 .visual-slot__media img, .visual-slot__media video { width: 100%; height: 100%; object-fit: contain; display: block; }
 .visual-slot--banner .visual-slot__copy { position: absolute; right: 0; bottom: 0; left: 0; padding: 5rem 2rem 1.5rem; background: linear-gradient(transparent, rgba(2, 6, 23, 0.94)); }
@@ -223,8 +223,8 @@ button, input, select, textarea { font: inherit; }
 .visual-slot__copy a { display: inline-block; margin-top: 0.7rem; color: #99f6e4; font-weight: 800; }
 .visual-slot__heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.2rem 1.35rem 0.9rem; color: #0f172a; }
 .visual-slot__heading > span { color: #64748b; font-size: 0.85rem; font-weight: 700; }
-.visual-carousel { display: grid; grid-template-columns: 2.5rem 1fr 2.5rem; align-items: center; gap: 0.7rem; padding: 0 1rem 1rem; }
-.visual-carousel__media { position: relative; height: 425px; overflow: hidden; border-radius: 18px; background: #f8fafc; }
+.visual-carousel { flex: 1; min-height: 0; display: grid; grid-template-columns: 2.5rem 1fr 2.5rem; align-items: center; gap: 0.7rem; padding: 0 1rem 1rem; }
+.visual-carousel__media { position: relative; height: 100%; min-height: 0; overflow: hidden; border-radius: 18px; background: #f8fafc; }
 .visual-carousel__media img, .visual-carousel__media video { width: 100%; height: 100%; object-fit: contain; display: block; animation: visual-slide-in 0.55s ease both; }
 .visual-carousel__arrow { width: 2.3rem; height: 2.3rem; border: 1px solid #cbd5e1; border-radius: 50%; background: white; color: #0f766e; font-size: 1.7rem; cursor: pointer; }
 .visual-carousel__overlay { position: absolute; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; gap: 0.25rem; padding: 3rem 1.1rem 0.9rem; color: white; background: linear-gradient(transparent, rgba(2, 6, 23, 0.8)); pointer-events: none; }
@@ -235,12 +235,11 @@ button, input, select, textarea { font: inherit; }
 .visual-slot__caption { padding: 0 1.1rem 1rem; color: #64748b; }
 .visual-slot--video { grid-column: 1 / -1; margin-top: 1.2rem; }
 .visual-slot--video { animation-delay: 0.22s; }
-.video-mosaic { display: grid; grid-template-columns: minmax(250px, 0.82fr) minmax(0, 1.55fr); gap: 0.8rem; min-height: 480px; padding: 0 1rem 1rem; background: #f8fafc; }
-.video-mosaic__verticals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; min-width: 0; }
+.video-mosaic { display: grid; grid-template-columns: minmax(250px, 0.82fr) minmax(0, 1.55fr); gap: 0.8rem; height: 480px; padding: 0 1rem 1rem; background: #f8fafc; }
+.video-mosaic__verticals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; min-width: 0; height: 100%; }
 .video-tile { position: relative; overflow: hidden; min-width: 0; border-radius: 16px; background: #f8fafc; }
 .video-tile video { width: 100%; height: 100%; display: block; object-fit: contain; background: #f8fafc; }
-.video-tile--vertical { min-height: 480px; }
-.video-tile--horizontal { min-height: 480px; }
+.video-tile--vertical, .video-tile--horizontal { height: 100%; min-height: 0; }
 .visual-slot--banner:hover .visual-slot__media img, .visual-slot--gallery:hover .visual-carousel__media img { transform: scale(1.025); transition: transform 0.8s ease; }
 .visual-slot--banner .visual-slot__media img, .visual-slot--gallery .visual-carousel__media img { transition: transform 0.8s ease; }
 .visual-slot--video:hover .visual-video video { filter: saturate(1.12) contrast(1.03); transition: filter 0.5s ease; }
@@ -403,7 +402,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .product-modal { grid-template-columns: 1fr; }
   .content-gallery__item, .content-gallery__item--banner { grid-column: span 6; }
   .visual-template { grid-template-columns: 1fr; }
-  .visual-slot--gallery { transform: none; animation-name: visual-reveal; }
+  .visual-slot--gallery { height: 530px; transform: none; animation-name: visual-reveal; }
   .card__footer { flex-direction: column; align-items: flex-start; }
   .auth-card { padding: 1.25rem; }
 }
@@ -439,11 +438,17 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .content-page__hero { border-radius: 16px; }
   .content-gallery__item, .content-gallery__item--banner { grid-column: span 12; }
   .visual-template { grid-template-columns: 1fr; }
-  .visual-slot--gallery { transform: none; animation-name: visual-reveal; }
+  .visual-slot--gallery { height: 360px; transform: none; animation-name: visual-reveal; }
+  .visual-slot--banner { min-height: 0; background: #f8fafc; color: #0f172a; }
+  .visual-slot--banner .visual-slot__media { height: auto; background: #f8fafc; }
+  .visual-slot--banner .visual-slot__media img, .visual-slot--banner .visual-slot__media video { width: 100%; height: auto; min-height: 0; object-fit: contain; background: #f8fafc; }
+  .visual-slot--banner .visual-slot__copy { position: static; padding: 1rem; background: #f8fafc; }
+  .visual-slot--banner .visual-slot__copy p { color: #64748b; }
+  .visual-slot--banner .visual-slot__copy a { color: #0f766e; }
   .visual-slot__media, .visual-carousel__media { height: 250px; }
-  .video-mosaic { grid-template-columns: 1fr; min-height: 0; padding: 0 0.7rem 0.7rem; }
+  .video-mosaic { grid-template-columns: 1fr; height: auto; min-height: 0; padding: 0 0.7rem 0.7rem; }
   .video-mosaic__verticals { min-height: 290px; gap: 0.55rem; }
-  .video-tile--vertical, .video-tile--horizontal { min-height: 290px; }
+  .video-tile--vertical, .video-tile--horizontal { height: 290px; min-height: 0; }
   .visual-slot--banner .visual-slot__copy { padding: 3rem 1rem 1rem; }
 }
 
