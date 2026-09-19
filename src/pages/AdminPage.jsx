@@ -1115,7 +1115,7 @@ const AdminPage = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
               <input type="checkbox" checked={allFilteredOrdersSelected} onChange={toggleAllFilteredOrders} />
-              Seleccionar todos los resultados
+              Seleccionar todos
             </label>
             {selectedOrderIds.length ? (
               <button className="icon-btn icon-btn--danger" type="button" onClick={() => requestConfirmation('Eliminar pedidos seleccionados', `¿Eliminar definitivamente ${selectedOrderIds.length} pedido(s)? Esta acción no se puede deshacer.`, deleteSelectedOrders)} title="Eliminar pedidos seleccionados" aria-label="Eliminar pedidos seleccionados">🗑</button>
