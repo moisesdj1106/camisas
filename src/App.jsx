@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
-import { apiUrl } from './api';
+import { apiFetch, apiUrl } from './api';
 import AuthPage from './pages/AuthPage';
 import CatalogPage from './pages/CatalogPage';
 import ContentPage from './pages/ContentPage';
@@ -25,6 +25,7 @@ const App = () => {
   const [orderReviewOpen, setOrderReviewOpen] = useState(false);
   const [orderWhatsappUrl, setOrderWhatsappUrl] = useState('');
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
+  const [sessionMessage, setSessionMessage] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,6 +33,18 @@ const App = () => {
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+      setSessionMessage('Tu sesión venció. Inicia sesión nuevamente para continuar.');
+      navigate('/auth');
+    };
+    window.addEventListener('session-expired', handleSessionExpired);
+    return () => window.removeEventListener('session-expired', handleSessionExpired);
+  }, [navigate]);
 
   useEffect(() => {
     if (!user?.id) return undefined;
@@ -63,7 +76,7 @@ const App = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
       try {
-        const response = await fetch(apiUrl('/api/auth/me/notifications'), {
+        const response = await apiFetch('/api/auth/me/notifications', {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.ok) {
@@ -108,7 +121,7 @@ const App = () => {
   const markNotificationRead = async (notificationId) => {
     const token = localStorage.getItem('token');
     try {
-      const response = await fetch(apiUrl(`/api/auth/me/notifications/${notificationId}/read`), {
+      const response = await apiFetch(`/api/auth/me/notifications/${notificationId}/read`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -186,7 +199,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<CatalogPage user={user} onAddToCart={addToCart} />} />
         <Route path="/contenido" element={<ContentPage />} />
-        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <AuthPage onAuth={setUser} />} />
+        <Route path="/auth" element={user ? <Navigate to="/" replace /> : <AuthPage onAuth={(nextUser) => { setSessionMessage(''); setUser(nextUser); }} sessionMessage={sessionMessage} />} />
         <Route path="/admin" element={user?.role === 'admin' ? <AdminPage /> : <Navigate to="/" replace />} />
       </Routes>
 

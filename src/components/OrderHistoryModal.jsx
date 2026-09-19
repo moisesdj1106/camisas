@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiUrl } from '../api';
+import { apiFetch } from '../api';
 
 const statusLabels = {
   pending: 'En revisión',
@@ -27,7 +27,8 @@ const statusDescriptions = {
 
 const paymentMethodLabels = {
   whatsapp: 'WhatsApp',
-  pago_movil: 'Pago Móvil'
+  pago_movil: 'Pago Móvil',
+  efectivo: 'Efectivo'
 };
 
 const statusClassName = (status) => {
@@ -51,7 +52,7 @@ const OrderHistoryModal = ({ open, onClose, user }) => {
       if (showLoading) setLoading(true);
       const token = localStorage.getItem('token');
       try {
-        const response = await fetch(apiUrl('/api/orders/mine'), {
+        const response = await apiFetch('/api/orders/mine', {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (response.ok) {

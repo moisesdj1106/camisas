@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { apiUrl } from '../api';
 import Modal from '../components/Modal';
 
-const AuthPage = ({ onAuth }) => {
+const AuthPage = ({ onAuth, sessionMessage = '' }) => {
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [message, setMessage] = useState('');
@@ -48,6 +48,7 @@ const AuthPage = ({ onAuth }) => {
         ) : null}
         <h2>{mode === 'login' ? 'Bienvenido de nuevo' : mode === 'register' ? 'Crea tu cuenta' : 'Recupera tu contraseña'}</h2>
         <p>{mode === 'login' ? 'Accede para seguir tu compra y ver tus pedidos.' : mode === 'register' ? 'Únete a SportWear Club y compra tus camisetas favoritas.' : 'Verifica tu correo y teléfono registrados para crear una nueva contraseña.'}</p>
+        {sessionMessage ? <p className="auth-message">{sessionMessage}</p> : null}
         {message ? <p className="auth-message">{message}</p> : null}
         <form className="form" onSubmit={submit}>
           {mode === 'register' ? (

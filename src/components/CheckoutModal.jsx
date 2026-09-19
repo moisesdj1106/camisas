@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { apiUrl } from '../api';
+import { apiFetch } from '../api';
 
 const paymentDetails = {
   whatsapp: {
@@ -11,6 +11,11 @@ const paymentDetails = {
     title: 'Realiza el pago a los siguientes datos: ',
     number: 'Bco Vzla',
     message: 'Responsable: MDJ Soccer ·  Sube tu comprobante de pago para confirmar tu pedido.'
+  },
+  efectivo: {
+    title: 'Pago en efectivo',
+    number: 'Coordina la entrega personal',
+    message: 'Paga en efectivo al recibir tu pedido. Esta opción está disponible para entregas personales.'
   }
 };
 
@@ -51,7 +56,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
 
     const loadExchangeRate = async () => {
       try {
-        const response = await fetch(apiUrl('/api/admin/exchange-rate'), {
+        const response = await apiFetch('/api/admin/exchange-rate', {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         if (response.ok) {
@@ -79,6 +84,10 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
     }
     if (deliveryMethod === 'national' && (!shippingDetails.name.trim() || !shippingDetails.phone.trim() || !shippingDetails.cedula.trim() || !shippingDetails.agency.trim() || !shippingDetails.city.trim() || !shippingDetails.state.trim())) {
       setStatus('Para el envío nacional debes completar nombre y apellido, teléfono, cédula, agencia, ciudad y estado.');
+      return;
+    }
+    if (paymentMethod === 'efectivo' && deliveryMethod !== 'personal') {
+      setStatus('El pago en efectivo solo está disponible para la entrega personal.');
       return;
     }
 
@@ -110,7 +119,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
     }
 
     try {
-      const response = await fetch(apiUrl('/api/orders'), {
+      const response = await apiFetch('/api/orders', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -207,6 +216,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
           <option value="whatsapp">WhatsApp</option>
           <option value="pago_movil">Pago Móvil</option>
+          <option value="efectivo">Efectivo (solo entrega personal)</option>
           </select>
           <div className="card" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
           <strong>{paymentDetails[paymentMethod].title}</strong>

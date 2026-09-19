@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { apiUrl, assetUrl } from '../api';
+import { apiFetch, apiUrl, assetUrl } from '../api';
 import Modal from '../components/Modal';
 
 const formatCurrency = (value, currency = 'USD') => {
@@ -88,6 +88,7 @@ const AdminPage = () => {
   const [orderFilter, setOrderFilter] = useState('all');
   const [orderSearch, setOrderSearch] = useState('');
   const [orderPage, setOrderPage] = useState(1);
+    const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState('');
   const [userPage, setUserPage] = useState(1);
@@ -260,6 +261,34 @@ const AdminPage = () => {
   };
 
   const deleteOrder = async (orderId) => {
+
+      const deleteSelectedOrders = async () => {
+        const response = await apiFetch('/api/admin/orders/bulk-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+          body: JSON.stringify({ orderIds: selectedOrderIds })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          setMessage(data.error || 'No se pudieron eliminar los pedidos.');
+          return;
+        }
+        const deletedIds = new Set(data.ids || selectedOrderIds);
+        setOrders((current) => current.filter((order) => !deletedIds.has(order.id)));
+        setSelectedOrderIds([]);
+        setOrderPage(1);
+        setOrderDetails((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !deletedIds.has(Number(id)))));
+        setExpandedOrderId(null);
+        setMessage(`${deletedIds.size} pedido(s) eliminado(s).`);
+      };
+      apiFetch('/api/admin/dashboard', { headers: { Authorization: `Bearer ${token}` } }),
+      apiFetch('/api/admin/orders', { headers: { Authorization: `Bearer ${token}` } }),
+      apiFetch('/api/admin/audit-logs', { headers: { Authorization: `Bearer ${token}` } }),
+      apiFetch('/api/products', { headers: { Authorization: `Bearer ${token}` } }),
+      apiFetch('/api/admin/clubs', { headers: { Authorization: `Bearer ${token}` } }),
+      apiFetch('/api/admin/exchange-rate', { headers: { Authorization: `Bearer ${token}` } }),
+      apiFetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
+      apiFetch('/api/admin/content', { headers: { Authorization: `Bearer ${token}` } })
     try {
       const response = await fetch(apiUrl(`/api/admin/orders/${orderId}`), {
         method: 'DELETE',
@@ -676,6 +705,16 @@ const AdminPage = () => {
     setOrderFilter(filter);
     setOrderPage(1);
   };
+  const filteredOrderIds = filteredOrders.map((order) => order.id);
+  const allFilteredOrdersSelected = filteredOrderIds.length > 0 && filteredOrderIds.every((id) => selectedOrderIds.includes(id));
+  const toggleOrderSelection = (orderId) => {
+    setSelectedOrderIds((current) => current.includes(orderId) ? current.filter((id) => id !== orderId) : [...current, orderId]);
+  };
+  const toggleAllFilteredOrders = () => {
+    setSelectedOrderIds((current) => allFilteredOrdersSelected
+      ? current.filter((id) => !filteredOrderIds.includes(id))
+      : [...new Set([...current, ...filteredOrderIds])]);
+  };
 
   return (
     <div className="container">
@@ -1073,10 +1112,21 @@ const AdminPage = () => {
             />
             <span className="orders-toolbar__count">Página {orderPage} de {totalOrderPages}</span>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+              <input type="checkbox" checked={allFilteredOrdersSelected} onChange={toggleAllFilteredOrders} />
+              Seleccionar todos los resultados
+            </label>
+            {selectedOrderIds.length ? (
+              <button className="icon-btn icon-btn--danger" type="button" onClick={() => requestConfirmation('Eliminar pedidos seleccionados', `¿Eliminar definitivamente ${selectedOrderIds.length} pedido(s)? Esta acción no se puede deshacer.`, deleteSelectedOrders)} title="Eliminar pedidos seleccionados" aria-label="Eliminar pedidos seleccionados">🗑</button>
+            ) : null}
+            {selectedOrderIds.length ? <span className="orders-toolbar__count">{selectedOrderIds.length} seleccionado(s)</span> : null}
+          </div>
           {visibleOrders.length ? (
             <table className="table">
               <thead>
                 <tr>
+                  <th aria-label="Seleccionar"></th>
                   <th>ID</th>
                   <th>Cliente</th>
                   <th>Total</th>
@@ -1089,6 +1139,7 @@ const AdminPage = () => {
               <tbody>
                 {visibleOrders.map((order) => (
                   <tr key={order.id}>
+                    <td><input type="checkbox" checked={selectedOrderIds.includes(order.id)} onChange={() => toggleOrderSelection(order.id)} aria-label={`Seleccionar pedido ${order.id}`} /></td>
                     <td>#{order.id}</td>
                     <td>{order.client?.name}</td>
                     <td>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiUrl } from '../api';
+import { apiFetch, apiUrl } from '../api';
 import Modal from '../components/Modal';
 
 const typeLabels = {
@@ -44,7 +44,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
       try {
         const [productsResponse, rateResponse] = await Promise.all([
           fetch(apiUrl('/api/products')),
-          fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+          apiFetch('/api/admin/exchange-rate', { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
         ]);
         const data = await productsResponse.json();
         const rateData = await rateResponse.json().catch(() => ({ exchangeRate: 36 }));
@@ -83,7 +83,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const openDetail = async (productId) => {
     const [productResponse, likeResponse] = await Promise.all([
       fetch(apiUrl(`/api/products/${productId}`)),
-      user ? fetch(apiUrl(`/api/products/${productId}/like`), { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }) : Promise.resolve(null)
+      user ? apiFetch(`/api/products/${productId}/like`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }) : Promise.resolve(null)
     ]);
     const data = await productResponse.json();
     if (likeResponse?.ok) {
@@ -103,7 +103,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const toggleLike = async (productId) => {
     if (!user) return setFeedbackModal({ title: 'Inicia sesión', message: 'Debes iniciar sesión para marcar tus productos favoritos.' });
     try {
-      const response = await fetch(apiUrl(`/api/products/${productId}/like`), {
+      const response = await apiFetch(`/api/products/${productId}/like`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
