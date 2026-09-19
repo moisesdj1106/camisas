@@ -260,35 +260,27 @@ const AdminPage = () => {
     }
   };
 
-  const deleteOrder = async (orderId) => {
+  const deleteSelectedOrders = async () => {
+    const response = await apiFetch('/api/admin/orders/bulk-delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ orderIds: selectedOrderIds })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'No se pudieron eliminar los pedidos.');
+      return;
+    }
+    const deletedIds = new Set(data.ids || selectedOrderIds);
+    setOrders((current) => current.filter((order) => !deletedIds.has(order.id)));
+    setSelectedOrderIds([]);
+    setOrderPage(1);
+    setOrderDetails((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !deletedIds.has(Number(id)))));
+    setExpandedOrderId(null);
+    setMessage(`${deletedIds.size} pedido(s) eliminado(s).`);
+  };
 
-      const deleteSelectedOrders = async () => {
-        const response = await apiFetch('/api/admin/orders/bulk-delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-          body: JSON.stringify({ orderIds: selectedOrderIds })
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          setMessage(data.error || 'No se pudieron eliminar los pedidos.');
-          return;
-        }
-        const deletedIds = new Set(data.ids || selectedOrderIds);
-        setOrders((current) => current.filter((order) => !deletedIds.has(order.id)));
-        setSelectedOrderIds([]);
-        setOrderPage(1);
-        setOrderDetails((current) => Object.fromEntries(Object.entries(current).filter(([id]) => !deletedIds.has(Number(id)))));
-        setExpandedOrderId(null);
-        setMessage(`${deletedIds.size} pedido(s) eliminado(s).`);
-      };
-      apiFetch('/api/admin/dashboard', { headers: { Authorization: `Bearer ${token}` } }),
-      apiFetch('/api/admin/orders', { headers: { Authorization: `Bearer ${token}` } }),
-      apiFetch('/api/admin/audit-logs', { headers: { Authorization: `Bearer ${token}` } }),
-      apiFetch('/api/products', { headers: { Authorization: `Bearer ${token}` } }),
-      apiFetch('/api/admin/clubs', { headers: { Authorization: `Bearer ${token}` } }),
-      apiFetch('/api/admin/exchange-rate', { headers: { Authorization: `Bearer ${token}` } }),
-      apiFetch('/api/admin/users', { headers: { Authorization: `Bearer ${token}` } }),
-      apiFetch('/api/admin/content', { headers: { Authorization: `Bearer ${token}` } })
+  const deleteOrder = async (orderId) => {
     try {
       const response = await fetch(apiUrl(`/api/admin/orders/${orderId}`), {
         method: 'DELETE',
