@@ -680,6 +680,28 @@ const AdminPage = () => {
     }
   };
 
+  const downloadApprovedOrders = async () => {
+    try {
+      const response = await fetch(apiUrl('/api/admin/orders/approved/pdf'), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) {
+        setMessage('No se pudo generar el PDF de pedidos aceptados.');
+        return;
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'pedidos-aceptados.pdf';
+      link.click();
+      window.URL.revokeObjectURL(url);
+      setMessage('PDF de pedidos aceptados descargado correctamente.');
+    } catch (error) {
+      setMessage('No se pudo generar el PDF de pedidos aceptados.');
+    }
+  };
+
   if (!dashboard) return <div className="container">Cargando...</div>;
 
   const normalizedOrderSearch = orderSearch.trim().toLowerCase();
@@ -1087,7 +1109,10 @@ const AdminPage = () => {
               <h3>Pedidos</h3>
               <p style={{ margin: '0.2rem 0 0', color: '#64748b' }}>Busca, filtra y administra tus pedidos desde una sola bandeja.</p>
             </div>
-            <span className="badge">{filteredOrders.length} resultado{filteredOrders.length === 1 ? '' : 's'}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <span className="badge">{filteredOrders.length} resultado{filteredOrders.length === 1 ? '' : 's'}</span>
+              <button className="primary-btn" type="button" onClick={downloadApprovedOrders} title="Descargar todos los pedidos aceptados en PDF">🖨️ Imprimir aceptados</button>
+            </div>
           </div>
           <div className="order-shortcuts" role="group" aria-label="Filtrar pedidos por estado">
             <button className={`ghost-btn ${orderFilter === 'all' ? 'active' : ''}`} onClick={() => setOrderFilterAndResetPage('all')}>Todos ({orders.length})</button>
