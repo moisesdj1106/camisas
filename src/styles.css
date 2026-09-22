@@ -347,6 +347,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .payment-qr__image { display: block; width: min(220px, 100%); aspect-ratio: 1; margin: 0 auto; object-fit: contain; border: 1px solid #dbeafe; border-radius: 10px; background: #ffffff; }
 .payment-qr__fallback { margin: 0.6rem 0 0; color: #64748b; font-size: 0.85rem; }
 .checkout-actions { display: flex; justify-content: space-between; gap: 0.7rem; margin-top: 0.9rem; }
+.checkout-add-more { width: 100%; margin: 0.4rem 0 0.8rem; text-align: center; }
 .review-modal__whatsapp { display: inline-flex; justify-content: center; margin-top: 0.9rem; text-decoration: none; }
 .delivery-options { display: grid; gap: 0.55rem; margin: 0.85rem 0 0; padding: 0.8rem; border: 1px solid #dbeafe; border-radius: 14px; background: #f8fbff; }
 .delivery-options legend { padding: 0 0.25rem; color: #0f172a; font-weight: 700; }

@@ -28,7 +28,7 @@ const formatCurrency = (value, currency = 'USD') => {
     : `$${amount.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`;
 };
 
-const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCart, onOrderSubmitted }) => {
+const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCart, onOrderSubmitted, onContinueShopping }) => {
   const [paymentMethod, setPaymentMethod] = useState('whatsapp');
   const [proofUrl, setProofUrl] = useState('');
   const [proofFile, setProofFile] = useState(null);
@@ -213,6 +213,9 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           ) : (
           <p style={{ color: '#64748b' }}>Tu carrito está vacío.</p>
           )}
+          <button className="ghost-btn checkout-add-more" type="button" onClick={onContinueShopping}>
+            + Agregar otra camiseta
+          </button>
           <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
           <option value="whatsapp">WhatsApp</option>
           <option value="pago_movil">Pago Móvil</option>
@@ -278,6 +281,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           ) : null}
           <div className="checkout-actions">
             <button className="ghost-btn" onClick={() => setCheckoutStep(1)} disabled={submitting}>Atrás</button>
+            <button className="ghost-btn" onClick={onContinueShopping} disabled={submitting}>+ Otra camiseta</button>
             <button className="primary-btn" onClick={submitOrder} disabled={submitting || !cart.length}>
               {submitting ? 'Procesando...' : 'Confirmar pedido'}
             </button>

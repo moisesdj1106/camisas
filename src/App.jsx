@@ -113,6 +113,11 @@ const App = () => {
     setCart([]);
   };
 
+  const continueShopping = () => {
+    setCheckoutOpen(false);
+    navigate('/');
+  };
+
   const handleOrderSubmitted = (_orderId, whatsappUrl = '') => {
     setOrderWhatsappUrl(whatsappUrl);
     setOrderReviewOpen(true);
@@ -203,7 +208,7 @@ const App = () => {
         <Route path="/admin" element={user?.role === 'admin' ? <AdminPage /> : <Navigate to="/" replace />} />
       </Routes>
 
-      <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} cart={cart} user={user} onRemoveFromCart={removeFromCart} onClearCart={clearCart} onOrderSubmitted={handleOrderSubmitted} />
+      <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} cart={cart} user={user} onRemoveFromCart={removeFromCart} onClearCart={clearCart} onOrderSubmitted={handleOrderSubmitted} onContinueShopping={continueShopping} />
 
       {orderReviewOpen ? (
         <div className="modal-backdrop" onClick={() => setOrderReviewOpen(false)}>
