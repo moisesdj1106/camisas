@@ -37,6 +37,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [zoomedImage, setZoomedImage] = useState(null);
+  const [hoverZoom, setHoverZoom] = useState({ visible: false, x: 50, y: 50 });
   const [likedProducts, setLikedProducts] = useState({});
 
   useEffect(() => {
@@ -122,6 +123,13 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const moveGallery = (direction) => {
     const images = getSelectedImages();
     setActiveImageIndex((current) => (current + direction + images.length) % images.length);
+  };
+
+  const updateHoverZoom = (event) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - bounds.left) / bounds.width) * 100;
+    const y = ((event.clientY - bounds.top) / bounds.height) * 100;
+    setHoverZoom({ visible: true, x, y });
   };
 
   const updateQuantity = (productId, value) => {
@@ -298,10 +306,20 @@ export const CatalogPage = ({ user, onAddToCart }) => {
             <div className="product-modal__gallery">
               <div className="product-gallery__main">
                 <button className="gallery-arrow gallery-arrow--prev" type="button" onClick={() => moveGallery(-1)} aria-label="Imagen anterior">‹</button>
-                <button className="gallery-main-image" type="button" onClick={() => setZoomedImage(getSelectedImages()[activeImageIndex])} aria-label="Ampliar imagen">
+                <button className="gallery-main-image" type="button" onClick={() => setZoomedImage(getSelectedImages()[activeImageIndex])} onMouseMove={updateHoverZoom} onMouseEnter={updateHoverZoom} onMouseLeave={() => setHoverZoom((current) => ({ ...current, visible: false }))} aria-label="Ampliar imagen">
                   <img src={getSelectedImages()[activeImageIndex]} alt={`${selectedProduct.title} vista ${activeImageIndex + 1}`} />
                   <span>Haz clic para ampliar</span>
                 </button>
+                {hoverZoom.visible ? (
+                  <div
+                    className="gallery-hover-zoom"
+                    aria-hidden="true"
+                    style={{
+                      backgroundImage: `url(${getSelectedImages()[activeImageIndex]})`,
+                      backgroundPosition: `${hoverZoom.x}% ${hoverZoom.y}%`
+                    }}
+                  />
+                ) : null}
                 <button className="gallery-arrow gallery-arrow--next" type="button" onClick={() => moveGallery(1)} aria-label="Imagen siguiente">›</button>
               </div>
               <div className="product-gallery__thumbs">
