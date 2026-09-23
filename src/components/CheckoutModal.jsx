@@ -205,7 +205,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
                     {item.title} · Talla {item.selectedSize || 'No indicada'} · {item.selectedNoDorsal ? 'Sin dorsal' : item.customName ? `Personalizada: ${item.customName} #${item.customNumber}` : item.selectedDorsal ? `Dorsal ${item.selectedDorsal}` : 'Sin dorsal'} · {item.quantity || 1} und. · {formatCurrency(lineTotal, 'USD')}<br />
                     <small className="price-bs">{formatCurrency(lineTotalBs, 'BS')}</small>
                   </span>
-                  <button className="ghost-btn" onClick={() => onRemoveFromCart(index)}>Eliminar</button>
+                  <button className="icon-btn icon-btn--danger" type="button" onClick={() => onRemoveFromCart(index)} title="Eliminar producto" aria-label={`Eliminar ${item.title} del carrito`}>🗑</button>
                 </li>
               );
             })}

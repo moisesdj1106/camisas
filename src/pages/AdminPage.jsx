@@ -80,6 +80,8 @@ const AdminPage = () => {
   const [exchangeRateDraft, setExchangeRateDraft] = useState('36');
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [orderDetails, setOrderDetails] = useState({});
+  const [orderItemForm, setOrderItemForm] = useState({ product_id: '', size: '', quantity: 1 });
+  const [editingOrderItems, setEditingOrderItems] = useState(false);
   const [closurePeriod, setClosurePeriod] = useState('day');
   const [closureDate, setClosureDate] = useState(new Date().toISOString().split('T')[0]);
   const [closureSummary, setClosureSummary] = useState(null);
@@ -454,13 +456,13 @@ const AdminPage = () => {
     }
   };
 
-  const loadOrderDetail = async (orderId) => {
-    if (expandedOrderId === orderId) {
+  const loadOrderDetail = async (orderId, force = false) => {
+    if (expandedOrderId === orderId && !force) {
       setExpandedOrderId(null);
       return;
     }
 
-    if (orderDetails[orderId]) {
+    if (orderDetails[orderId] && !force) {
       setExpandedOrderId(orderId);
       return;
     }
@@ -476,6 +478,30 @@ const AdminPage = () => {
     } catch (error) {
       setMessage('No se pudo cargar el detalle del pedido.');
     }
+  };
+
+  const startOrderItemEdit = (orderId) => {
+    const firstProduct = inventory.find((product) => Number(product.stock) > 0);
+    const firstSize = firstProduct ? Object.keys(firstProduct.stock_by_size || {}).find((size) => Number(firstProduct.stock_by_size[size]) > 0) || '' : '';
+    setOrderItemForm({ product_id: firstProduct?.id || '', size: firstSize, quantity: 1 });
+    setEditingOrderItems(orderId);
+  };
+
+  const saveOrderItem = async (orderId) => {
+    const response = await fetch(apiUrl(`/api/admin/orders/${orderId}/items`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(orderItemForm)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'No se pudo agregar el producto al pedido.');
+      return;
+    }
+    setOrders((current) => current.map((order) => order.id === orderId ? { ...order, total_amount: data.total_amount } : order));
+    setEditingOrderItems(false);
+    setMessage(`Producto agregado al pedido #${orderId}.`);
+    await loadOrderDetail(orderId, true);
   };
 
   const updateExchangeRate = async () => {
@@ -950,8 +976,8 @@ const AdminPage = () => {
                 <span>Tallas: {sizeOptions.map((size) => `${size}: ${product.stock_by_size?.[size] || 0}`).join(' · ')}</span>
                 <span>Precio: ${Number(product.price).toFixed(2)}</span>
                 <div className="inventory-item__actions">
-                  <button className="ghost-btn" onClick={() => handleEditProduct(product)}>Editar</button>
-                  <button className="ghost-btn" onClick={() => handleDeleteProduct(product.id)}>Eliminar</button>
+                  <button className="icon-btn" onClick={() => handleEditProduct(product)} title="Editar camiseta" aria-label={`Editar camiseta ${product.title}`}>✎</button>
+                  <button className="icon-btn icon-btn--danger" onClick={() => handleDeleteProduct(product.id)} title="Eliminar camiseta" aria-label={`Eliminar camiseta ${product.title}`}>🗑</button>
                 </div>
               </div>
             )) : <p style={{ color: '#64748b' }}>Todavía no hay camisetas registradas.</p>}
@@ -1000,8 +1026,8 @@ const AdminPage = () => {
                 <span>{item.slot === 'banner' ? 'Banner principal' : item.slot === 'video' ? 'Video destacado' : 'Foto del carrusel'} · {item.is_active ? 'Visible' : 'Oculto'}</span>
                 <span style={{ overflowWrap: 'anywhere' }}>{item.media_url}</span>
                 <div className="inventory-item__actions">
-                  <button className="ghost-btn" type="button" onClick={() => editContent(item)}>Editar</button>
-                  <button className="ghost-btn" type="button" onClick={() => removeContent(item.id)}>Eliminar</button>
+                  <button className="icon-btn" type="button" onClick={() => editContent(item)} title="Editar contenido" aria-label={`Editar ${item.title || 'contenido'}`}>✎</button>
+                  <button className="icon-btn icon-btn--danger" type="button" onClick={() => removeContent(item.id)} title="Eliminar contenido" aria-label={`Eliminar ${item.title || 'contenido'}`}>🗑</button>
                 </div>
               </div>
             )) : <p style={{ color: '#64748b' }}>Todavía no hay contenido publicado.</p>}
@@ -1031,8 +1057,8 @@ const AdminPage = () => {
                 <strong>{club.name}</strong>
                 <span>{club.country || 'Sin país'}</span>
                 <div className="inventory-item__actions">
-                  <button className="ghost-btn" onClick={() => handleEditClub(club)}>Editar</button>
-                  <button className="ghost-btn" onClick={() => handleDeleteClub(club.id)}>Eliminar</button>
+                  <button className="icon-btn" onClick={() => handleEditClub(club)} title="Editar club" aria-label={`Editar club ${club.name}`}>✎</button>
+                  <button className="icon-btn icon-btn--danger" onClick={() => handleDeleteClub(club.id)} title="Eliminar club" aria-label={`Eliminar club ${club.name}`}>🗑</button>
                 </div>
               </div>
             ))}
@@ -1091,7 +1117,7 @@ const AdminPage = () => {
                       <td>{user.orders_count}</td>
                       <td>{formatCurrency(user.approved_total, 'USD')}</td>
                       <td>{new Date(user.created_at).toLocaleDateString('es-VE')}</td>
-                      <td><button className="ghost-btn" onClick={() => startEditUser(user)} title="Editar usuario">Editar</button> <button className="icon-btn icon-btn--danger" onClick={() => requestConfirmation('Eliminar usuario', `¿Eliminar definitivamente a ${user.name}?`, () => deleteUser(user))} title="Eliminar usuario" aria-label={`Eliminar usuario ${user.name}`}>🗑</button></td>
+                      <td className="table-actions"><button className="icon-btn" onClick={() => startEditUser(user)} title="Editar usuario" aria-label={`Editar usuario ${user.name}`}>✎</button> <button className="icon-btn icon-btn--danger" onClick={() => requestConfirmation('Eliminar usuario', `¿Eliminar definitivamente a ${user.name}?`, () => deleteUser(user))} title="Eliminar usuario" aria-label={`Eliminar usuario ${user.name}`}>🗑</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -1171,7 +1197,7 @@ const AdminPage = () => {
                       ) : <span className="badge">Sin comprobante</span>}
                     </td>
                     <td>
-                      <button className="ghost-btn" onClick={() => loadOrderDetail(order.id)}>{expandedOrderId === order.id ? 'Ocultar' : 'Ver productos'}</button>
+                      <button className="icon-btn" onClick={() => loadOrderDetail(order.id)} title={expandedOrderId === order.id ? 'Ocultar productos' : 'Ver productos'} aria-label={expandedOrderId === order.id ? `Ocultar productos del pedido ${order.id}` : `Ver productos del pedido ${order.id}`}>{expandedOrderId === order.id ? '⌃' : '⌄'}</button>
                     </td>
                     <td>
                       <select value={order.status} onChange={(event) => updateStatus(order.id, event.target.value)} aria-label={`Estado del pedido ${order.id}`}>
@@ -1179,7 +1205,7 @@ const AdminPage = () => {
                       </select>
                     </td>
                     <td>
-                      <button className="ghost-btn" onClick={() => downloadInvoice(order.id)}>Factura</button>
+                      <button className="icon-btn" onClick={() => downloadInvoice(order.id)} title="Descargar factura" aria-label={`Descargar factura del pedido ${order.id}`}>▣</button>
                       <button className="icon-btn icon-btn--danger" onClick={() => requestConfirmation('Eliminar pedido', `¿Eliminar definitivamente el pedido #${order.id}? Esta acción no se puede deshacer.`, () => deleteOrder(order.id))} title={`Eliminar pedido #${order.id}`} aria-label={`Eliminar pedido #${order.id}`}>🗑</button>
                     </td>
                   </tr>
@@ -1198,7 +1224,10 @@ const AdminPage = () => {
 
           {expandedOrderId && orderDetails[expandedOrderId] ? (
             <div className="card" style={{ margin: '1rem 0' }}>
-              <h4>Detalle del pedido #{expandedOrderId}</h4>
+              <div className="order-detail__header">
+                <h4>Detalle del pedido #{expandedOrderId}</h4>
+                <button className="icon-btn" type="button" onClick={() => startOrderItemEdit(expandedOrderId)} title="Agregar producto al pedido" aria-label={`Agregar producto al pedido ${expandedOrderId}`}>＋</button>
+              </div>
               {orderDetails[expandedOrderId].order?.delivery_method === 'national' ? (
                 <div className="shipping-summary">
                   <h5>Datos de envío nacional</h5>
@@ -1225,6 +1254,30 @@ const AdminPage = () => {
                   </li>
                 ))}
               </ul>
+              {editingOrderItems === expandedOrderId ? (
+                <div className="order-item-editor">
+                  <strong>Agregar producto al mismo pedido</strong>
+                  <div className="order-item-editor__fields">
+                    <select value={orderItemForm.product_id} onChange={(event) => {
+                      const product = inventory.find((item) => item.id === Number(event.target.value));
+                      const firstSize = Object.keys(product?.stock_by_size || {}).find((size) => Number(product.stock_by_size[size]) > 0) || '';
+                      setOrderItemForm((current) => ({ ...current, product_id: event.target.value, size: firstSize }));
+                    }} aria-label="Producto nuevo">
+                      <option value="">Selecciona una camiseta</option>
+                      {inventory.filter((product) => Number(product.stock) > 0).map((product) => <option key={product.id} value={product.id}>{product.title} · {formatCurrency(product.price, 'USD')}</option>)}
+                    </select>
+                    <select value={orderItemForm.size} onChange={(event) => setOrderItemForm((current) => ({ ...current, size: event.target.value }))} aria-label="Talla nueva">
+                      <option value="">Talla</option>
+                      {(inventory.find((product) => product.id === Number(orderItemForm.product_id))?.stock_by_size ? Object.entries(inventory.find((product) => product.id === Number(orderItemForm.product_id)).stock_by_size).filter(([, stock]) => Number(stock) > 0).map(([size]) => <option key={size} value={size}>{size}</option>) : null)}
+                    </select>
+                    <input type="number" min="1" max="10" value={orderItemForm.quantity} onChange={(event) => setOrderItemForm((current) => ({ ...current, quantity: event.target.value }))} aria-label="Cantidad nueva" />
+                  </div>
+                  <div className="order-item-editor__actions">
+                    <button className="ghost-btn" type="button" onClick={() => setEditingOrderItems(false)}>Cancelar</button>
+                    <button className="primary-btn" type="button" onClick={() => saveOrderItem(expandedOrderId)} disabled={!orderItemForm.product_id || !orderItemForm.size}>Agregar al pedido</button>
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
