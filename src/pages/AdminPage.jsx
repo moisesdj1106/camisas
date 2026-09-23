@@ -108,6 +108,7 @@ const AdminPage = () => {
   const [isUploadingProductImages, setIsUploadingProductImages] = useState(false);
   const [allDiscountDraft, setAllDiscountDraft] = useState('10');
   const [orderDiscountEdit, setOrderDiscountEdit] = useState(null);
+  const [orderEdit, setOrderEdit] = useState(null);
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -287,6 +288,45 @@ const AdminPage = () => {
     setOrderDetails((current) => current[data.id] ? { ...current, [data.id]: { ...current[data.id], order: { ...current[data.id].order, ...data } } } : current);
     setOrderDiscountEdit(null);
     setMessage(discount ? `Descuento del ${discount}% aplicado al pedido #${data.id}.` : `Descuento retirado del pedido #${data.id}.`);
+  };
+
+  const openOrderEdit = async (orderId) => {
+    let detail = orderDetails[orderId];
+    if (!detail) {
+      const response = await fetch(apiUrl(`/api/orders/${orderId}`), { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+      detail = await response.json().catch(() => null);
+    }
+    if (!detail?.order) {
+      setMessage('No se pudo cargar el pedido para editarlo.');
+      return;
+    }
+    setOrderDetails((current) => ({ ...current, [orderId]: detail }));
+    setOrderEdit({
+      id: orderId,
+      payment_method: detail.order.payment_method || 'whatsapp',
+      payment_proof_url: detail.order.payment_proof_url || '',
+      delivery_method: detail.order.delivery_method || 'personal',
+      status: detail.order.status || 'pending',
+      shipping_details: { name: '', phone: '', cedula: '', agency: '', city: '', state: '', ...(detail.order.shipping_details || {}) }
+    });
+  };
+
+  const saveOrderEdit = async () => {
+    if (!orderEdit) return;
+    const response = await fetch(apiUrl(`/api/admin/orders/${orderEdit.id}`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(orderEdit)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'No se pudo actualizar el pedido.');
+      return;
+    }
+    setOrders((current) => current.map((order) => order.id === data.id ? { ...order, ...data } : order));
+    setOrderDetails((current) => current[data.id] ? { ...current, [data.id]: { ...current[data.id], order: { ...current[data.id].order, ...data } } } : current);
+    setOrderEdit(null);
+    setMessage(`Pedido #${data.id} actualizado correctamente.`);
   };
 
   const deleteSelectedOrders = async () => {
@@ -1324,6 +1364,7 @@ const AdminPage = () => {
                       </select>
                     </td>
                     <td>
+                      <button className="icon-btn" onClick={() => openOrderEdit(order.id)} title="Editar todos los datos del pedido" aria-label={`Editar todos los datos del pedido ${order.id}`}>✎</button>
                       <button className="icon-btn" onClick={() => setOrderDiscountEdit({ id: order.id, discount: order.discount_percent || 0 })} title="Aplicar descuento al pedido" aria-label={`Aplicar descuento al pedido ${order.id}`}>%</button>
                       <button className="icon-btn" onClick={() => downloadInvoice(order.id)} title="Descargar factura" aria-label={`Descargar factura del pedido ${order.id}`}>▣</button>
                       <button className="icon-btn icon-btn--danger" onClick={() => requestConfirmation('Eliminar pedido', `¿Eliminar definitivamente el pedido #${order.id}? Esta acción no se puede deshacer.`, () => deleteOrder(order.id))} title={`Eliminar pedido #${order.id}`} aria-label={`Eliminar pedido #${order.id}`}>🗑</button>
@@ -1408,6 +1449,35 @@ const AdminPage = () => {
         </div>
       ) : null}
 
+      <Modal
+        open={Boolean(orderEdit)}
+        title={`Editar pedido #${orderEdit?.id || ''}`}
+        message="Modifica los datos del pedido y guarda los cambios."
+        onClose={() => setOrderEdit(null)}
+        onConfirm={saveOrderEdit}
+        confirmLabel="Guardar cambios"
+      >
+        {orderEdit ? (
+          <div className="order-edit-form">
+            <div className="order-edit-form__grid">
+              <label><span>Estado</span><select value={orderEdit.status} onChange={(event) => setOrderEdit((current) => ({ ...current, status: event.target.value }))}>{orderStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+              <label><span>Método de pago</span><select value={orderEdit.payment_method} onChange={(event) => setOrderEdit((current) => ({ ...current, payment_method: event.target.value }))}><option value="whatsapp">WhatsApp</option><option value="pago_movil">Pago Móvil</option><option value="efectivo">Efectivo</option></select></label>
+              <label><span>Modalidad de entrega</span><select value={orderEdit.delivery_method} onChange={(event) => setOrderEdit((current) => ({ ...current, delivery_method: event.target.value }))}><option value="personal">Entrega personal</option><option value="national">Envío nacional</option></select></label>
+              <label className="order-edit-form__wide"><span>Comprobante o referencia de pago</span><input value={orderEdit.payment_proof_url} onChange={(event) => setOrderEdit((current) => ({ ...current, payment_proof_url: event.target.value }))} placeholder="URL o referencia" /></label>
+            </div>
+            {orderEdit.delivery_method === 'national' ? (
+              <fieldset className="shipping-form order-edit-form__shipping">
+                <legend>Datos de envío nacional</legend>
+                <input placeholder="Nombre y apellido" value={orderEdit.shipping_details.name} onChange={(event) => setOrderEdit((current) => ({ ...current, shipping_details: { ...current.shipping_details, name: event.target.value } }))} />
+                <input placeholder="Teléfono" value={orderEdit.shipping_details.phone} onChange={(event) => setOrderEdit((current) => ({ ...current, shipping_details: { ...current.shipping_details, phone: event.target.value } }))} />
+                <input placeholder="Cédula" value={orderEdit.shipping_details.cedula} onChange={(event) => setOrderEdit((current) => ({ ...current, shipping_details: { ...current.shipping_details, cedula: event.target.value } }))} />
+                <input placeholder="Agencia de envío" value={orderEdit.shipping_details.agency} onChange={(event) => setOrderEdit((current) => ({ ...current, shipping_details: { ...current.shipping_details, agency: event.target.value } }))} />
+                <div className="shipping-form__row"><input placeholder="Estado" value={orderEdit.shipping_details.state} onChange={(event) => setOrderEdit((current) => ({ ...current, shipping_details: { ...current.shipping_details, state: event.target.value } }))} /><input placeholder="Ciudad" value={orderEdit.shipping_details.city} onChange={(event) => setOrderEdit((current) => ({ ...current, shipping_details: { ...current.shipping_details, city: event.target.value } }))} /></div>
+              </fieldset>
+            ) : <p className="delivery-summary">Entrega personal en San Cristóbal</p>}
+          </div>
+        ) : null}
+      </Modal>
       <Modal
         open={Boolean(orderDiscountEdit)}
         title={`Descuento para pedido #${orderDiscountEdit?.id || ''}`}

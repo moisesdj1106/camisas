@@ -393,6 +393,13 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .discount-field { display: grid; gap: 0.3rem; }
 .discount-field span { color: #475569; font-size: 0.8rem; font-weight: 700; }
 .discount-field--modal { margin-top: 0.9rem; }
+.order-edit-form { display: grid; gap: 0.9rem; margin-top: 0.8rem; }
+.order-edit-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.7rem; }
+.order-edit-form label { display: grid; gap: 0.3rem; }
+.order-edit-form label span { color: #475569; font-size: 0.8rem; font-weight: 700; }
+.order-edit-form__wide { grid-column: 1 / -1; }
+.order-edit-form__shipping { margin: 0; }
+.order-edit-form__shipping legend { color: #14532d; font-weight: 700; }
 .checkout-add-more { width: 100%; margin: 0.4rem 0 0.8rem; text-align: center; }
 .review-modal__whatsapp { display: inline-flex; justify-content: center; margin-top: 0.9rem; text-decoration: none; }
 .delivery-options { display: grid; gap: 0.55rem; margin: 0.85rem 0 0; padding: 0.8rem; border: 1px solid #dbeafe; border-radius: 14px; background: #f8fbff; }
@@ -445,6 +452,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .order-item-editor__fields { grid-template-columns: 1fr 1fr; }
   .order-item-editor__fields select:first-child { grid-column: 1 / -1; }
   .order-item-editor__actions button { flex: 1; }
+  .order-edit-form__grid { grid-template-columns: 1fr; }
+  .order-edit-form__wide { grid-column: auto; }
 }
 @media (max-width: 420px) {
   .grid { grid-template-columns: 1fr; }
