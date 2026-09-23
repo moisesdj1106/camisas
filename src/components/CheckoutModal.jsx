@@ -190,8 +190,9 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           <p className="price-bs">≈ {formatCurrency(totalBs, 'BS')} · Tasa actual: {exchangeRate} BS/USD</p>
         </div>
         <div className="checkout-steps" aria-label="Progreso del checkout">
-          <span className={checkoutStep === 1 ? 'checkout-step checkout-step--active' : 'checkout-step'}>1. Productos y pago</span>
-          <span className={checkoutStep === 2 ? 'checkout-step checkout-step--active' : 'checkout-step'}>2. Entrega</span>
+          {[['1', 'Productos'], ['2', 'Pago'], ['3', 'Entrega'], ['4', 'Confirmar']].map(([number, label]) => (
+            <span key={number} className={checkoutStep === Number(number) ? 'checkout-step checkout-step--active' : 'checkout-step'}><b>{number}</b>{label}</span>
+          ))}
         </div>
         {checkoutStep === 1 ? <>
           {cart.length ? (
@@ -216,6 +217,10 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           <button className="ghost-btn checkout-add-more" type="button" onClick={onContinueShopping}>
             + Agregar otra camiseta
           </button>
+          <div className="checkout-actions checkout-actions--single">
+            <button className="primary-btn" type="button" onClick={() => setCheckoutStep(2)} disabled={!cart.length}>Continuar al pago</button>
+          </div>
+        </> : checkoutStep === 2 ? <>
           <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
           <option value="whatsapp">WhatsApp</option>
           <option value="pago_movil">Pago Móvil</option>
@@ -253,8 +258,11 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           </label>
           {proofPreview ? <img src={proofPreview} alt="Vista previa del comprobante" style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px', marginTop: '0.6rem' }} /> : null}
           <textarea placeholder="Descripcion (opcional)" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} style={{ marginTop: '0.75rem' }} />
-          <button className="primary-btn" onClick={() => setCheckoutStep(2)} disabled={!cart.length}>Continuar con la entrega</button>
-        </> : <>
+          <div className="checkout-actions">
+            <button className="ghost-btn" type="button" onClick={() => setCheckoutStep(1)}>Atrás</button>
+            <button className="primary-btn" type="button" onClick={() => setCheckoutStep(3)}>Continuar a la entrega</button>
+          </div>
+        </> : checkoutStep === 3 ? <>
           <fieldset className="delivery-options">
           <legend>¿Cómo deseas recibir tu pedido?</legend>
           <label>
@@ -280,9 +288,20 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           </div>
           ) : null}
           <div className="checkout-actions">
-            <button className="ghost-btn" onClick={() => setCheckoutStep(1)} disabled={submitting}>Atrás</button>
-            <button className="ghost-btn" onClick={onContinueShopping} disabled={submitting}>+ Otra camiseta</button>
-            <button className="primary-btn" onClick={submitOrder} disabled={submitting || !cart.length}>
+            <button className="ghost-btn" type="button" onClick={() => setCheckoutStep(2)} disabled={submitting}>Atrás</button>
+            <button className="primary-btn" type="button" onClick={() => setCheckoutStep(4)} disabled={submitting}>Revisar pedido</button>
+          </div>
+        </> : <>
+          <div className="checkout-review">
+            <h4>Revisa tu pedido</h4>
+            <p><strong>Pago:</strong> {paymentDetails[paymentMethod].title}</p>
+            <p><strong>Entrega:</strong> {deliveryMethod === 'national' ? `Envío nacional a ${shippingDetails.city}, ${shippingDetails.state}` : 'Entrega personal en San Cristóbal'}</p>
+            <p><strong>Productos:</strong> {cart.reduce((sum, item) => sum + Number(item.quantity || 1), 0)} unidad(es)</p>
+            <p className="checkout-review__total">Total: {formatCurrency(total, 'USD')}</p>
+          </div>
+          <div className="checkout-actions">
+            <button className="ghost-btn" type="button" onClick={() => setCheckoutStep(3)} disabled={submitting}>Atrás</button>
+            <button className="primary-btn" type="button" onClick={submitOrder} disabled={submitting || !cart.length}>
               {submitting ? 'Procesando...' : 'Confirmar pedido'}
             </button>
           </div>

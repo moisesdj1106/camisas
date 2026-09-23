@@ -17,6 +17,7 @@ const createEmptyForm = () => ({
   title: '',
   description: '',
   price: '',
+  discount_percent: '0',
   stock: '',
   stock_by_size: emptyStockBySize(),
   club_id: '1',
@@ -80,7 +81,8 @@ const AdminPage = () => {
   const [exchangeRateDraft, setExchangeRateDraft] = useState('36');
   const [expandedOrderId, setExpandedOrderId] = useState(null);
   const [orderDetails, setOrderDetails] = useState({});
-  const [orderItemForm, setOrderItemForm] = useState({ product_id: '', size: '', quantity: 1 });
+  const [orderItemForm, setOrderItemForm] = useState({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
+  const [orderItemDorsals, setOrderItemDorsals] = useState([]);
   const [editingOrderItems, setEditingOrderItems] = useState(false);
   const [closurePeriod, setClosurePeriod] = useState('day');
   const [closureDate, setClosureDate] = useState(new Date().toISOString().split('T')[0]);
@@ -103,6 +105,7 @@ const AdminPage = () => {
   const [editingContentId, setEditingContentId] = useState(null);
   const [isUploadingContent, setIsUploadingContent] = useState(false);
   const [isUploadingProductImages, setIsUploadingProductImages] = useState(false);
+  const [allDiscountDraft, setAllDiscountDraft] = useState('10');
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -369,6 +372,7 @@ const AdminPage = () => {
         image_url: form.image_url || imageUrls[0] || null,
         image_urls: imageUrls,
         price: Number(form.price),
+        discount_percent: Number(form.discount_percent) || 0,
         stock: Number(form.stock),
         stock_by_size: Object.fromEntries(sizeOptions.map((size) => [size, Number(form.stock_by_size[size]) || 0])),
         club_id: Number(form.club_id),
@@ -414,6 +418,7 @@ const AdminPage = () => {
       title: detailedProduct.title || '',
       description: detailedProduct.description || '',
       price: detailedProduct.price ?? '',
+      discount_percent: detailedProduct.discount_percent ?? 0,
       stock: detailedProduct.stock ?? '',
       stock_by_size: { ...emptyStockBySize(), ...(detailedProduct.stock_by_size || {}) },
       club_id: detailedProduct.club_id ?? '1',
@@ -440,6 +445,7 @@ const AdminPage = () => {
         image_url: form.image_url || imageUrls[0] || null,
         image_urls: imageUrls,
         price: Number(form.price),
+        discount_percent: Number(form.discount_percent) || 0,
         stock: Number(form.stock),
         stock_by_size: Object.fromEntries(sizeOptions.map((size) => [size, Number(form.stock_by_size[size]) || 0])),
         club_id: Number(form.club_id),
@@ -454,6 +460,26 @@ const AdminPage = () => {
       setShowCreateForm(false);
       loadDashboard();
     }
+  };
+
+  const applyDiscountToAll = async (discountPercent) => {
+    const discount = Number(discountPercent);
+    if (!Number.isFinite(discount) || discount < 0 || discount > 100) {
+      setMessage('El descuento debe estar entre 0 y 100.');
+      return;
+    }
+    const response = await fetch(apiUrl('/api/admin/products/discounts'), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ discount_percent: discount })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'No se pudo aplicar el descuento.');
+      return;
+    }
+    setInventory(data.products || []);
+    setMessage(discount ? `Descuento del ${discount}% aplicado a todas las camisetas.` : 'Descuentos retirados de todas las camisetas.');
   };
 
   const loadOrderDetail = async (orderId, force = false) => {
@@ -483,15 +509,37 @@ const AdminPage = () => {
   const startOrderItemEdit = (orderId) => {
     const firstProduct = inventory.find((product) => Number(product.stock) > 0);
     const firstSize = firstProduct ? Object.keys(firstProduct.stock_by_size || {}).find((size) => Number(firstProduct.stock_by_size[size]) > 0) || '' : '';
-    setOrderItemForm({ product_id: firstProduct?.id || '', size: firstSize, quantity: 1 });
+    setOrderItemForm({ product_id: firstProduct?.id || '', size: firstSize, quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
+    setOrderItemDorsals([]);
+    if (firstProduct?.id) {
+      fetch(apiUrl(`/api/products/${firstProduct.id}`)).then((response) => response.json()).then((product) => setOrderItemDorsals(product.dorsals || [])).catch(() => setOrderItemDorsals([]));
+    }
     setEditingOrderItems(orderId);
   };
 
   const saveOrderItem = async (orderId) => {
+    const selectedDorsal = orderItemDorsals.find((item) => String(item.id) === String(orderItemForm.dorsalId));
+    if (orderItemForm.dorsalMode === 'catalog' && !selectedDorsal) {
+      setMessage('Selecciona un dorsal disponible.');
+      return;
+    }
+    if (orderItemForm.dorsalMode === 'custom' && (!orderItemForm.customName.trim() || !orderItemForm.customNumber.trim())) {
+      setMessage('Completa el nombre y número de la personalización.');
+      return;
+    }
     const response = await fetch(apiUrl(`/api/admin/orders/${orderId}/items`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify(orderItemForm)
+      body: JSON.stringify({
+        product_id: orderItemForm.product_id,
+        size: orderItemForm.size,
+        quantity: orderItemForm.quantity,
+        no_dorsal: orderItemForm.dorsalMode === 'none',
+        dorsal_number: orderItemForm.dorsalMode === 'catalog' ? selectedDorsal.dorsal_number : null,
+        dorsal_name: orderItemForm.dorsalMode === 'catalog' ? selectedDorsal.player_name : null,
+        custom_name: orderItemForm.dorsalMode === 'custom' ? orderItemForm.customName.trim() : null,
+        custom_number: orderItemForm.dorsalMode === 'custom' ? orderItemForm.customNumber.trim() : null
+      })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -938,6 +986,7 @@ const AdminPage = () => {
               <div className="filter-grid">
                 <input required placeholder="Nombre de la camiseta" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 <input required type="number" min="0" step="0.01" placeholder="Precio" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+                <input type="number" min="0" max="100" step="1" placeholder="Descuento (%)" value={form.discount_percent} onChange={(e) => setForm({ ...form, discount_percent: e.target.value })} />
                 <input type="number" min="0" placeholder="Stock total (opcional)" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
                 <input required type="number" placeholder="Club ID" value={form.club_id} onChange={(e) => setForm({ ...form, club_id: e.target.value })} />
                 <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
@@ -967,6 +1016,18 @@ const AdminPage = () => {
             </form>
           ) : null}
 
+          <div className="discount-tools">
+            <div>
+              <strong>Descuento general</strong>
+              <p>Aplica el mismo porcentaje a todas las camisetas o retíralo con 0%.</p>
+            </div>
+            <div className="discount-tools__actions">
+              <input type="number" min="0" max="100" step="1" value={allDiscountDraft} onChange={(event) => setAllDiscountDraft(event.target.value)} aria-label="Descuento para todo el inventario" />
+              <button className="primary-btn" type="button" onClick={() => applyDiscountToAll(allDiscountDraft)}>Aplicar a todo</button>
+              <button className="ghost-btn" type="button" onClick={() => { setAllDiscountDraft('0'); applyDiscountToAll(0); }}>Quitar todos</button>
+            </div>
+          </div>
+
           <div className="inventory-grid" style={{ marginTop: '1rem' }}>
             {inventory.length ? inventory.map((product) => (
               <div className="inventory-item" key={product.id}>
@@ -974,7 +1035,7 @@ const AdminPage = () => {
                 <span>{product.club?.name || 'Club sin asignar'}</span>
                 <span>Stock: {product.stock}</span>
                 <span>Tallas: {sizeOptions.map((size) => `${size}: ${product.stock_by_size?.[size] || 0}`).join(' · ')}</span>
-                <span>Precio: ${Number(product.price).toFixed(2)}</span>
+                <span>Precio: ${Number(product.final_price ?? product.price).toFixed(2)}{Number(product.discount_percent) > 0 ? ` · Antes $${Number(product.price).toFixed(2)} (-${Number(product.discount_percent)}%)` : ''}</span>
                 <div className="inventory-item__actions">
                   <button className="icon-btn" onClick={() => handleEditProduct(product)} title="Editar camiseta" aria-label={`Editar camiseta ${product.title}`}>✎</button>
                   <button className="icon-btn icon-btn--danger" onClick={() => handleDeleteProduct(product.id)} title="Eliminar camiseta" aria-label={`Eliminar camiseta ${product.title}`}>🗑</button>
@@ -1258,10 +1319,17 @@ const AdminPage = () => {
                 <div className="order-item-editor">
                   <strong>Agregar producto al mismo pedido</strong>
                   <div className="order-item-editor__fields">
-                    <select value={orderItemForm.product_id} onChange={(event) => {
+                    <select value={orderItemForm.product_id} onChange={async (event) => {
                       const product = inventory.find((item) => item.id === Number(event.target.value));
                       const firstSize = Object.keys(product?.stock_by_size || {}).find((size) => Number(product.stock_by_size[size]) > 0) || '';
-                      setOrderItemForm((current) => ({ ...current, product_id: event.target.value, size: firstSize }));
+                      setOrderItemForm((current) => ({ ...current, product_id: event.target.value, size: firstSize, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' }));
+                      if (product?.id) {
+                        const response = await fetch(apiUrl(`/api/products/${product.id}`));
+                        const data = await response.json().catch(() => ({}));
+                        setOrderItemDorsals(data.dorsals || []);
+                      } else {
+                        setOrderItemDorsals([]);
+                      }
                     }} aria-label="Producto nuevo">
                       <option value="">Selecciona una camiseta</option>
                       {inventory.filter((product) => Number(product.stock) > 0).map((product) => <option key={product.id} value={product.id}>{product.title} · {formatCurrency(product.price, 'USD')}</option>)}
@@ -1272,6 +1340,23 @@ const AdminPage = () => {
                     </select>
                     <input type="number" min="1" max="10" value={orderItemForm.quantity} onChange={(event) => setOrderItemForm((current) => ({ ...current, quantity: event.target.value }))} aria-label="Cantidad nueva" />
                   </div>
+                  <select value={orderItemForm.dorsalMode} onChange={(event) => setOrderItemForm((current) => ({ ...current, dorsalMode: event.target.value, dorsalId: '', customName: '', customNumber: '' }))} aria-label="Tipo de dorsal">
+                    <option value="none">Sin dorsal</option>
+                    <option value="catalog">Dorsal de jugador</option>
+                    <option value="custom">Camiseta personalizada</option>
+                  </select>
+                  {orderItemForm.dorsalMode === 'catalog' ? (
+                    <select value={orderItemForm.dorsalId} onChange={(event) => setOrderItemForm((current) => ({ ...current, dorsalId: event.target.value }))} aria-label="Dorsal de jugador">
+                      <option value="">Selecciona dorsal *</option>
+                      {orderItemDorsals.filter((item) => item.is_available).map((item) => <option key={item.id} value={item.id}>{item.dorsal_number} - {item.player_name || 'Disponible'}</option>)}
+                    </select>
+                  ) : null}
+                  {orderItemForm.dorsalMode === 'custom' ? (
+                    <div className="order-item-editor__fields order-item-editor__custom-fields">
+                      <input placeholder="Nombre para la camiseta" value={orderItemForm.customName} onChange={(event) => setOrderItemForm((current) => ({ ...current, customName: event.target.value }))} />
+                      <input placeholder="Número para la camiseta" inputMode="numeric" value={orderItemForm.customNumber} onChange={(event) => setOrderItemForm((current) => ({ ...current, customNumber: event.target.value }))} />
+                    </div>
+                  ) : null}
                   <div className="order-item-editor__actions">
                     <button className="ghost-btn" type="button" onClick={() => setEditingOrderItems(false)}>Cancelar</button>
                     <button className="primary-btn" type="button" onClick={() => saveOrderItem(expandedOrderId)} disabled={!orderItemForm.product_id || !orderItemForm.size}>Agregar al pedido</button>

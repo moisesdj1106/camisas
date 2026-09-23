@@ -17,7 +17,11 @@ const formatCurrency = (value, currency = 'USD') => {
 
 const spotlightVideos = ['/video1.mp4', '/video2.mp4', '/video6.mp4', '/video5.mp4'];
 const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-const PRODUCTS_PER_PAGE = 8;
+const getProductsPerPage = (width) => {
+  if (width <= 420) return 4;
+  if (width <= 760) return 6;
+  return 9;
+};
 
 export const CatalogPage = ({ user, onAddToCart }) => {
   const [products, setProducts] = useState([]);
@@ -35,6 +39,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const [exchangeRate, setExchangeRate] = useState(36);
   const [feedbackModal, setFeedbackModal] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [productsPerPage, setProductsPerPage] = useState(() => getProductsPerPage(window.innerWidth));
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [zoomedImage, setZoomedImage] = useState(null);
   const [likedProducts, setLikedProducts] = useState({});
@@ -64,7 +69,13 @@ export const CatalogPage = ({ user, onAddToCart }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.q, filters.club, filters.type, filters.minPrice, filters.maxPrice]);
+  }, [filters.q, filters.club, filters.type, filters.minPrice, filters.maxPrice, productsPerPage]);
+
+  useEffect(() => {
+    const handleResize = () => setProductsPerPage(getProductsPerPage(window.innerWidth));
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const filtered = products.filter((product) => {
     const matchesQ = !filters.q || product.title.toLowerCase().includes(filters.q.toLowerCase());
@@ -77,8 +88,9 @@ export const CatalogPage = ({ user, onAddToCart }) => {
 
   const stockTotal = products.reduce((sum, product) => sum + Number(product.stock || 0), 0);
   const featuredClubs = clubs.slice(0, 3);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PRODUCTS_PER_PAGE));
-  const visibleProducts = filtered.slice((currentPage - 1) * PRODUCTS_PER_PAGE, currentPage * PRODUCTS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / productsPerPage));
+  const safePage = Math.min(currentPage, totalPages);
+  const visibleProducts = filtered.slice((safePage - 1) * productsPerPage, safePage * productsPerPage);
 
   const openDetail = async (productId) => {
     const [productResponse, likeResponse] = await Promise.all([
@@ -253,8 +265,10 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                   <p className="card__club">{product.club?.name || 'Club'}</p>
                 <p className="card__description">{product.description || 'Camiseta oficial con diseño premium y detalles exclusivos.'}</p>
                 <div className="price-stack">
-                  <p className="product-card__price">{formatCurrency(product.price, 'USD')}</p>
-                  <p className="price-bs">{formatCurrency(Number(product.price) * exchangeRate, 'BS')}</p>
+                  {Number(product.discount_percent) > 0 ? <span className="discount-badge">-{Number(product.discount_percent)}%</span> : null}
+                  <p className={Number(product.discount_percent) > 0 ? 'product-card__price product-card__price--discounted' : 'product-card__price'}>{formatCurrency(product.final_price ?? product.price, 'USD')}</p>
+                  {Number(product.discount_percent) > 0 ? <p className="price-original">{formatCurrency(product.price, 'USD')}</p> : null}
+                  <p className="price-bs">{formatCurrency(Number(product.final_price ?? product.price) * exchangeRate, 'BS')}</p>
                 </div>
                 <div className="quantity-control">
                   <label>Cant.</label>
@@ -285,9 +299,9 @@ export const CatalogPage = ({ user, onAddToCart }) => {
 
       {filtered.length ? (
         <nav className="catalog-pagination" aria-label="Paginación del catálogo">
-          <button className="ghost-btn" type="button" disabled={currentPage === 1} onClick={() => setCurrentPage((page) => page - 1)}>Anterior</button>
-          <span>Página {currentPage} de {totalPages}</span>
-          <button className="ghost-btn" type="button" disabled={currentPage === totalPages} onClick={() => setCurrentPage((page) => page + 1)}>Siguiente</button>
+          <button className="ghost-btn" type="button" disabled={safePage === 1} onClick={() => setCurrentPage((page) => Math.max(1, Math.min(page, totalPages) - 1))}>Anterior</button>
+          <span>Página {safePage} de {totalPages}</span>
+          <button className="ghost-btn" type="button" disabled={safePage === totalPages} onClick={() => setCurrentPage((page) => page + 1)}>Siguiente</button>
         </nav>
       ) : null}
 
@@ -317,8 +331,10 @@ export const CatalogPage = ({ user, onAddToCart }) => {
               <h3>{selectedProduct.title}</h3>
               <p>{selectedProduct.description}</p>
               <div className="price-stack">
-                <p className="price">{formatCurrency(selectedProduct.price, 'USD')}</p>
-                <p className="price-bs">{formatCurrency(Number(selectedProduct.price) * exchangeRate, 'BS')}</p>
+                {Number(selectedProduct.discount_percent) > 0 ? <span className="discount-badge">-{Number(selectedProduct.discount_percent)}% de descuento</span> : null}
+                <p className={Number(selectedProduct.discount_percent) > 0 ? 'price price--discounted' : 'price'}>{formatCurrency(selectedProduct.final_price ?? selectedProduct.price, 'USD')}</p>
+                {Number(selectedProduct.discount_percent) > 0 ? <p className="price-original">Precio anterior: {formatCurrency(selectedProduct.price, 'USD')}</p> : null}
+                <p className="price-bs">{formatCurrency(Number(selectedProduct.final_price ?? selectedProduct.price) * exchangeRate, 'BS')}</p>
               </div>
               <p className="card__club">Club: {selectedProduct.club?.name || 'Sin club'}</p>
               <button className={`like-button like-button--large ${likedProducts[selectedProduct.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(selectedProduct.id)} aria-label={likedProducts[selectedProduct.id] ? 'Quitar me gusta' : 'Me gusta'} title={likedProducts[selectedProduct.id] ? 'Quitar me gusta' : 'Me gusta'}>

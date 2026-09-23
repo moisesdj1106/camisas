@@ -101,7 +101,8 @@ const App = () => {
   };
 
   const addToCart = (product, dorsal, quantity = 1, size, dorsalName = '', customization = {}) => {
-    setCart((current) => [...current, { ...product, selectedDorsal: dorsal, selectedDorsalName: dorsalName, selectedSize: size, selectedNoDorsal: Boolean(customization.noDorsal), customName: customization.name || '', customNumber: customization.number || '', quantity: Math.max(1, Number(quantity) || 1) }]);
+    const finalPrice = Number(product.final_price ?? product.price ?? 0);
+    setCart((current) => [...current, { ...product, price: finalPrice, originalPrice: Number(product.price || 0), selectedDorsal: dorsal, selectedDorsalName: dorsalName, selectedSize: size, selectedNoDorsal: Boolean(customization.noDorsal), customName: customization.name || '', customNumber: customization.number || '', quantity: Math.max(1, Number(quantity) || 1) }]);
     setCheckoutOpen(true);
   };
 
