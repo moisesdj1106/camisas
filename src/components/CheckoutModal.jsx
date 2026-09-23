@@ -139,18 +139,6 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
         return;
       }
 
-      if (data.invoiceBuffer) {
-        const byteCharacters = atob(data.invoiceBuffer);
-        const byteNumbers = new Array(byteCharacters.length).fill(0).map((_, index) => byteCharacters.charCodeAt(index));
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `factura-pedido-${data.order?.id || 'nuevo'}.pdf`;
-        link.click();
-        URL.revokeObjectURL(url);
-      }
       setStatus('Tu pedido está en revisión. Espera la aprobación y recibirás una notificación cuando sea aprobado.');
       setProofUrl('');
       setProofFile(null);
@@ -171,7 +159,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
         ].filter(Boolean).join('\n')
         : `Hola, quiero coordinar la entrega personal de mi pedido #${data.order?.id || ''} de MDJ Soccer. Productos: ${orderLines}.`;
       const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-      onOrderSubmitted?.(data.order?.id, whatsappUrl);
+      onOrderSubmitted?.(data.order?.id, whatsappUrl, data.invoiceBuffer || '');
     } catch (error) {
       setStatus('No se pudo conectar con el servidor.');
     } finally {

@@ -24,6 +24,7 @@ const App = () => {
   const [notifications, setNotifications] = useState([]);
   const [orderReviewOpen, setOrderReviewOpen] = useState(false);
   const [orderWhatsappUrl, setOrderWhatsappUrl] = useState('');
+  const [orderInvoiceBuffer, setOrderInvoiceBuffer] = useState('');
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   const [sessionMessage, setSessionMessage] = useState('');
   const navigate = useNavigate();
@@ -119,9 +120,27 @@ const App = () => {
     navigate('/');
   };
 
-  const handleOrderSubmitted = (_orderId, whatsappUrl = '') => {
+  const handleOrderSubmitted = (_orderId, whatsappUrl = '', invoiceBuffer = '') => {
     setOrderWhatsappUrl(whatsappUrl);
+    setOrderInvoiceBuffer(invoiceBuffer);
     setOrderReviewOpen(true);
+  };
+
+  const closeOrderReview = () => {
+    setOrderReviewOpen(false);
+    setOrderWhatsappUrl('');
+    setOrderInvoiceBuffer('');
+  };
+
+  const openInvoiceForPrint = () => {
+    if (!orderInvoiceBuffer) return;
+    const byteCharacters = atob(orderInvoiceBuffer);
+    const byteNumbers = new Array(byteCharacters.length).fill(0).map((_, index) => byteCharacters.charCodeAt(index));
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
   const markNotificationRead = async (notificationId) => {
@@ -212,16 +231,23 @@ const App = () => {
       <CheckoutModal open={checkoutOpen} onClose={() => setCheckoutOpen(false)} cart={cart} user={user} onRemoveFromCart={removeFromCart} onClearCart={clearCart} onOrderSubmitted={handleOrderSubmitted} onContinueShopping={continueShopping} />
 
       {orderReviewOpen ? (
-        <div className="modal-backdrop" onClick={() => setOrderReviewOpen(false)}>
+        <div className="modal-backdrop" onClick={closeOrderReview}>
           <div className="modal review-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" type="button" onClick={() => { setOrderReviewOpen(false); setOrderWhatsappUrl(''); }} aria-label="Cerrar confirmación" title="Cerrar">×</button>
+            <button className="modal-close" type="button" onClick={closeOrderReview} aria-label="Cerrar confirmación" title="Cerrar">×</button>
             <div className="review-modal__icon">✓</div>
             <p className="eyebrow">Pedido recibido</p>
             <h3>Tu pedido está en revisión</h3>
             <p>Tu pedido fue enviado correctamente. Está pendiente de aprobación y recibirás una notificación cuando sea aprobado.</p>
             <p className="review-modal__hint">Si la notificación no aparece de inmediato, la página seguirá revisando automáticamente tu estado.</p>
+            {orderInvoiceBuffer ? (
+              <div className="invoice-option">
+                <strong>Factura disponible</strong>
+                <p>¿Quieres conservarla o imprimirla? Ábrela cuando estés listo.</p>
+                <button className="primary-btn" type="button" onClick={openInvoiceForPrint}>▣ Ver e imprimir factura</button>
+              </div>
+            ) : null}
             {orderWhatsappUrl ? <a className="whatsapp-link review-modal__whatsapp" href={orderWhatsappUrl} target="_blank" rel="noreferrer">Seguir por WhatsApp (opcional)</a> : null}
-            <button className="primary-btn" onClick={() => { setOrderReviewOpen(false); setOrderWhatsappUrl(''); }} style={{ marginTop: '0.75rem' }}>Entendido</button>
+            <button className="ghost-btn" onClick={closeOrderReview} style={{ marginTop: '0.75rem' }}>Entendido</button>
           </div>
         </div>
       ) : null}

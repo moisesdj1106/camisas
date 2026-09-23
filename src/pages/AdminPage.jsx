@@ -69,6 +69,7 @@ const AdminPage = () => {
   const [auditLogs, setAuditLogs] = useState([]);
   const [activeLog, setActiveLog] = useState(null);
   const [activeView, setActiveView] = useState(new URLSearchParams(location.search).get('view') || 'overview');
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [form, setForm] = useState(createEmptyForm());
   const [message, setMessage] = useState('');
   const [inventory, setInventory] = useState([]);
@@ -716,8 +717,19 @@ const AdminPage = () => {
 
   const setView = (view) => {
     setActiveView(view);
+    setAdminMenuOpen(false);
     navigate(`/admin?view=${view}`);
   };
+
+  const adminSections = [
+    { value: 'overview', label: 'Resumen', description: 'Ventas, métricas y cierres' },
+    { value: 'inventory', label: 'Inventario', description: 'Camisetas, stock y descuentos' },
+    { value: 'orders', label: 'Pedidos', description: 'Clientes, estados y facturas' },
+    { value: 'users', label: 'Usuarios', description: 'Clientes y administradores' },
+    { value: 'clubs', label: 'Clubes', description: 'Equipos y escudos' },
+    { value: 'content', label: 'Contenido visual', description: 'Banners, fotos y videos' },
+    { value: 'audit', label: 'Auditoría', description: 'Historial de cambios' }
+  ];
 
   const getProofUrl = (value) => {
     if (!value) return null;
@@ -812,12 +824,25 @@ const AdminPage = () => {
       </section>
 
       <div className="admin-nav">
-        <button className={`ghost-btn ${activeView === 'overview' ? 'active' : ''}`} onClick={() => setView('overview')}>Resumen</button>
-        <button className={`ghost-btn ${activeView === 'inventory' ? 'active' : ''}`} onClick={() => setView('inventory')}>Inventario</button>
-        <button className={`ghost-btn ${activeView === 'clubs' ? 'active' : ''}`} onClick={() => setView('clubs')}>Clubes</button>
-        <button className={`ghost-btn ${activeView === 'orders' ? 'active' : ''}`} onClick={() => setView('orders')}>Pedidos</button>
-        <button className={`ghost-btn ${activeView === 'users' ? 'active' : ''}`} onClick={() => setView('users')}>Usuarios</button>
-        <button className={`ghost-btn ${activeView === 'audit' ? 'active' : ''}`} onClick={() => setView('audit')}>Auditoría</button>
+        <div className="admin-menu">
+          <button className="admin-menu__trigger" type="button" onClick={() => setAdminMenuOpen((open) => !open)} aria-expanded={adminMenuOpen} aria-haspopup="menu">
+            <span className="admin-menu__trigger-icon">☰</span>
+            <span><small>Sección actual</small><strong>{adminSections.find((section) => section.value === activeView)?.label || 'Panel'}</strong></span>
+            <span className="admin-menu__chevron" aria-hidden="true">⌄</span>
+          </button>
+          {adminMenuOpen ? (
+            <div className="admin-menu__panel" role="menu">
+              <p className="admin-menu__title">Navegación del panel</p>
+              {adminSections.map((section) => (
+                <button key={section.value} className={activeView === section.value ? 'admin-menu__item admin-menu__item--active' : 'admin-menu__item'} type="button" onClick={() => setView(section.value)} role="menuitem">
+                  <span className="admin-menu__item-icon" aria-hidden="true">{section.value === 'overview' ? '⌂' : section.value === 'inventory' ? '▣' : section.value === 'orders' ? '▤' : section.value === 'users' ? '♙' : section.value === 'clubs' ? '⚽' : section.value === 'content' ? '▧' : '◌'}</span>
+                  <span><strong>{section.label}</strong><small>{section.description}</small></span>
+                  {activeView === section.value ? <span className="admin-menu__check" aria-hidden="true">✓</span> : null}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {message ? <p className="badge" style={{ marginBottom: '1rem' }}>{message}</p> : null}
