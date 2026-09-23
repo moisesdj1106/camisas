@@ -107,6 +107,7 @@ const AdminPage = () => {
   const [isUploadingContent, setIsUploadingContent] = useState(false);
   const [isUploadingProductImages, setIsUploadingProductImages] = useState(false);
   const [allDiscountDraft, setAllDiscountDraft] = useState('10');
+  const [orderDiscountEdit, setOrderDiscountEdit] = useState(null);
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -264,6 +265,28 @@ const AdminPage = () => {
     } catch (error) {
       setMessage('No se pudo actualizar el pedido.');
     }
+  };
+
+  const saveOrderDiscount = async () => {
+    const discount = Number(orderDiscountEdit?.discount);
+    if (!orderDiscountEdit || !Number.isFinite(discount) || discount < 0 || discount > 100) {
+      setMessage('El descuento del pedido debe estar entre 0 y 100.');
+      return;
+    }
+    const response = await fetch(apiUrl(`/api/admin/orders/${orderDiscountEdit.id}/discount`), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify({ discount_percent: discount })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'No se pudo aplicar el descuento al pedido.');
+      return;
+    }
+    setOrders((current) => current.map((order) => order.id === data.id ? { ...order, total_amount: data.total_amount, subtotal_amount: data.subtotal_amount, discount_percent: data.discount_percent } : order));
+    setOrderDetails((current) => current[data.id] ? { ...current, [data.id]: { ...current[data.id], order: { ...current[data.id].order, ...data } } } : current);
+    setOrderDiscountEdit(null);
+    setMessage(discount ? `Descuento del ${discount}% aplicado al pedido #${data.id}.` : `Descuento retirado del pedido #${data.id}.`);
   };
 
   const deleteSelectedOrders = async () => {
@@ -519,6 +542,10 @@ const AdminPage = () => {
   };
 
   const saveOrderItem = async (orderId) => {
+    if (!orderId || !orderItemForm.product_id || !orderItemForm.size) {
+      setMessage('Selecciona una camiseta y una talla.');
+      return;
+    }
     const selectedDorsal = orderItemDorsals.find((item) => String(item.id) === String(orderItemForm.dorsalId));
     if (orderItemForm.dorsalMode === 'catalog' && !selectedDorsal) {
       setMessage('Selecciona un dorsal disponible.');
@@ -1011,7 +1038,10 @@ const AdminPage = () => {
               <div className="filter-grid">
                 <input required placeholder="Nombre de la camiseta" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 <input required type="number" min="0" step="0.01" placeholder="Precio" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-                <input type="number" min="0" max="100" step="1" placeholder="Descuento (%)" value={form.discount_percent} onChange={(e) => setForm({ ...form, discount_percent: e.target.value })} />
+                <label className="discount-field">
+                  <span>Descuento individual (%)</span>
+                  <input type="number" min="0" max="100" step="1" placeholder="0 = sin descuento" value={form.discount_percent} onChange={(e) => setForm({ ...form, discount_percent: e.target.value })} />
+                </label>
                 <input type="number" min="0" placeholder="Stock total (opcional)" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
                 <input required type="number" placeholder="Club ID" value={form.club_id} onChange={(e) => setForm({ ...form, club_id: e.target.value })} />
                 <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
@@ -1226,11 +1256,14 @@ const AdminPage = () => {
               <button className="primary-btn" type="button" onClick={downloadApprovedOrders} title="Descargar todos los pedidos aceptados en PDF">🖨️ Imprimir aceptados</button>
             </div>
           </div>
-          <div className="order-shortcuts" role="group" aria-label="Filtrar pedidos por estado">
-            <button className={`ghost-btn ${orderFilter === 'all' ? 'active' : ''}`} onClick={() => setOrderFilterAndResetPage('all')}>Todos ({orders.length})</button>
-            {orderStatusOptions.map(([value, label]) => (
-              <button key={value} className={`ghost-btn ${orderFilter === value ? 'active' : ''}`} onClick={() => setOrderFilterAndResetPage(value)}>{label} ({orders.filter((order) => order.status === value).length})</button>
-            ))}
+          <div className="order-filter-select">
+            <label htmlFor="order-status-filter">Filtrar por estado</label>
+            <select id="order-status-filter" value={orderFilter} onChange={(event) => setOrderFilterAndResetPage(event.target.value)}>
+              <option value="all">Todos ({orders.length})</option>
+              {orderStatusOptions.map(([value, label]) => (
+                <option key={value} value={value}>{label} ({orders.filter((order) => order.status === value).length})</option>
+              ))}
+            </select>
           </div>
           <div className="orders-toolbar">
             <input
@@ -1291,6 +1324,7 @@ const AdminPage = () => {
                       </select>
                     </td>
                     <td>
+                      <button className="icon-btn" onClick={() => setOrderDiscountEdit({ id: order.id, discount: order.discount_percent || 0 })} title="Aplicar descuento al pedido" aria-label={`Aplicar descuento al pedido ${order.id}`}>%</button>
                       <button className="icon-btn" onClick={() => downloadInvoice(order.id)} title="Descargar factura" aria-label={`Descargar factura del pedido ${order.id}`}>▣</button>
                       <button className="icon-btn icon-btn--danger" onClick={() => requestConfirmation('Eliminar pedido', `¿Eliminar definitivamente el pedido #${order.id}? Esta acción no se puede deshacer.`, () => deleteOrder(order.id))} title={`Eliminar pedido #${order.id}`} aria-label={`Eliminar pedido #${order.id}`}>🗑</button>
                     </td>
@@ -1312,7 +1346,7 @@ const AdminPage = () => {
             <div className="card" style={{ margin: '1rem 0' }}>
               <div className="order-detail__header">
                 <h4>Detalle del pedido #{expandedOrderId}</h4>
-                <button className="icon-btn" type="button" onClick={() => startOrderItemEdit(expandedOrderId)} title="Agregar producto al pedido" aria-label={`Agregar producto al pedido ${expandedOrderId}`}>＋</button>
+                <button className="icon-btn" type="button" onClick={() => startOrderItemEdit(expandedOrderId)} title="Editar pedido y agregar producto" aria-label={`Editar pedido ${expandedOrderId}`}>✎</button>
               </div>
               {orderDetails[expandedOrderId].order?.delivery_method === 'national' ? (
                 <div className="shipping-summary">
@@ -1340,54 +1374,6 @@ const AdminPage = () => {
                   </li>
                 ))}
               </ul>
-              {editingOrderItems === expandedOrderId ? (
-                <div className="order-item-editor">
-                  <strong>Agregar producto al mismo pedido</strong>
-                  <div className="order-item-editor__fields">
-                    <select value={orderItemForm.product_id} onChange={async (event) => {
-                      const product = inventory.find((item) => item.id === Number(event.target.value));
-                      const firstSize = Object.keys(product?.stock_by_size || {}).find((size) => Number(product.stock_by_size[size]) > 0) || '';
-                      setOrderItemForm((current) => ({ ...current, product_id: event.target.value, size: firstSize, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' }));
-                      if (product?.id) {
-                        const response = await fetch(apiUrl(`/api/products/${product.id}`));
-                        const data = await response.json().catch(() => ({}));
-                        setOrderItemDorsals(data.dorsals || []);
-                      } else {
-                        setOrderItemDorsals([]);
-                      }
-                    }} aria-label="Producto nuevo">
-                      <option value="">Selecciona una camiseta</option>
-                      {inventory.filter((product) => Number(product.stock) > 0).map((product) => <option key={product.id} value={product.id}>{product.title} · {formatCurrency(product.price, 'USD')}</option>)}
-                    </select>
-                    <select value={orderItemForm.size} onChange={(event) => setOrderItemForm((current) => ({ ...current, size: event.target.value }))} aria-label="Talla nueva">
-                      <option value="">Talla</option>
-                      {(inventory.find((product) => product.id === Number(orderItemForm.product_id))?.stock_by_size ? Object.entries(inventory.find((product) => product.id === Number(orderItemForm.product_id)).stock_by_size).filter(([, stock]) => Number(stock) > 0).map(([size]) => <option key={size} value={size}>{size}</option>) : null)}
-                    </select>
-                    <input type="number" min="1" max="10" value={orderItemForm.quantity} onChange={(event) => setOrderItemForm((current) => ({ ...current, quantity: event.target.value }))} aria-label="Cantidad nueva" />
-                  </div>
-                  <select value={orderItemForm.dorsalMode} onChange={(event) => setOrderItemForm((current) => ({ ...current, dorsalMode: event.target.value, dorsalId: '', customName: '', customNumber: '' }))} aria-label="Tipo de dorsal">
-                    <option value="none">Sin dorsal</option>
-                    <option value="catalog">Dorsal de jugador</option>
-                    <option value="custom">Camiseta personalizada</option>
-                  </select>
-                  {orderItemForm.dorsalMode === 'catalog' ? (
-                    <select value={orderItemForm.dorsalId} onChange={(event) => setOrderItemForm((current) => ({ ...current, dorsalId: event.target.value }))} aria-label="Dorsal de jugador">
-                      <option value="">Selecciona dorsal *</option>
-                      {orderItemDorsals.filter((item) => item.is_available).map((item) => <option key={item.id} value={item.id}>{item.dorsal_number} - {item.player_name || 'Disponible'}</option>)}
-                    </select>
-                  ) : null}
-                  {orderItemForm.dorsalMode === 'custom' ? (
-                    <div className="order-item-editor__fields order-item-editor__custom-fields">
-                      <input placeholder="Nombre para la camiseta" value={orderItemForm.customName} onChange={(event) => setOrderItemForm((current) => ({ ...current, customName: event.target.value }))} />
-                      <input placeholder="Número para la camiseta" inputMode="numeric" value={orderItemForm.customNumber} onChange={(event) => setOrderItemForm((current) => ({ ...current, customNumber: event.target.value }))} />
-                    </div>
-                  ) : null}
-                  <div className="order-item-editor__actions">
-                    <button className="ghost-btn" type="button" onClick={() => setEditingOrderItems(false)}>Cancelar</button>
-                    <button className="primary-btn" type="button" onClick={() => saveOrderItem(expandedOrderId)} disabled={!orderItemForm.product_id || !orderItemForm.size}>Agregar al pedido</button>
-                  </div>
-                </div>
-              ) : null}
             </div>
           ) : null}
 
@@ -1422,6 +1408,69 @@ const AdminPage = () => {
         </div>
       ) : null}
 
+      <Modal
+        open={Boolean(orderDiscountEdit)}
+        title={`Descuento para pedido #${orderDiscountEdit?.id || ''}`}
+        message="Aplica un descuento únicamente a este pedido. Usa 0% para quitarlo."
+        onClose={() => setOrderDiscountEdit(null)}
+        onConfirm={saveOrderDiscount}
+        confirmLabel="Guardar descuento"
+      >
+        <label className="discount-field discount-field--modal">
+          <span>Porcentaje de descuento</span>
+          <input type="number" min="0" max="100" step="1" value={orderDiscountEdit?.discount ?? 0} onChange={(event) => setOrderDiscountEdit((current) => ({ ...current, discount: event.target.value }))} autoFocus />
+        </label>
+      </Modal>
+      <Modal
+        open={Boolean(editingOrderItems)}
+        title={`Agregar producto al pedido #${editingOrderItems || ''}`}
+        message="Selecciona la camiseta, talla y configuración del dorsal. El producto se sumará al pedido actual."
+        onClose={() => setEditingOrderItems(false)}
+        onConfirm={() => saveOrderItem(editingOrderItems)}
+        confirmLabel="Agregar al pedido"
+      >
+        <div className="order-item-editor order-item-editor--modal">
+          <select value={orderItemForm.product_id} onChange={async (event) => {
+            const product = inventory.find((item) => item.id === Number(event.target.value));
+            const firstSize = Object.keys(product?.stock_by_size || {}).find((size) => Number(product.stock_by_size[size]) > 0) || '';
+            setOrderItemForm((current) => ({ ...current, product_id: event.target.value, size: firstSize, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' }));
+            if (product?.id) {
+              const response = await fetch(apiUrl(`/api/products/${product.id}`));
+              const data = await response.json().catch(() => ({}));
+              setOrderItemDorsals(data.dorsals || []);
+            } else {
+              setOrderItemDorsals([]);
+            }
+          }} aria-label="Producto nuevo">
+            <option value="">Selecciona una camiseta</option>
+            {inventory.filter((product) => Number(product.stock) > 0).map((product) => <option key={product.id} value={product.id}>{product.title} · {formatCurrency(product.final_price ?? product.price, 'USD')}</option>)}
+          </select>
+          <div className="order-item-editor__fields">
+            <select value={orderItemForm.size} onChange={(event) => setOrderItemForm((current) => ({ ...current, size: event.target.value }))} aria-label="Talla nueva">
+              <option value="">Talla</option>
+              {(inventory.find((product) => product.id === Number(orderItemForm.product_id))?.stock_by_size ? Object.entries(inventory.find((product) => product.id === Number(orderItemForm.product_id)).stock_by_size).filter(([, stock]) => Number(stock) > 0).map(([size]) => <option key={size} value={size}>{size}</option>) : null)}
+            </select>
+            <input type="number" min="1" max="10" value={orderItemForm.quantity} onChange={(event) => setOrderItemForm((current) => ({ ...current, quantity: event.target.value }))} aria-label="Cantidad nueva" />
+          </div>
+          <select value={orderItemForm.dorsalMode} onChange={(event) => setOrderItemForm((current) => ({ ...current, dorsalMode: event.target.value, dorsalId: '', customName: '', customNumber: '' }))} aria-label="Tipo de dorsal">
+            <option value="none">Sin dorsal</option>
+            <option value="catalog">Dorsal de jugador</option>
+            <option value="custom">Camiseta personalizada</option>
+          </select>
+          {orderItemForm.dorsalMode === 'catalog' ? (
+            <select value={orderItemForm.dorsalId} onChange={(event) => setOrderItemForm((current) => ({ ...current, dorsalId: event.target.value }))} aria-label="Dorsal de jugador">
+              <option value="">Selecciona dorsal *</option>
+              {orderItemDorsals.filter((item) => item.is_available).map((item) => <option key={item.id} value={item.id}>{item.dorsal_number} - {item.player_name || 'Disponible'}</option>)}
+            </select>
+          ) : null}
+          {orderItemForm.dorsalMode === 'custom' ? (
+            <div className="order-item-editor__fields order-item-editor__custom-fields">
+              <input placeholder="Nombre para la camiseta" value={orderItemForm.customName} onChange={(event) => setOrderItemForm((current) => ({ ...current, customName: event.target.value }))} />
+              <input placeholder="Número para la camiseta" inputMode="numeric" value={orderItemForm.customNumber} onChange={(event) => setOrderItemForm((current) => ({ ...current, customNumber: event.target.value }))} />
+            </div>
+          ) : null}
+        </div>
+      </Modal>
       <Modal open={Boolean(activeLog)} title="Detalle del cambio" onClose={() => setActiveLog(null)}>
         <pre style={{ whiteSpace: 'pre-wrap' }}>{activeLog ? JSON.stringify(activeLog.changes, null, 2) : ''}</pre>
       </Modal>

@@ -290,6 +290,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .order-shortcuts { display: flex; gap: 0.45rem; flex-wrap: wrap; margin-bottom: 0.85rem; }
 .order-shortcuts .ghost-btn { padding: 0.5rem 0.7rem; font-size: 0.82rem; }
 .order-shortcuts .ghost-btn.active { background: #2563eb; border-color: #2563eb; color: white; }
+.order-filter-select { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.85rem; }
+.order-filter-select label { color: #475569; font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+.order-filter-select select { width: min(300px, 100%); padding: 0.65rem 0.8rem; }
 .orders-toolbar { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.85rem; }
 .orders-toolbar input { flex: 1; min-width: 220px; }
 .orders-toolbar__count { color: #64748b; font-size: 0.88rem; white-space: nowrap; }
@@ -385,6 +388,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .discount-tools p { margin: 0.2rem 0 0; color: #64748b; font-size: 0.85rem; }
 .discount-tools__actions { display: flex; align-items: center; gap: 0.5rem; }
 .discount-tools__actions input { width: 92px; }
+.discount-field { display: grid; gap: 0.3rem; }
+.discount-field span { color: #475569; font-size: 0.8rem; font-weight: 700; }
+.discount-field--modal { margin-top: 0.9rem; }
 .checkout-add-more { width: 100%; margin: 0.4rem 0 0.8rem; text-align: center; }
 .review-modal__whatsapp { display: inline-flex; justify-content: center; margin-top: 0.9rem; text-decoration: none; }
 .delivery-options { display: grid; gap: 0.55rem; margin: 0.85rem 0 0; padding: 0.8rem; border: 1px solid #dbeafe; border-radius: 14px; background: #f8fbff; }
@@ -400,6 +406,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .order-detail__header { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
 .order-detail__header h4 { margin: 0 0 0.8rem; }
 .order-item-editor { display: grid; gap: 0.7rem; margin-top: 1rem; padding: 0.9rem; border: 1px solid #bfdbfe; border-radius: 14px; background: #f8fbff; }
+.order-item-editor--modal { margin-top: 0; padding: 0; border: 0; background: transparent; }
 .order-item-editor__fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(90px, 0.75fr) minmax(75px, 0.5fr); gap: 0.55rem; }
 .order-item-editor__actions { display: flex; justify-content: flex-end; gap: 0.55rem; flex-wrap: wrap; }
 @media (max-width: 760px) {
@@ -429,6 +436,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .discount-tools__actions input { flex: 1; min-width: 70px; }
   .orders-toolbar { align-items: stretch; flex-direction: column; }
   .orders-toolbar input { min-width: 0; }
+  .order-filter-select { align-items: stretch; flex-direction: column; gap: 0.35rem; }
+  .order-filter-select select { width: 100%; }
   .table { display: block; overflow-x: auto; white-space: nowrap; font-size: 0.82rem; }
   .table th, .table td { padding: 0.55rem 0.45rem; }
   .order-item-editor__fields { grid-template-columns: 1fr 1fr; }
