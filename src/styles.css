@@ -96,7 +96,7 @@ button, input, select, textarea { font: inherit; }
   display: block;
   filter: drop-shadow(0 6px 14px rgba(0,0,0,0.16));
 }
-.hero-spotlight__media-stack { display: flex; gap: 0.7rem; align-items: stretch; justify-content: flex-end; flex-wrap: wrap; width: 100%; }
+.hero-spotlight__media-stack { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.7rem; align-items: stretch; width: 100%; }
 .hero-spotlight__copy h3 {
   margin: 0;
   font-size: 1.25rem;
@@ -113,9 +113,9 @@ button, input, select, textarea { font: inherit; }
   overflow: hidden;
   min-height: 120px;
   height: 260px;
-  width: 220px;
-  max-width: 220px;
-  min-width: 180px;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
   position: relative;
   background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.04));
   display: flex;
@@ -123,7 +123,7 @@ button, input, select, textarea { font: inherit; }
   justify-content: center;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
 }
-.hero-spotlight__media--wide { width: 220px; max-width: 220px; }
+.hero-spotlight__media--wide { width: 100%; max-width: none; }
 .hero-spotlight__media--secondary { filter: saturate(1.05); }
 .hero-spotlight__media::after {
   content: '';
@@ -140,7 +140,7 @@ button, input, select, textarea { font: inherit; }
 .filters-card__header h3 { margin: 0; color: #0f172a; }
 .results-pill, .stock-pill { display: inline-flex; align-items: center; padding: 0.35rem 0.7rem; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-weight: 600; font-size: 0.85rem; }
 .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.9rem; }
-.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8rem; align-items: stretch; width: min(1180px, calc(100% - 2rem)); margin: 0 auto; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.25rem; align-items: stretch; justify-items: center; width: min(1200px, calc(100% - 2rem)); margin: 0 auto; }
 .card { padding: 0.55rem; overflow: hidden; border-radius: 16px; }
 .card img { width: 100%; height: 100%; object-fit: contain; border-radius: 14px; }
 .card__body { display: flex; flex-direction: column; gap: 0.7rem; padding-top: 0.9rem; }
@@ -148,7 +148,7 @@ button, input, select, textarea { font: inherit; }
 .card__club { margin: 0; color: #64748b; font-weight: 600; }
 .card__description { margin: 0; color: #475569; font-size: 0.95rem; line-height: 1.45; display: -webkit-box; line-clamp: 3; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .card__footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 0.3rem; }
-.product-card-shell { position: relative; width: 100%; max-width: 420px; height: 100%; margin: 0 auto; }
+.product-card-shell { position: relative; width: min(100%, 360px); max-width: 360px; height: 100%; margin: 0 auto; }
 .product-card { display: flex; flex-direction: column; gap: 0.4rem; height: 100%; width: 100%; }
 
 .product-card__image { position: relative; width: 100%; aspect-ratio: 5 / 4; border: 0; border-radius: 12px; overflow: hidden; background: linear-gradient(135deg, #f8fbff 0%, #eef5ff 100%); display: flex; align-items: center; justify-content: center; padding: 0.25rem; cursor: zoom-in; }
@@ -369,6 +369,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .notification-card--success p { color: #166534; }
 .notification-card--warning { border-color: #fde68a; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); }
 .notification-card--warning p { color: #92400e; }
+.notification-actions { display: flex; align-items: center; gap: 0.35rem; }
+.notification-actions .icon-btn { width: 32px; height: 32px; border-radius: 9px; font-size: 0.9rem; }
 .checkout-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.45rem; margin: 0 0 1rem; }
 .checkout-step { display: flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 2.7rem; padding: 0.55rem 0.35rem; border: 1px solid #dbeafe; border-radius: 12px; background: #f8fbff; color: #64748b; font-size: 0.78rem; font-weight: 700; text-align: center; }
 .checkout-step b { display: grid; place-items: center; width: 1.35rem; height: 1.35rem; flex: 0 0 auto; border-radius: 50%; background: #e2e8f0; color: #475569; font-size: 0.72rem; }
@@ -475,7 +477,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 @media (max-width: 1024px) {
   .hero-spotlight__grid { grid-template-columns: 1fr; gap: 0.9rem; }
   .hero-spotlight__copy { max-width: none; }
-  .hero-spotlight__media-stack { justify-content: flex-start; }
+  .hero-spotlight__media-stack { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 @media (max-width: 768px) {
@@ -489,8 +491,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .container { padding: 1rem; }
   .hero-banner { padding: 2rem 1rem; }
   .hero-spotlight { padding: 0.9rem; min-height: auto; }
-  .hero-spotlight__media-stack { justify-content: center; }
-  .hero-spotlight__media { width: min(100%, 220px); height: 220px; }
+  .hero-spotlight__media-stack { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.45rem; }
+  .hero-spotlight__media { height: clamp(120px, 22vw, 220px); }
   .filters-card__header { flex-direction: column; align-items: flex-start; }
   .filter-grid { grid-template-columns: 1fr; }
   .grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
@@ -511,8 +513,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .brand-logo { width: 64px; height: 64px; }
   .nav-links { gap: 0.45rem; }
   .nav-links a, .ghost-btn { width: 100%; text-align: center; }
-  .hero-spotlight__media-stack { width: 100%; flex-direction: column; align-items: stretch; }
-  .hero-spotlight__media { width: 100%; max-width: none; height: 200px; }
+  .hero-spotlight__media-stack { width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.3rem; }
+  .hero-spotlight__media { width: 100%; max-width: none; height: clamp(82px, 24vw, 150px); border-radius: 10px; }
   .hero-banner__metrics { grid-template-columns: 1fr; }
   .product-card__image { aspect-ratio: 4 / 3; }
   .modal-backdrop { align-items: flex-start; padding: 0.55rem; }

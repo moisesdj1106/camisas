@@ -158,6 +158,19 @@ const App = () => {
     }
   };
 
+  const clearNotifications = async () => {
+    const token = localStorage.getItem('token');
+    try {
+      const response = await apiFetch('/api/auth/me/notifications', {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) setNotifications([]);
+    } catch (error) {
+      console.error('No se pudieron limpiar las notificaciones', error);
+    }
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -194,7 +207,10 @@ const App = () => {
                   <div className="card" style={{ position: 'absolute', right: 0, top: 'calc(100% + 0.4rem)', width: '280px', padding: '0.75rem', zIndex: 50 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                       <strong>Notificaciones</strong>
-                      <button className="ghost-btn" onClick={() => setNotificationsOpen(false)}>✕</button>
+                      <div className="notification-actions">
+                        {notifications.length ? <button className="icon-btn icon-btn--danger" type="button" onClick={clearNotifications} title="Limpiar notificaciones" aria-label="Limpiar todas las notificaciones">🗑</button> : null}
+                        <button className="icon-btn" type="button" onClick={() => setNotificationsOpen(false)} title="Cerrar notificaciones" aria-label="Cerrar notificaciones">×</button>
+                      </div>
                     </div>
                     {notifications.length ? notifications.map((item) => {
                       const toneClass = item.type === 'success' ? 'notification-card notification-card--success' : item.type === 'warning' ? 'notification-card notification-card--warning' : 'notification-card';
