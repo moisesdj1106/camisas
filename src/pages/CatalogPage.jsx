@@ -174,6 +174,10 @@ export const CatalogPage = ({ user, onAddToCart }) => {
             </div>
           </div>
         </div>
+        <div className="hero-banner__visual" aria-hidden="true">
+          <img src="/escudo.jpg" alt="" />
+          <div className="hero-banner__visual-copy"><span>MDJ / SOCCER</span><strong>Viste tu pasión</strong></div>
+        </div>
       </section>
 
       <section className="promo-marquee" aria-label="Promociones de la tienda">

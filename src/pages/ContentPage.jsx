@@ -49,7 +49,7 @@ const ContentPage = () => {
   return (
     <main className="content-page">
       <section className="content-page__hero">
-        <p>MDJ Soccer · Comunidad y novedades</p>
+        <div className="content-page__hero-kicker"><span>MDJ SOCCER</span><span>EDITORIAL / 2025</span></div>
         <h2>Vive la camiseta más allá de la pantalla</h2>
         <p>Descubre promociones, lanzamientos, videos y momentos de nuestra Comunidad.</p>
       </section>

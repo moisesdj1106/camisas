@@ -37,6 +37,7 @@ const createEmptyClubForm = () => ({
 const createEmptyContentForm = () => ({
   type: 'banner',
   slot: 'banner',
+  placement: 'banner',
   media_url: '',
   title: '',
   description: '',
@@ -165,10 +166,18 @@ const AdminPage = () => {
 
   const saveContent = async (event) => {
     event.preventDefault();
+    const placementOrder = { 'video-left': 0, 'video-right': 1, 'video-horizontal': 2 };
+    const isVideoPlacement = contentForm.placement?.startsWith('video-');
+    const payload = {
+      ...contentForm,
+      slot: isVideoPlacement ? 'video' : contentForm.placement,
+      type: isVideoPlacement ? 'video' : contentForm.placement === 'gallery' ? 'image' : 'banner',
+      sort_order: isVideoPlacement ? placementOrder[contentForm.placement] : Number(contentForm.sort_order) || 0
+    };
     const response = await fetch(apiUrl(editingContentId ? `/api/admin/content/${editingContentId}` : '/api/admin/content'), {
       method: editingContentId ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify({ ...contentForm, sort_order: Number(contentForm.sort_order) || 0 })
+      body: JSON.stringify(payload)
     });
     if (!response.ok) return setMessage('No se pudo guardar el contenido.');
     setMessage(editingContentId ? 'Contenido actualizado' : 'Contenido publicado');
@@ -182,7 +191,7 @@ const AdminPage = () => {
     if (!file) return;
     setIsUploadingContent(true);
     if (file.type.startsWith('video/')) {
-      setContentForm((current) => ({ ...current, type: 'video', slot: 'video' }));
+      setContentForm((current) => ({ ...current, type: 'video', slot: 'video', placement: current.placement?.startsWith('video-') ? current.placement : 'video-left', sort_order: current.placement === 'video-right' ? 1 : current.placement === 'video-horizontal' ? 2 : 0 }));
     }
     const body = new FormData();
     body.append('file', file);
@@ -203,7 +212,10 @@ const AdminPage = () => {
 
   const editContent = (item) => {
     setEditingContentId(item.id);
-    setContentForm({ type: item.type, slot: item.slot || (item.type === 'banner' ? 'banner' : item.type === 'video' ? 'video' : 'gallery'), media_url: item.media_url, title: item.title || '', description: item.description || '', link_url: item.link_url || '', sort_order: item.sort_order || 0, is_active: item.is_active !== false });
+    const placement = item.slot === 'video'
+      ? Number(item.sort_order) === 0 ? 'video-left' : Number(item.sort_order) === 1 ? 'video-right' : 'video-horizontal'
+      : item.slot || (item.type === 'banner' ? 'banner' : 'gallery');
+    setContentForm({ type: item.type, slot: item.slot || 'gallery', placement, media_url: item.media_url, title: item.title || '', description: item.description || '', link_url: item.link_url || '', sort_order: item.sort_order || 0, is_active: item.is_active !== false });
   };
 
   const removeContent = async (id) => {
@@ -1151,21 +1163,24 @@ const AdminPage = () => {
           </div>
           <form className="inventory-form" onSubmit={saveContent}>
             <div className="filter-grid">
-              <label className="inventory-field"><span>Espacio de publicación</span><select value={contentForm.slot} onChange={(e) => {
-                const slot = e.target.value;
-                setContentForm({ ...contentForm, slot, type: slot === 'video' ? 'video' : slot === 'gallery' ? 'image' : 'banner' });
+              <label className="inventory-field"><span>Espacio de publicación</span><select value={contentForm.placement} onChange={(e) => {
+                const placement = e.target.value;
+                const isVideoPlacement = placement.startsWith('video-');
+                setContentForm({ ...contentForm, placement, slot: isVideoPlacement ? 'video' : placement, type: isVideoPlacement ? 'video' : placement === 'gallery' ? 'image' : 'banner', sort_order: isVideoPlacement ? ({ 'video-left': 0, 'video-right': 1, 'video-horizontal': 2 }[placement]) : 0 });
               }}>
                 <option value="banner">Banner principal · formato grande</option>
                 <option value="gallery">Carrusel · fotos destacadas</option>
-                <option value="video">Videos destacados · 2 pequeños + 1 horizontal grande</option>
+                <option value="video-left">Video pequeño izquierdo</option>
+                <option value="video-right">Video pequeño derecho</option>
+                <option value="video-horizontal">Video horizontal grande</option>
               </select></label>
               <label className="inventory-field"><span>URL del archivo multimedia</span><input required type="url" placeholder="URL directa de imagen o video" value={contentForm.media_url} onChange={(e) => setContentForm({ ...contentForm, media_url: e.target.value })} /></label>
               <label className="file-upload-field">{isUploadingContent ? 'Subiendo archivo...' : 'Subir archivo'}<input type="file" accept="image/*,video/*" onChange={uploadContentFile} disabled={isUploadingContent} /></label>
               <label className="inventory-field"><span>Título</span><input placeholder="Ej. Nueva colección" value={contentForm.title} onChange={(e) => setContentForm({ ...contentForm, title: e.target.value })} /></label>
               <label className="inventory-field"><span>Enlace de promoción</span><input placeholder="Opcional" value={contentForm.link_url} onChange={(e) => setContentForm({ ...contentForm, link_url: e.target.value })} /></label>
-              <label className="inventory-field"><span>Orden de aparición</span><input type="number" min="0" placeholder="0 = primero" value={contentForm.sort_order} onChange={(e) => setContentForm({ ...contentForm, sort_order: e.target.value })} /></label>
+              {!contentForm.placement?.startsWith('video-') ? <label className="inventory-field"><span>Orden de aparición</span><input type="number" min="0" placeholder="0 = primero" value={contentForm.sort_order} onChange={(e) => setContentForm({ ...contentForm, sort_order: e.target.value })} /></label> : null}
             </div>
-            {contentForm.slot === 'video' ? <div className="content-upload-guide"><strong>Cómo se acomodan los videos</strong><span>Orden 1: video pequeño izquierdo · Orden 2: video pequeño derecho · Orden 3: video horizontal grande.</span></div> : null}
+            {contentForm.placement?.startsWith('video-') ? <div className="content-upload-guide"><strong>Destino seleccionado</strong><span>Este archivo se guardará directamente en el espacio: {contentForm.placement === 'video-left' ? 'video pequeño izquierdo' : contentForm.placement === 'video-right' ? 'video pequeño derecho' : 'video horizontal grande'}.</span></div> : null}
             <label className="inventory-field"><span>Descripción breve</span><textarea rows="3" placeholder="Texto que acompaña el contenido" value={contentForm.description} onChange={(e) => setContentForm({ ...contentForm, description: e.target.value })} /></label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569' }}>
               <input type="checkbox" checked={contentForm.is_active} onChange={(e) => setContentForm({ ...contentForm, is_active: e.target.checked })} />
