@@ -176,6 +176,23 @@ export const CatalogPage = ({ user, onAddToCart }) => {
         </div>
       </section>
 
+      <section className="promo-marquee" aria-label="Promociones de la tienda">
+        <div className="promo-marquee__track">
+          <span>⚽ Descuentos especiales en camisetas seleccionadas</span>
+          <span aria-hidden="true">✦</span>
+          <span>🚚 Envíos a toda Venezuela</span>
+          <span aria-hidden="true">✦</span>
+          <span>🎽 Personaliza tu camiseta favorita</span>
+          <span aria-hidden="true">✦</span>
+          <span>⚽ Descuentos especiales en camisetas seleccionadas</span>
+          <span aria-hidden="true">✦</span>
+          <span>🚚 Envíos a toda Venezuela</span>
+          <span aria-hidden="true">✦</span>
+          <span>🎽 Personaliza tu camiseta favorita</span>
+          <span aria-hidden="true">✦</span>
+        </div>
+      </section>
+
       <section
         className="hero-spotlight"
         style={{

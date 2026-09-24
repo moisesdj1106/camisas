@@ -20,6 +20,7 @@ const App = () => {
   const [cart, setCart] = useState([]);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [orderReviewOpen, setOrderReviewOpen] = useState(false);
@@ -171,6 +172,11 @@ const App = () => {
     }
   };
 
+  const closeMobileNav = () => {
+    setMobileNavOpen(false);
+    setMenuOpen(false);
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -181,9 +187,13 @@ const App = () => {
             <p>Camisetas de clubes de fútbol</p>
           </div>
         </div>
-        <nav className="nav-links">
-          <Link to="/">Catálogo</Link>
-          <Link to="/contenido">Novedades</Link>
+        <button className="mobile-nav-toggle" type="button" onClick={() => setMobileNavOpen((open) => !open)} aria-expanded={mobileNavOpen} aria-controls="main-navigation" aria-label={mobileNavOpen ? 'Cerrar menú principal' : 'Abrir menú principal'}>
+          <span aria-hidden="true">{mobileNavOpen ? '×' : '☰'}</span>
+          <strong>{mobileNavOpen ? 'Cerrar' : 'Menú'}</strong>
+        </button>
+        <nav id="main-navigation" className={mobileNavOpen ? 'nav-links nav-links--open' : 'nav-links'}>
+          <Link to="/" onClick={closeMobileNav}>Catálogo</Link>
+          <Link to="/contenido" onClick={closeMobileNav}>Novedades</Link>
           {user?.role === 'admin' ? (
             <div className="dropdown">
               <button className="ghost-btn dropdown-toggle" onClick={() => setMenuOpen((open) => !open)}>
@@ -191,10 +201,10 @@ const App = () => {
               </button>
               {menuOpen ? (
                 <div className="dropdown-menu">
-                  <Link to="/admin?view=overview" onClick={() => setMenuOpen(false)}>Panel admin</Link>
-                  <Link to="/admin?view=inventory" onClick={() => setMenuOpen(false)}>Inventario</Link>
-                  <Link to="/admin?view=clubs" onClick={() => setMenuOpen(false)}>Clubes</Link>
-                  <Link to="/admin?view=content" onClick={() => setMenuOpen(false)}>Contenido visual</Link>
+                  <Link to="/admin?view=overview" onClick={closeMobileNav}>Panel admin</Link>
+                  <Link to="/admin?view=inventory" onClick={closeMobileNav}>Inventario</Link>
+                  <Link to="/admin?view=clubs" onClick={closeMobileNav}>Clubes</Link>
+                  <Link to="/admin?view=content" onClick={closeMobileNav}>Contenido visual</Link>
                 </div>
               ) : null}
             </div>
@@ -227,12 +237,12 @@ const App = () => {
                   </div>
                 ) : null}
               </div>
-              <button className="ghost-btn" onClick={() => setOrderHistoryOpen(true)}>Mis pedidos</button>
-              <button className="ghost-btn" onClick={() => setCheckoutOpen(true)}>Carrito ({cart.reduce((sum, item) => sum + Number(item.quantity || 1), 0)})</button>
+              <button className="ghost-btn" onClick={() => { setOrderHistoryOpen(true); closeMobileNav(); }}>Mis pedidos</button>
+              <button className="ghost-btn" onClick={() => { setCheckoutOpen(true); closeMobileNav(); }}>Carrito ({cart.reduce((sum, item) => sum + Number(item.quantity || 1), 0)})</button>
               <button className="ghost-btn" onClick={logout}>Cerrar sesión</button>
             </>
           ) : (
-            <Link to="/auth">Iniciar sesión</Link>
+            <Link to="/auth" onClick={closeMobileNav}>Iniciar sesión</Link>
           )}
         </nav>
       </header>
