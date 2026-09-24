@@ -62,22 +62,22 @@ const ContentPage = () => {
         </article>
 
         <article className="visual-slot visual-slot--gallery">
-          <div className="visual-slot__heading"><div><span className="content-gallery__type">Colección Tendencia</span><h3>PIDE LA TUYA !!!</h3></div>{gallery.length > 1 ? <span className="visual-counter">{slideIndex + 1} / {gallery.length}</span> : null}</div>
+          <div className="visual-slot__heading"><div><span className="content-gallery__type">Selección MDJ</span><h3>Elige tu próxima camiseta</h3></div>{gallery.length > 1 ? <span className="visual-counter">{String(slideIndex + 1).padStart(2, '0')} / {String(gallery.length).padStart(2, '0')}</span> : null}</div>
           {gallery.length ? <div className="visual-carousel"><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex - 1 + gallery.length) % gallery.length)} aria-label="Foto anterior">‹</button><div className="visual-carousel__media">{renderMedia(slide)}<div className="visual-carousel__overlay"><span>MDJ / DROP</span>{slide?.title ? <strong>{slide.title}</strong> : null}</div></div><button type="button" className="visual-carousel__arrow" onClick={() => setSlideIndex((slideIndex + 1) % gallery.length)} aria-label="Foto siguiente">›</button></div> : <div className="visual-slot__empty">Aquí aparecerán las fotos del carrusel</div>}
           {slide?.description ? <p className="visual-slot__caption">{slide.description}</p> : null}
         </article>
 
         <article className="visual-slot visual-slot--video">
-          <div className="visual-slot__heading"><div><span className="content-gallery__type">Play / now</span><h3>Calidad Garantizada</h3></div><span className="visual-video__live">● AUTOPLAY</span></div>
+          <div className="visual-slot__heading"><div><span className="content-gallery__type">MDJ Films</span><h3>El juego se vive aquí</h3></div><span className="visual-video__live">EN MOVIMIENTO</span></div>
           {videos.length ? (
             <div className="video-mosaic">
               <div className="video-mosaic__verticals">
-                {verticalVideos.map((item, index) => <div className="video-tile video-tile--vertical" key={item.id}><span className="video-tile__label">Video pequeño {index + 1}</span>{renderMedia(item, { autoPlay: true })}</div>)}
-                {!verticalVideos.length ? <div className="visual-slot__empty">Aquí aparecerán los videos verticales</div> : null}
+                {verticalVideos.map((item) => <div className="video-tile video-tile--vertical" key={item.id}>{renderMedia(item, { autoPlay: true })}</div>)}
+                {!verticalVideos.length ? <div className="visual-slot__empty">Próximamente</div> : null}
               </div>
-              <div className="video-tile video-tile--horizontal"><span className="video-tile__label">Video horizontal grande</span>{horizontalVideo ? renderMedia(horizontalVideo, { autoPlay: true }) : <div className="visual-slot__empty">Aquí aparecerá el video horizontal grande</div>}</div>
+              <div className="video-tile video-tile--horizontal">{horizontalVideo ? renderMedia(horizontalVideo, { autoPlay: true }) : <div className="visual-slot__empty">Próximamente</div>}</div>
             </div>
-          ) : <div className="visual-slot__empty">Aquí aparecerán tus videos destacados</div>}
+          ) : <div className="visual-slot__empty">Nuevas historias próximamente</div>}
         </article>
       </section>
     </main>
