@@ -178,12 +178,12 @@ export const CatalogPage = ({ user, onAddToCart }) => {
           <div className="hero-banner__photo hero-banner__photo--back">
             <img src="/cuadro1.jpg" alt="" />
           </div>
-          <img className="hero-banner__trophy" src="/trofeo.png" alt="" onError={(event) => { event.currentTarget.hidden = true; }} />
           <div className="hero-banner__photo hero-banner__photo--front">
             <img src="/cuadro2.jpg" alt="" />
             <div className="hero-banner__visual-copy"><span>MDJ / SOCCER</span><strong>Viste tu pasión</strong></div>
           </div>
         </div>
+        <img className="hero-banner__trophy" src="/trofeo.png" alt="" onError={(event) => { event.currentTarget.hidden = true; }} />
       </section>
 
       <section className="promo-marquee" aria-label="Promociones de la tienda">
