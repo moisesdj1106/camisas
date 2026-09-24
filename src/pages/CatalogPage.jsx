@@ -183,6 +183,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
             <div className="hero-banner__visual-copy"><span>MDJ / SOCCER</span><strong>Viste tu pasión</strong></div>
           </div>
         </div>
+        <img className="hero-banner__ball" src="/balon.png" alt="" onError={(event) => { event.currentTarget.hidden = true; }} />
         <img className="hero-banner__trophy" src="/trofeo.png" alt="" onError={(event) => { event.currentTarget.hidden = true; }} />
       </section>
 
