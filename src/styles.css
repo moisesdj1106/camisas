@@ -76,8 +76,8 @@ button, input, select, textarea { font: inherit; }
 .hero-banner__photo img { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
 .hero-banner__photo--back { top: 0; right: 0; width: 78%; height: 58%; transform: rotate(5deg); z-index: 1; }
 .hero-banner__photo--front { bottom: 0; left: 0; width: 78%; height: 64%; transform: rotate(-4deg); z-index: 2; }
-.hero-banner__trophy { position: absolute; top: -0.8rem; right: 0.2rem; z-index: 4; width: min(42%, 190px); height: auto; max-height: 265px; object-fit: contain; filter: drop-shadow(0 18px 15px rgba(2, 6, 23, 0.3)); transform: rotate(4deg); transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1); }
-.hero-banner__visual:hover .hero-banner__trophy { transform: translateX(-5px) translateY(3px) rotate(1deg); }
+.hero-banner__trophy { position: absolute; right: -0.7rem; bottom: -1.1rem; z-index: 4; width: min(48%, 225px); height: auto; max-height: 285px; object-fit: contain; filter: drop-shadow(0 18px 15px rgba(2, 6, 23, 0.3)); transform: rotate(4deg); transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1); }
+.hero-banner__visual:hover .hero-banner__trophy { transform: translateX(-6px) translateY(-3px) rotate(1deg); }
 .hero-banner__visual:hover .hero-banner__photo--back { transform: translateX(-7px) rotate(2deg); }
 .hero-banner__visual:hover .hero-banner__photo--front { transform: translateX(7px) rotate(-1deg); }
 .hero-banner__visual-copy { position: absolute; right: 1.2rem; bottom: 1.1rem; left: 1.2rem; z-index: 1; display: grid; gap: 0.25rem; color: white; }
@@ -541,7 +541,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .hero-banner__visual { position: relative; top: auto; right: auto; width: 100%; height: 280px; }
   .hero-banner__photo--back { width: 70%; height: 62%; }
   .hero-banner__photo--front { width: 74%; height: 68%; }
-  .hero-banner__trophy { top: -0.4rem; right: 0.35rem; width: min(38%, 135px); max-height: 180px; }
+  .hero-banner__trophy { right: -0.25rem; bottom: -0.45rem; width: min(43%, 155px); max-height: 190px; }
   .hero-banner__visual-copy strong { font-size: 1.8rem; }
   .hero-spotlight { padding: 0.9rem; min-height: auto; }
   .hero-spotlight__media-stack { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.45rem; }
