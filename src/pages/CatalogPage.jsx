@@ -282,7 +282,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                   <span className="stock-pill">{product.stock > 0 ? `${product.stock} disponibles` : 'Sin stock'}</span>
                 </div>
                   <h3 className="product-card__title">{product.title}</h3>
-                  <p className="card__club">{product.club?.name || 'Club'}</p>
+                  {/* <p className="card__club">{product.club?.name || 'Club'}</p> */}
                 <p className="card__description">{product.description || 'Camiseta oficial con diseño premium y detalles exclusivos.'}</p>
                 <div className="price-stack">
                   {Number(product.discount_percent) > 0 ? <span className="discount-badge">-{Number(product.discount_percent)}%</span> : null}
