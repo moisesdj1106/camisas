@@ -70,9 +70,14 @@ button, input, select, textarea { font: inherit; }
 .hero-banner__metrics div { background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.16); border-radius: 18px; padding: 1rem; backdrop-filter: blur(10px); }
 .hero-banner__metrics strong { display: block; font-size: 1.2rem; }
 .hero-banner__metrics span { color: #dbeafe; font-size: 0.9rem; }
-.hero-banner__visual { position: absolute; top: 2.2rem; right: max(2rem, calc((100% - 1200px) / 2)); width: min(32vw, 390px); height: 335px; overflow: hidden; border: 1px solid rgba(255,255,255,0.25); border-radius: 28px; background: #0f172a; transform: rotate(3deg); box-shadow: 0 28px 60px rgba(2,6,23,0.32); }
-.hero-banner__visual::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 35%, rgba(2,6,23,0.92) 100%); }
-.hero-banner__visual img { width: 100%; height: 100%; object-fit: cover; opacity: 0.85; }
+.hero-banner__visual { position: absolute; top: 1.55rem; right: max(2rem, calc((100% - 1200px) / 2)); width: min(35vw, 450px); height: 390px; }
+.hero-banner__photo { position: absolute; overflow: hidden; border: 8px solid #fff; border-radius: 5px; background: #0f172a; box-shadow: 0 24px 42px rgba(2,6,23,0.34); transition: transform 0.65s cubic-bezier(0.22, 1, 0.36, 1); }
+.hero-banner__photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 35%, rgba(2,6,23,0.88) 100%); pointer-events: none; }
+.hero-banner__photo img { width: 100%; height: 100%; object-fit: cover; opacity: 0.9; }
+.hero-banner__photo--back { top: 0; right: 0; width: 78%; height: 58%; transform: rotate(5deg); z-index: 1; }
+.hero-banner__photo--front { bottom: 0; left: 0; width: 78%; height: 64%; transform: rotate(-4deg); z-index: 2; }
+.hero-banner__visual:hover .hero-banner__photo--back { transform: translateX(-7px) rotate(2deg); }
+.hero-banner__visual:hover .hero-banner__photo--front { transform: translateX(7px) rotate(-1deg); }
 .hero-banner__visual-copy { position: absolute; right: 1.2rem; bottom: 1.1rem; left: 1.2rem; z-index: 1; display: grid; gap: 0.25rem; color: white; }
 .hero-banner__visual-copy span { color: #99f6e4; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.16em; }
 .hero-banner__visual-copy strong { font-family: 'Barlow Condensed', sans-serif; font-size: 2.2rem; line-height: 0.9; text-transform: uppercase; }
@@ -531,7 +536,9 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .hero-banner { display: grid; gap: 1.4rem; min-height: 0; padding: 2.6rem 1.2rem 1.4rem; }
   .hero-banner__content { max-width: none; }
   .hero-banner h2 { font-size: clamp(3rem, 13vw, 4.8rem); }
-  .hero-banner__visual { position: relative; top: auto; right: auto; width: 100%; height: 220px; transform: none; border-radius: 20px; }
+  .hero-banner__visual { position: relative; top: auto; right: auto; width: 100%; height: 280px; }
+  .hero-banner__photo--back { width: 70%; height: 62%; }
+  .hero-banner__photo--front { width: 74%; height: 68%; }
   .hero-banner__visual-copy strong { font-size: 1.8rem; }
   .hero-spotlight { padding: 0.9rem; min-height: auto; }
   .hero-spotlight__media-stack { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.45rem; }

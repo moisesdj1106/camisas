@@ -175,8 +175,13 @@ export const CatalogPage = ({ user, onAddToCart }) => {
           </div>
         </div>
         <div className="hero-banner__visual" aria-hidden="true">
-          <img src="/escudo.jpg" alt="" />
-          <div className="hero-banner__visual-copy"><span>MDJ / SOCCER</span><strong>Viste tu pasión</strong></div>
+          <div className="hero-banner__photo hero-banner__photo--back">
+            <img src="https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=900&q=85" alt="" />
+          </div>
+          <div className="hero-banner__photo hero-banner__photo--front">
+            <img src="/escudo.jpg" alt="" />
+            <div className="hero-banner__visual-copy"><span>MDJ / SOCCER</span><strong>Viste tu pasión</strong></div>
+          </div>
         </div>
       </section>
 
