@@ -72,10 +72,10 @@ const ContentPage = () => {
           {videos.length ? (
             <div className="video-mosaic">
               <div className="video-mosaic__verticals">
-                {verticalVideos.map((item) => <div className="video-tile video-tile--vertical" key={item.id}>{renderMedia(item, { autoPlay: true })}</div>)}
+                {verticalVideos.map((item, index) => <div className="video-tile video-tile--vertical" key={item.id}><span className="video-tile__label">Video pequeño {index + 1}</span>{renderMedia(item, { autoPlay: true })}</div>)}
                 {!verticalVideos.length ? <div className="visual-slot__empty">Aquí aparecerán los videos verticales</div> : null}
               </div>
-              <div className="video-tile video-tile--horizontal">{horizontalVideo ? renderMedia(horizontalVideo, { autoPlay: true }) : <div className="visual-slot__empty">Aquí aparecerá el video horizontal</div>}</div>
+              <div className="video-tile video-tile--horizontal"><span className="video-tile__label">Video horizontal grande</span>{horizontalVideo ? renderMedia(horizontalVideo, { autoPlay: true }) : <div className="visual-slot__empty">Aquí aparecerá el video horizontal grande</div>}</div>
             </div>
           ) : <div className="visual-slot__empty">Aquí aparecerán tus videos destacados</div>}
         </article>

@@ -1076,33 +1076,33 @@ const AdminPage = () => {
           {showCreateForm ? (
             <form className="inventory-form" onSubmit={editingProductId ? handleUpdateProduct : handleCreateProduct}>
               <div className="filter-grid">
-                <input required placeholder="Nombre de la camiseta" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-                <input required type="number" min="0" step="0.01" placeholder="Precio" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
-                <label className="discount-field">
+                <label className="inventory-field"><span>Nombre de la camiseta</span><input required placeholder="Ej. Camiseta Real Madrid" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
+                <label className="inventory-field"><span>Precio (USD)</span><input required type="number" min="0" step="0.01" placeholder="Ej. 25.00" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></label>
+                <label className="inventory-field">
                   <span>Descuento individual (%)</span>
                   <input type="number" min="0" max="100" step="1" placeholder="0 = sin descuento" value={form.discount_percent} onChange={(e) => setForm({ ...form, discount_percent: e.target.value })} />
                 </label>
-                <input type="number" min="0" placeholder="Stock total (opcional)" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
-                <input required type="number" placeholder="Club ID" value={form.club_id} onChange={(e) => setForm({ ...form, club_id: e.target.value })} />
-                <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                <label className="inventory-field"><span>Stock total</span><input type="number" min="0" placeholder="Opcional" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></label>
+                <label className="inventory-field"><span>Club ID</span><input required type="number" placeholder="Ej. 1" value={form.club_id} onChange={(e) => setForm({ ...form, club_id: e.target.value })} /></label>
+                <label className="inventory-field"><span>Tipo de camiseta</span><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                   <option value="local">Local</option>
                   <option value="visitante">Visitante</option>
                   <option value="tercera">Tercera</option>
-                </select>
-                <input type="url" placeholder="Imagen principal (URL opcional)" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} />
+                </select></label>
+                <label className="inventory-field"><span>Imagen principal</span><input type="url" placeholder="URL opcional" value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} /></label>
               </div>
               <div className="filter-grid">
                 {sizeOptions.map((size) => (
-                  <input key={size} type="number" min="0" placeholder={`Talla ${size}`} value={form.stock_by_size[size]} onChange={(e) => setForm({ ...form, stock_by_size: { ...form.stock_by_size, [size]: e.target.value } })} />
+                  <label className="inventory-field" key={size}><span>Stock talla {size}</span><input type="number" min="0" placeholder="Unidades" value={form.stock_by_size[size]} onChange={(e) => setForm({ ...form, stock_by_size: { ...form.stock_by_size, [size]: e.target.value } })} /></label>
                 ))}
               </div>
-              <input placeholder="Más imágenes (URLs separadas por comas, opcional)" value={form.image_urls} onChange={(e) => setForm({ ...form, image_urls: e.target.value })} />
+              <label className="inventory-field"><span>Más imágenes</span><input placeholder="URLs separadas por comas (opcional)" value={form.image_urls} onChange={(e) => setForm({ ...form, image_urls: e.target.value })} /></label>
               <label className="file-upload-field">
                 {isUploadingProductImages ? 'Subiendo imágenes a Cloudinary...' : 'Subir imágenes desde el PC'}
                 <input type="file" accept="image/*" multiple onChange={uploadProductImages} disabled={isUploadingProductImages} />
               </label>
-              <input placeholder="Dorsales disponibles (ej: 10, 11, 7)" value={form.dorsal_options} onChange={(e) => setForm({ ...form, dorsal_options: e.target.value })} />
-              <textarea rows="3" placeholder="Descripción" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+              <label className="inventory-field"><span>Dorsales disponibles</span><input placeholder="Ej. 10, 11, 7" value={form.dorsal_options} onChange={(e) => setForm({ ...form, dorsal_options: e.target.value })} /></label>
+              <label className="inventory-field"><span>Descripción</span><textarea rows="3" placeholder="Describe la camiseta" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569' }}>
                 <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
                 Visible en el catálogo
@@ -1151,21 +1151,22 @@ const AdminPage = () => {
           </div>
           <form className="inventory-form" onSubmit={saveContent}>
             <div className="filter-grid">
-              <select value={contentForm.slot} onChange={(e) => {
+              <label className="inventory-field"><span>Espacio de publicación</span><select value={contentForm.slot} onChange={(e) => {
                 const slot = e.target.value;
                 setContentForm({ ...contentForm, slot, type: slot === 'video' ? 'video' : slot === 'gallery' ? 'image' : 'banner' });
               }}>
-                <option value="banner">Zona fija: Banner principal</option>
-                <option value="gallery">Zona fija: Carrusel de fotos</option>
-                <option value="video">Zona fija: Video destacado</option>
-              </select>
-              <input required type="url" placeholder="URL directa del archivo multimedia" value={contentForm.media_url} onChange={(e) => setContentForm({ ...contentForm, media_url: e.target.value })} />
+                <option value="banner">Banner principal · formato grande</option>
+                <option value="gallery">Carrusel · fotos destacadas</option>
+                <option value="video">Videos destacados · 2 pequeños + 1 horizontal grande</option>
+              </select></label>
+              <label className="inventory-field"><span>URL del archivo multimedia</span><input required type="url" placeholder="URL directa de imagen o video" value={contentForm.media_url} onChange={(e) => setContentForm({ ...contentForm, media_url: e.target.value })} /></label>
               <label className="file-upload-field">{isUploadingContent ? 'Subiendo archivo...' : 'Subir archivo'}<input type="file" accept="image/*,video/*" onChange={uploadContentFile} disabled={isUploadingContent} /></label>
-              <input placeholder="Título" value={contentForm.title} onChange={(e) => setContentForm({ ...contentForm, title: e.target.value })} />
-              <input placeholder="Enlace de la promoción (opcional)" value={contentForm.link_url} onChange={(e) => setContentForm({ ...contentForm, link_url: e.target.value })} />
-              <input type="number" min="0" placeholder="Orden" value={contentForm.sort_order} onChange={(e) => setContentForm({ ...contentForm, sort_order: e.target.value })} />
+              <label className="inventory-field"><span>Título</span><input placeholder="Ej. Nueva colección" value={contentForm.title} onChange={(e) => setContentForm({ ...contentForm, title: e.target.value })} /></label>
+              <label className="inventory-field"><span>Enlace de promoción</span><input placeholder="Opcional" value={contentForm.link_url} onChange={(e) => setContentForm({ ...contentForm, link_url: e.target.value })} /></label>
+              <label className="inventory-field"><span>Orden de aparición</span><input type="number" min="0" placeholder="0 = primero" value={contentForm.sort_order} onChange={(e) => setContentForm({ ...contentForm, sort_order: e.target.value })} /></label>
             </div>
-            <textarea rows="3" placeholder="Descripción breve" value={contentForm.description} onChange={(e) => setContentForm({ ...contentForm, description: e.target.value })} />
+            {contentForm.slot === 'video' ? <div className="content-upload-guide"><strong>Cómo se acomodan los videos</strong><span>Orden 1: video pequeño izquierdo · Orden 2: video pequeño derecho · Orden 3: video horizontal grande.</span></div> : null}
+            <label className="inventory-field"><span>Descripción breve</span><textarea rows="3" placeholder="Texto que acompaña el contenido" value={contentForm.description} onChange={(e) => setContentForm({ ...contentForm, description: e.target.value })} /></label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569' }}>
               <input type="checkbox" checked={contentForm.is_active} onChange={(e) => setContentForm({ ...contentForm, is_active: e.target.checked })} />
               Visible en el catálogo
@@ -1179,7 +1180,7 @@ const AdminPage = () => {
             {content.length ? content.map((item) => (
               <div className="inventory-item" key={item.id}>
                 <strong>{item.title || 'Contenido sin título'}</strong>
-                <span>{item.slot === 'banner' ? 'Banner principal' : item.slot === 'video' ? 'Video destacado' : 'Foto del carrusel'} · {item.is_active ? 'Visible' : 'Oculto'}</span>
+                <span>{item.slot === 'banner' ? 'Banner principal · formato grande' : item.slot === 'video' ? `Video destacado · posición ${Number(item.sort_order || 0) + 1} (${Number(item.sort_order || 0) < 2 ? 'espacio pequeño' : 'horizontal grande'})` : 'Foto del carrusel'} · {item.is_active ? 'Visible' : 'Oculto'}</span>
                 <span style={{ overflowWrap: 'anywhere' }}>{item.media_url}</span>
                 <div className="inventory-item__actions">
                   <button className="icon-btn" type="button" onClick={() => editContent(item)} title="Editar contenido" aria-label={`Editar ${item.title || 'contenido'}`}>✎</button>
