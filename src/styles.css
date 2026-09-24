@@ -554,7 +554,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .hero-banner__photo--back { width: 78%; height: 65%; }
   .hero-banner__photo--front { bottom: -1.2rem; width: 80%; height: 72%; }
   .hero-banner__trophy { right: 0.35rem; bottom: 0.25rem; width: min(42vw, 190px); max-height: 225px; }
-  .hero-banner__ball { right: min(39vw, 175px); bottom: 0.25rem; width: min(22vw, 95px); }
+  .hero-banner__ball { right: min(17vw, 76px); bottom: 0.25rem; width: min(22vw, 95px); }
   .hero-banner__visual-copy strong { font-size: 1.8rem; }
   .hero-spotlight { padding: 0.9rem; min-height: auto; }
   .hero-spotlight__media-stack { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.45rem; }
