@@ -86,6 +86,7 @@ const AdminPage = () => {
   const [orderItemForm, setOrderItemForm] = useState({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
   const [orderItemDorsals, setOrderItemDorsals] = useState([]);
   const [editingOrderItems, setEditingOrderItems] = useState(false);
+  const [editingOrderItemId, setEditingOrderItemId] = useState(null);
   const [closurePeriod, setClosurePeriod] = useState('day');
   const [closureDate, setClosureDate] = useState(new Date().toISOString().split('T')[0]);
   const [closureSummary, setClosureSummary] = useState(null);
@@ -589,13 +590,23 @@ const AdminPage = () => {
     }
   };
 
-  const startOrderItemEdit = (orderId) => {
-    const firstProduct = inventory.find((product) => Number(product.stock) > 0);
-    const firstSize = firstProduct ? Object.keys(firstProduct.stock_by_size || {}).find((size) => Number(firstProduct.stock_by_size[size]) > 0) || '' : '';
-    setOrderItemForm({ product_id: firstProduct?.id || '', size: firstSize, quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
+  const startOrderItemEdit = (orderId, item = null) => {
+    const selectedProduct = item ? inventory.find((product) => product.id === Number(item.product_id)) : inventory.find((product) => Number(product.stock) > 0);
+    const firstSize = selectedProduct ? Object.keys(selectedProduct.stock_by_size || {}).find((size) => Number(selectedProduct.stock_by_size[size]) > 0) || '' : '';
+    const dorsalMode = item?.custom_name ? 'custom' : item?.no_dorsal ? 'none' : item?.dorsal_number ? 'catalog' : 'none';
+    setEditingOrderItemId(item?.id || null);
+    setOrderItemForm({ product_id: item?.product_id || selectedProduct?.id || '', size: item?.size || firstSize, quantity: item?.quantity || 1, dorsalMode, dorsalId: '', customName: item?.custom_name || '', customNumber: item?.custom_number || '' });
     setOrderItemDorsals([]);
-    if (firstProduct?.id) {
-      fetch(apiUrl(`/api/products/${firstProduct.id}`)).then((response) => response.json()).then((product) => setOrderItemDorsals(product.dorsals || [])).catch(() => setOrderItemDorsals([]));
+    if (item?.product_id || selectedProduct?.id) {
+      const productId = item?.product_id || selectedProduct.id;
+      fetch(apiUrl(`/api/products/${productId}`)).then((response) => response.json()).then((product) => {
+        const dorsals = product.dorsals || [];
+        setOrderItemDorsals(dorsals);
+        if (item?.dorsal_number) {
+          const currentDorsal = dorsals.find((dorsal) => Number(dorsal.dorsal_number) === Number(item.dorsal_number));
+          if (currentDorsal) setOrderItemForm((current) => ({ ...current, dorsalId: String(currentDorsal.id) }));
+        }
+      }).catch(() => setOrderItemDorsals([]));
     }
     setEditingOrderItems(orderId);
   };
@@ -614,8 +625,9 @@ const AdminPage = () => {
       setMessage('Completa el nombre y número de la personalización.');
       return;
     }
-    const response = await fetch(apiUrl(`/api/admin/orders/${orderId}/items`), {
-      method: 'POST',
+    const editing = Boolean(editingOrderItemId);
+    const response = await fetch(apiUrl(editing ? `/api/admin/orders/${orderId}/items/${editingOrderItemId}` : `/api/admin/orders/${orderId}/items`), {
+      method: editing ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
       body: JSON.stringify({
         product_id: orderItemForm.product_id,
@@ -635,7 +647,23 @@ const AdminPage = () => {
     }
     setOrders((current) => current.map((order) => order.id === orderId ? { ...order, total_amount: data.total_amount } : order));
     setEditingOrderItems(false);
-    setMessage(`Producto agregado al pedido #${orderId}.`);
+    setEditingOrderItemId(null);
+    setMessage(editing ? `Producto actualizado en el pedido #${orderId}.` : `Producto agregado al pedido #${orderId}.`);
+    await loadOrderDetail(orderId, true);
+  };
+
+  const removeOrderItem = async (orderId, itemId) => {
+    const response = await fetch(apiUrl(`/api/admin/orders/${orderId}/items/${itemId}`), {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'No se pudo eliminar el producto del pedido.');
+      return;
+    }
+    setOrders((current) => current.map((order) => order.id === orderId ? { ...order, total_amount: data.total_amount } : order));
+    setMessage(`Producto eliminado del pedido #${orderId}.`);
     await loadOrderDetail(orderId, true);
   };
 
@@ -1434,7 +1462,11 @@ const AdminPage = () => {
                 {orderDetails[expandedOrderId].items?.map((item) => (
                   <li key={item.id}>
                     <span>{item.product_title || `Producto #${item.product_id}`} · Talla {item.size || 'No indicada'} · {item.no_dorsal ? 'Sin dorsal' : item.custom_name ? `Personalizada: ${item.custom_name} #${item.custom_number}` : item.dorsal_number ? `Dorsal ${item.dorsal_number}${item.dorsal_name ? ` (${item.dorsal_name})` : ''}` : 'Sin dorsal'} · {item.quantity} und.</span>
-                    <strong>{formatCurrency(Number(item.unit_price || 0) * Number(item.quantity || 1), 'USD')}</strong>
+                    <span className="order-item-actions">
+                      <strong>{formatCurrency(Number(item.unit_price || 0) * Number(item.quantity || 1), 'USD')}</strong>
+                      <button className="icon-btn" type="button" onClick={() => startOrderItemEdit(expandedOrderId, item)} title="Editar talla o dorsal" aria-label={`Editar ${item.product_title || 'producto'} del pedido`}>✎</button>
+                      <button className="icon-btn icon-btn--danger" type="button" onClick={() => requestConfirmation('Eliminar producto del pedido', `¿Eliminar ${item.product_title || 'este producto'} del pedido?`, () => removeOrderItem(expandedOrderId, item.id))} title="Eliminar producto del pedido" aria-label={`Eliminar ${item.product_title || 'producto'} del pedido`}>🗑</button>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -1516,11 +1548,11 @@ const AdminPage = () => {
       </Modal>
       <Modal
         open={Boolean(editingOrderItems)}
-        title={`Agregar producto al pedido #${editingOrderItems || ''}`}
-        message="Selecciona la camiseta, talla y configuración del dorsal. El producto se sumará al pedido actual."
-        onClose={() => setEditingOrderItems(false)}
+        title={`${editingOrderItemId ? 'Editar producto' : 'Agregar producto'} al pedido #${editingOrderItems || ''}`}
+        message={editingOrderItemId ? 'Cambia la talla o la configuración del dorsal y guarda los cambios.' : 'Selecciona la camiseta, talla y configuración del dorsal. El producto se sumará al pedido actual.'}
+        onClose={() => { setEditingOrderItems(false); setEditingOrderItemId(null); }}
         onConfirm={() => saveOrderItem(editingOrderItems)}
-        confirmLabel="Agregar al pedido"
+        confirmLabel={editingOrderItemId ? 'Guardar cambios' : 'Agregar al pedido'}
       >
         <div className="order-item-editor order-item-editor--modal">
           <select value={orderItemForm.product_id} onChange={async (event) => {
@@ -1534,14 +1566,14 @@ const AdminPage = () => {
             } else {
               setOrderItemDorsals([]);
             }
-          }} aria-label="Producto nuevo">
+          }} aria-label={editingOrderItemId ? 'Producto del pedido' : 'Producto nuevo'}>
             <option value="">Selecciona una camiseta</option>
-            {inventory.filter((product) => Number(product.stock) > 0).map((product) => <option key={product.id} value={product.id}>{product.title} · {formatCurrency(product.final_price ?? product.price, 'USD')}</option>)}
+            {inventory.filter((product) => Number(product.stock) > 0 || product.id === Number(orderItemForm.product_id)).map((product) => <option key={product.id} value={product.id}>{product.title} · {formatCurrency(product.final_price ?? product.price, 'USD')}</option>)}
           </select>
           <div className="order-item-editor__fields">
             <select value={orderItemForm.size} onChange={(event) => setOrderItemForm((current) => ({ ...current, size: event.target.value }))} aria-label="Talla nueva">
               <option value="">Talla</option>
-              {(inventory.find((product) => product.id === Number(orderItemForm.product_id))?.stock_by_size ? Object.entries(inventory.find((product) => product.id === Number(orderItemForm.product_id)).stock_by_size).filter(([, stock]) => Number(stock) > 0).map(([size]) => <option key={size} value={size}>{size}</option>) : null)}
+              {(inventory.find((product) => product.id === Number(orderItemForm.product_id))?.stock_by_size ? Object.entries(inventory.find((product) => product.id === Number(orderItemForm.product_id)).stock_by_size).filter(([size, stock]) => Number(stock) > 0 || size === orderItemForm.size).map(([size]) => <option key={size} value={size}>{size}</option>) : null)}
             </select>
             <input type="number" min="1" max="10" value={orderItemForm.quantity} onChange={(event) => setOrderItemForm((current) => ({ ...current, quantity: event.target.value }))} aria-label="Cantidad nueva" />
           </div>
