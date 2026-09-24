@@ -179,7 +179,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
             <img src="/cuadro1.jpg" alt="" />
           </div>
           <div className="hero-banner__photo hero-banner__photo--front">
-            <img src="/cuadro2.jpg" alt="" />
+            <img src="/cuadro22.jpg" alt="" />
             <div className="hero-banner__visual-copy"><span>MDJ / SOCCER</span><strong>Viste tu pasión</strong></div>
           </div>
         </div>
