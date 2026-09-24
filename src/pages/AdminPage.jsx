@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiFetch, apiUrl, assetUrl } from '../api';
 import Modal from '../components/Modal';
@@ -110,6 +110,7 @@ const AdminPage = () => {
   const [allDiscountDraft, setAllDiscountDraft] = useState('10');
   const [orderDiscountEdit, setOrderDiscountEdit] = useState(null);
   const [orderEdit, setOrderEdit] = useState(null);
+  const productFormRef = useRef(null);
 
   const parseImageUrls = (value) => {
     if (!value) return [];
@@ -121,6 +122,12 @@ const AdminPage = () => {
     const nextView = new URLSearchParams(location.search).get('view') || 'overview';
     setActiveView(nextView);
   }, [location.search]);
+
+  useEffect(() => {
+    if (editingProductId && showCreateForm) {
+      window.requestAnimationFrame(() => productFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  }, [editingProductId, showCreateForm]);
 
   const loadDashboard = async () => {
     const token = localStorage.getItem('token');
@@ -1030,7 +1037,7 @@ const AdminPage = () => {
               </select>
               <input type="date" value={closureDate} onChange={(e) => setClosureDate(e.target.value)} />
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div className="closure-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button className="ghost-btn" onClick={() => loadClosureSummary(closurePeriod, closureDate)}>Ver cierre</button>
               <button className="primary-btn" onClick={createClosure} disabled={isClosing}>{isClosing ? 'Generando...' : 'Cerrar y guardar'}</button>
               <button className="ghost-btn" onClick={printClosure} disabled={!closureSummary}>Imprimir</button>
@@ -1086,7 +1093,7 @@ const AdminPage = () => {
           </div>
 
           {showCreateForm ? (
-            <form className="inventory-form" onSubmit={editingProductId ? handleUpdateProduct : handleCreateProduct}>
+            <form ref={productFormRef} className="inventory-form" onSubmit={editingProductId ? handleUpdateProduct : handleCreateProduct}>
               <div className="filter-grid">
                 <label className="inventory-field"><span>Nombre de la camiseta</span><input required placeholder="Ej. Camiseta Real Madrid" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
                 <label className="inventory-field"><span>Precio (USD)</span><input required type="number" min="0" step="0.01" placeholder="Ej. 25.00" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></label>

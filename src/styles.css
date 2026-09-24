@@ -479,6 +479,34 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .admin-menu { width: 100%; }
   .admin-menu__trigger { width: 100%; min-width: 0; }
   .admin-menu__panel { width: 100%; }
+  .dashboard-shell { gap: 0.75rem; }
+  .dashboard-shell > .card { padding: 0.85rem; }
+  .dashboard-hero { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+  .dashboard-hero h3 { margin: 0.25rem 0; font-size: 1.1rem; line-height: 1.15; }
+  .dashboard-hero p { margin: 0.35rem 0 0; font-size: 0.84rem; line-height: 1.4; }
+  .dashboard-rate-box { min-width: 0; padding: 0.65rem; gap: 0.3rem; }
+  .dashboard-rate-actions { grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr); gap: 0.35rem; }
+  .dashboard-shell input, .dashboard-shell select { padding: 0.6rem 0.65rem; font-size: 0.84rem; }
+  .dashboard-shell button { padding: 0.55rem 0.65rem; font-size: 0.78rem; white-space: nowrap; }
+  .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
+  .dashboard-grid--wide { grid-template-columns: 1fr; }
+  .dashboard-grid > .card { padding: 0.7rem; min-width: 0; }
+  .dashboard-grid > .card h3 { margin: 0; font-size: 0.88rem; line-height: 1.15; }
+  .metric-value { font-size: 1.2rem; line-height: 1.1; overflow-wrap: anywhere; }
+  .metric-caption { font-size: 0.76rem; line-height: 1.25; }
+  .dashboard-list { gap: 0.4rem; }
+  .dashboard-list li { gap: 0.45rem; padding: 0.55rem 0.6rem; font-size: 0.82rem; }
+  .closure-actions { gap: 0.35rem !important; }
+  .closure-actions button { flex: 1; min-width: 0; }
+  .inventory-form { gap: 0.5rem; }
+  .inventory-form input, .inventory-form select, .inventory-form textarea { padding: 0.62rem 0.7rem; font-size: 0.84rem; }
+  .inventory-grid { gap: 0.6rem; }
+  .inventory-item { padding: 0.7rem; gap: 0.4rem; font-size: 0.84rem; }
+  .inventory-item__actions { gap: 0.35rem; }
+  .inventory-item__actions .icon-btn { width: 34px; height: 34px; }
+  .discount-tools { gap: 0.65rem; padding: 0.7rem; }
+  .discount-tools__actions { gap: 0.35rem; }
+  .discount-tools__actions button { padding: 0.55rem 0.65rem; font-size: 0.78rem; }
   .hero-banner { padding: 2rem 1rem; }
   .filters-card, .card, .modal { border-radius: 16px; }
   .product-card-shell { width: 100%; max-width: none; }
