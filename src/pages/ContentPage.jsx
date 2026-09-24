@@ -52,6 +52,10 @@ const ContentPage = () => {
         <div className="content-page__hero-kicker"><span>MDJ SOCCER</span><span>EDITORIAL / 2025</span></div>
         <h2>Vive la camiseta más allá de la pantalla</h2>
         <p>Descubre promociones, lanzamientos, videos y momentos de nuestra Comunidad.</p>
+        <div className="content-page__hero-objects" aria-hidden="true">
+          <img className="content-page__hero-ball" src="/balon.png" alt="" />
+          <img className="content-page__hero-trophy" src="/trofeo.png" alt="" />
+        </div>
       </section>
 
       {loading ? <div className="empty-state">Cargando contenido...</div> : null}
