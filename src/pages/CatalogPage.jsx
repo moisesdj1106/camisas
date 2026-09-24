@@ -176,10 +176,11 @@ export const CatalogPage = ({ user, onAddToCart }) => {
         </div>
         <div className="hero-banner__visual" aria-hidden="true">
           <div className="hero-banner__photo hero-banner__photo--back">
-            <img src="https://images.unsplash.com/photo-1518091043644-c1d4457512c6?auto=format&fit=crop&w=900&q=85" alt="" />
+            <img src="/cuadro1.jpg" alt="" />
           </div>
+          <img className="hero-banner__trophy" src="/trofeo.png" alt="" onError={(event) => { event.currentTarget.hidden = true; }} />
           <div className="hero-banner__photo hero-banner__photo--front">
-            <img src="/escudo.jpg" alt="" />
+            <img src="/cuadro2.jpg" alt="" />
             <div className="hero-banner__visual-copy"><span>MDJ / SOCCER</span><strong>Viste tu pasión</strong></div>
           </div>
         </div>
@@ -262,14 +263,6 @@ export const CatalogPage = ({ user, onAddToCart }) => {
         </div>
       </section>
 
-      <section className="featured-row">
-        {featuredClubs.map((club) => (
-          <div key={club.id} className="featured-pill">
-            <span>⭐</span>
-            <strong>{club.name}</strong>
-          </div>
-        ))}
-      </section>
 
       {filtered.length ? (
         <div className="grid">
