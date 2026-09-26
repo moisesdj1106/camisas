@@ -1310,7 +1310,7 @@ const AdminPage = () => {
                 <option value="selection">Selección</option>
               </select>
             </div>
-            <button className="primary-btn" type="submit">{editingClubId ? 'Actualizar equipo' : 'Registrar equipo'}</button>
+            <button className="primary-btn club-form__submit" type="submit">{editingClubId ? 'Actualizar equipo' : 'Registrar equipo'}</button>
           </form>
           <div className="orders-toolbar" role="group" aria-label="Filtrar equipos por categoría">
             <button className={clubCategoryFilter === 'all' ? 'primary-btn' : 'ghost-btn'} type="button" onClick={() => { setClubCategoryFilter('all'); setClubsPage(1); }}>Todos</button>

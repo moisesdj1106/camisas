@@ -297,6 +297,7 @@ button, input, select, textarea { font: inherit; }
 .inventory-item__actions { display: flex; gap: 0.45rem; flex-wrap: wrap; }
 .inventory-item__actions button { flex: 1; min-width: 90px; }
 .inventory-form { display: grid; gap: 0.65rem; }
+.club-form__submit { justify-self: start; padding: 0.55rem 0.85rem; margin: 0.2rem 0 0.65rem; }
 .inventory-field { display: grid; gap: 0.3rem; min-width: 0; }
 .inventory-field > span { color: #475569; font-size: 0.76rem; font-weight: 800; line-height: 1.2; }
 .content-upload-guide { display: grid; gap: 0.25rem; padding: 0.8rem 0.9rem; border: 1px solid #99f6e4; border-radius: 14px; background: #f0fdfa; color: #115e59; font-size: 0.84rem; line-height: 1.45; }
