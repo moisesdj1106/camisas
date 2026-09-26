@@ -11,6 +11,7 @@ const formatCurrency = (value, currency = 'USD') => {
 };
 
 const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+const ADMIN_ITEMS_PER_PAGE = 8;
 const emptyStockBySize = () => Object.fromEntries(sizeOptions.map((size) => [size, '']));
 
 const createEmptyForm = () => ({
@@ -20,7 +21,7 @@ const createEmptyForm = () => ({
   discount_percent: '0',
   stock: '',
   stock_by_size: emptyStockBySize(),
-  club_id: '1',
+  club_id: '',
   type: 'local',
   image_url: '',
   image_urls: '',
@@ -31,8 +32,21 @@ const createEmptyForm = () => ({
 const createEmptyClubForm = () => ({
   name: '',
   country: '',
-  logo_url: ''
+  logo_url: '',
+  category: 'club'
 });
+
+const AdminPagination = ({ page, totalItems, onPageChange, label }) => {
+  const totalPages = Math.max(1, Math.ceil(totalItems / ADMIN_ITEMS_PER_PAGE));
+  if (totalItems <= ADMIN_ITEMS_PER_PAGE) return null;
+  return (
+    <div className="orders-pagination" aria-label={`Paginación de ${label}`}>
+      <button className="ghost-btn" type="button" disabled={page === 1} onClick={() => onPageChange((current) => Math.max(1, current - 1))}>Anterior</button>
+      <span>{(page - 1) * ADMIN_ITEMS_PER_PAGE + 1}-{Math.min(page * ADMIN_ITEMS_PER_PAGE, totalItems)} de {totalItems}</span>
+      <button className="ghost-btn" type="button" disabled={page === totalPages} onClick={() => onPageChange((current) => Math.min(totalPages, current + 1))}>Siguiente</button>
+    </div>
+  );
+};
 
 const createEmptyContentForm = () => ({
   type: 'banner',
@@ -82,6 +96,7 @@ const AdminPage = () => {
   const [exchangeRate, setExchangeRate] = useState(36);
   const [exchangeRateDraft, setExchangeRateDraft] = useState('36');
   const [expandedOrderId, setExpandedOrderId] = useState(null);
+  const [orderItemsPage, setOrderItemsPage] = useState(1);
   const [orderDetails, setOrderDetails] = useState({});
   const [orderItemForm, setOrderItemForm] = useState({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
   const [orderItemDorsals, setOrderItemDorsals] = useState([]);
@@ -90,6 +105,7 @@ const AdminPage = () => {
   const [closurePeriod, setClosurePeriod] = useState('day');
   const [closureDate, setClosureDate] = useState(new Date().toISOString().split('T')[0]);
   const [closureSummary, setClosureSummary] = useState(null);
+  const [closurePage, setClosurePage] = useState(1);
   const [isClosing, setIsClosing] = useState(false);
   const [isResettingMetrics, setIsResettingMetrics] = useState(false);
   const [orderFilter, setOrderFilter] = useState('all');
@@ -99,6 +115,11 @@ const AdminPage = () => {
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState('');
   const [userPage, setUserPage] = useState(1);
+  const [inventoryPage, setInventoryPage] = useState(1);
+  const [clubsPage, setClubsPage] = useState(1);
+  const [contentPage, setContentPage] = useState(1);
+  const [auditPage, setAuditPage] = useState(1);
+  const [clubCategoryFilter, setClubCategoryFilter] = useState('all');
   const [editingUserId, setEditingUserId] = useState(null);
   const [showCreateUserForm, setShowCreateUserForm] = useState(false);
   const [userForm, setUserForm] = useState({ name: '', email: '', phone: '', password: '', role: 'client' });
@@ -123,6 +144,10 @@ const AdminPage = () => {
     const nextView = new URLSearchParams(location.search).get('view') || 'overview';
     setActiveView(nextView);
   }, [location.search]);
+
+  useEffect(() => {
+    setOrderItemsPage(1);
+  }, [expandedOrderId]);
 
   useEffect(() => {
     if (editingProductId && showCreateForm) {
@@ -815,7 +840,7 @@ const AdminPage = () => {
 
   const handleEditClub = (club) => {
     setEditingClubId(club.id);
-    setClubForm({ name: club.name || '', country: club.country || '', logo_url: club.logo_url || '' });
+    setClubForm({ name: club.name || '', country: club.country || '', logo_url: club.logo_url || '', category: club.category || 'club' });
   };
 
   const handleDeleteClub = async (clubId) => {
@@ -840,7 +865,7 @@ const AdminPage = () => {
     { value: 'inventory', label: 'Inventario', description: 'Camisetas, stock y descuentos' },
     { value: 'orders', label: 'Pedidos', description: 'Clientes, estados y facturas' },
     { value: 'users', label: 'Usuarios', description: 'Clientes y administradores' },
-    { value: 'clubs', label: 'Clubes', description: 'Equipos y escudos' },
+    { value: 'clubs', label: 'Clubes y selecciones', description: 'Equipos y escudos' },
     { value: 'content', label: 'Contenido visual', description: 'Banners, fotos y videos' },
     { value: 'audit', label: 'Auditoría', description: 'Historial de cambios' }
   ];
@@ -915,6 +940,21 @@ const AdminPage = () => {
   });
   const totalOrderPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
   const visibleOrders = filteredOrders.slice((orderPage - 1) * ORDERS_PER_PAGE, orderPage * ORDERS_PER_PAGE);
+  const filteredAdminClubs = clubs.filter((club) => clubCategoryFilter === 'all' || (club.category || 'club') === clubCategoryFilter);
+  const currentInventoryPage = Math.min(inventoryPage, Math.max(1, Math.ceil(inventory.length / ADMIN_ITEMS_PER_PAGE)));
+  const currentClubsPage = Math.min(clubsPage, Math.max(1, Math.ceil(filteredAdminClubs.length / ADMIN_ITEMS_PER_PAGE)));
+  const currentContentPage = Math.min(contentPage, Math.max(1, Math.ceil(content.length / ADMIN_ITEMS_PER_PAGE)));
+  const currentAuditPage = Math.min(auditPage, Math.max(1, Math.ceil(auditLogs.length / ADMIN_ITEMS_PER_PAGE)));
+  const visibleInventory = inventory.slice((currentInventoryPage - 1) * ADMIN_ITEMS_PER_PAGE, currentInventoryPage * ADMIN_ITEMS_PER_PAGE);
+  const visibleClubs = filteredAdminClubs.slice((currentClubsPage - 1) * ADMIN_ITEMS_PER_PAGE, currentClubsPage * ADMIN_ITEMS_PER_PAGE);
+  const visibleContent = content.slice((currentContentPage - 1) * ADMIN_ITEMS_PER_PAGE, currentContentPage * ADMIN_ITEMS_PER_PAGE);
+  const visibleAuditLogs = auditLogs.slice((currentAuditPage - 1) * ADMIN_ITEMS_PER_PAGE, currentAuditPage * ADMIN_ITEMS_PER_PAGE);
+  const closureOrders = closureSummary?.orders || [];
+  const currentClosurePage = Math.min(closurePage, Math.max(1, Math.ceil(closureOrders.length / ADMIN_ITEMS_PER_PAGE)));
+  const visibleClosureOrders = closureOrders.slice((currentClosurePage - 1) * ADMIN_ITEMS_PER_PAGE, currentClosurePage * ADMIN_ITEMS_PER_PAGE);
+  const expandedOrderItems = orderDetails[expandedOrderId]?.items || [];
+  const currentOrderItemsPage = Math.min(orderItemsPage, Math.max(1, Math.ceil(expandedOrderItems.length / ADMIN_ITEMS_PER_PAGE)));
+  const visibleOrderItems = expandedOrderItems.slice((currentOrderItemsPage - 1) * ADMIN_ITEMS_PER_PAGE, currentOrderItemsPage * ADMIN_ITEMS_PER_PAGE);
   const setOrderFilterAndResetPage = (filter) => {
     setOrderFilter(filter);
     setOrderPage(1);
@@ -1085,10 +1125,11 @@ const AdminPage = () => {
                   </div>
                 </div>
                 <ul className="dashboard-list">
-                  {(closureSummary.orders || []).map((order) => (
+                  {visibleClosureOrders.map((order) => (
                     <li key={order.id}><span>Pedido #{order.id}</span><strong>{formatCurrency(order.totalAmount, 'USD')}</strong></li>
                   ))}
                 </ul>
+                <AdminPagination page={currentClosurePage} totalItems={closureOrders.length} onPageChange={setClosurePage} label="pedidos del cierre" />
               </div>
             ) : <p style={{ color: '#64748b', marginTop: '0.75rem' }}>Selecciona un rango y genera el cierre para ver el resumen.</p>}
           </div>
@@ -1130,7 +1171,10 @@ const AdminPage = () => {
                   <input type="number" min="0" max="100" step="1" placeholder="0 = sin descuento" value={form.discount_percent} onChange={(e) => setForm({ ...form, discount_percent: e.target.value })} />
                 </label>
                 <label className="inventory-field"><span>Stock total</span><input type="number" min="0" placeholder="Opcional" value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} /></label>
-                <label className="inventory-field"><span>Club ID</span><input required type="number" placeholder="Ej. 1" value={form.club_id} onChange={(e) => setForm({ ...form, club_id: e.target.value })} /></label>
+                <label className="inventory-field"><span>Club o selección</span><select required value={form.club_id} onChange={(e) => setForm({ ...form, club_id: e.target.value })}>
+                  <option value="">Selecciona un equipo</option>
+                  {clubs.map((club) => <option key={club.id} value={club.id}>{club.category === 'selection' ? 'Selección' : 'Club'} · {club.name}</option>)}
+                </select></label>
                 <label className="inventory-field"><span>Tipo de camiseta</span><select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
                   <option value="local">Local</option>
                   <option value="visitante">Visitante</option>
@@ -1170,21 +1214,26 @@ const AdminPage = () => {
             </div>
           </div>
 
-          <div className="inventory-grid" style={{ marginTop: '1rem' }}>
-            {inventory.length ? inventory.map((product) => (
-              <div className="inventory-item" key={product.id}>
-                <strong>{product.title}</strong>
-                <span>{product.club?.name || 'Club sin asignar'}</span>
-                <span>Stock: {product.stock}</span>
-                <span>Tallas: {sizeOptions.map((size) => `${size}: ${product.stock_by_size?.[size] || 0}`).join(' · ')}</span>
-                <span>Precio: ${Number(product.final_price ?? product.price).toFixed(2)}{Number(product.discount_percent) > 0 ? ` · Antes $${Number(product.price).toFixed(2)} (-${Number(product.discount_percent)}%)` : ''}</span>
-                <div className="inventory-item__actions">
-                  <button className="icon-btn" onClick={() => handleEditProduct(product)} title="Editar camiseta" aria-label={`Editar camiseta ${product.title}`}>✎</button>
-                  <button className="icon-btn icon-btn--danger" onClick={() => handleDeleteProduct(product.id)} title="Eliminar camiseta" aria-label={`Eliminar camiseta ${product.title}`}>🗑</button>
-                </div>
-              </div>
-            )) : <p style={{ color: '#64748b' }}>Todavía no hay camisetas registradas.</p>}
-          </div>
+          {inventory.length ? (
+            <table className="table" style={{ marginTop: '1rem' }}>
+              <thead><tr><th>Camiseta</th><th>Equipo</th><th>Stock y tallas</th><th>Precio</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {visibleInventory.map((product) => (
+                  <tr key={product.id}>
+                    <td><strong>{product.title}</strong></td>
+                    <td>{product.club?.category === 'selection' ? 'Selección' : 'Club'} · {product.club?.name || 'Sin asignar'}</td>
+                    <td><strong>{product.stock} unidades</strong><br /><small>{sizeOptions.map((size) => `${size}: ${product.stock_by_size?.[size] || 0}`).join(' · ')}</small></td>
+                    <td>${Number(product.final_price ?? product.price).toFixed(2)}{Number(product.discount_percent) > 0 ? <><br /><small>Antes ${Number(product.price).toFixed(2)} (-{Number(product.discount_percent)}%)</small></> : null}</td>
+                    <td className="table-actions">
+                      <button className="icon-btn" onClick={() => handleEditProduct(product)} title="Editar camiseta" aria-label={`Editar camiseta ${product.title}`}>✎</button>
+                      <button className="icon-btn icon-btn--danger" onClick={() => handleDeleteProduct(product.id)} title="Eliminar camiseta" aria-label={`Eliminar camiseta ${product.title}`}>🗑</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <p style={{ color: '#64748b' }}>Todavía no hay camisetas registradas.</p>}
+          <AdminPagination page={currentInventoryPage} totalItems={inventory.length} onPageChange={setInventoryPage} label="inventario" />
         </div>
       ) : null}
 
@@ -1227,7 +1276,7 @@ const AdminPage = () => {
             </div>
           </form>
           <div className="inventory-grid" style={{ marginTop: '1rem' }}>
-            {content.length ? content.map((item) => (
+            {content.length ? visibleContent.map((item) => (
               <div className="inventory-item" key={item.id}>
                 <strong>{item.title || 'Contenido sin título'}</strong>
                 <span>{item.slot === 'banner' ? 'Banner principal · formato grande' : item.slot === 'video' ? `Video destacado · posición ${Number(item.sort_order || 0) + 1} (${Number(item.sort_order || 0) < 2 ? 'espacio pequeño' : 'horizontal grande'})` : 'Foto del carrusel'} · {item.is_active ? 'Visible' : 'Oculto'}</span>
@@ -1239,6 +1288,7 @@ const AdminPage = () => {
               </div>
             )) : <p style={{ color: '#64748b' }}>Todavía no hay contenido publicado.</p>}
           </div>
+          <AdminPagination page={currentContentPage} totalItems={content.length} onPageChange={setContentPage} label="contenido" />
         </div>
       ) : null}
 
@@ -1246,8 +1296,8 @@ const AdminPage = () => {
         <div className="card" style={{ marginBottom: '1rem' }}>
           <div className="filters-card__header" style={{ marginBottom: '1rem' }}>
             <div>
-              <h3>Clubes</h3>
-              <p style={{ margin: '0.2rem 0 0', color: '#64748b' }}>Registra y administra los clubes que aparecerán en el catálogo.</p>
+              <h3>Clubes y selecciones</h3>
+              <p style={{ margin: '0.2rem 0 0', color: '#64748b' }}>Registra equipos para separar las camisetas de clubes y selecciones.</p>
             </div>
           </div>
           <form className="inventory-form" onSubmit={handleSubmitClub}>
@@ -1255,21 +1305,38 @@ const AdminPage = () => {
               <input required placeholder="Nombre del club" value={clubForm.name} onChange={(e) => setClubForm({ ...clubForm, name: e.target.value })} />
               <input placeholder="País" value={clubForm.country} onChange={(e) => setClubForm({ ...clubForm, country: e.target.value })} />
               <input placeholder="URL del logo" value={clubForm.logo_url} onChange={(e) => setClubForm({ ...clubForm, logo_url: e.target.value })} />
+              <select value={clubForm.category} onChange={(e) => setClubForm({ ...clubForm, category: e.target.value })} aria-label="Categoría del equipo">
+                <option value="club">Club</option>
+                <option value="selection">Selección</option>
+              </select>
             </div>
-            <button className="primary-btn" type="submit">{editingClubId ? 'Actualizar club' : 'Registrar club'}</button>
+            <button className="primary-btn" type="submit">{editingClubId ? 'Actualizar equipo' : 'Registrar equipo'}</button>
           </form>
-          <div className="inventory-grid" style={{ marginTop: '1rem' }}>
-            {clubs.map((club) => (
-              <div className="inventory-item" key={club.id}>
-                <strong>{club.name}</strong>
-                <span>{club.country || 'Sin país'}</span>
-                <div className="inventory-item__actions">
-                  <button className="icon-btn" onClick={() => handleEditClub(club)} title="Editar club" aria-label={`Editar club ${club.name}`}>✎</button>
-                  <button className="icon-btn icon-btn--danger" onClick={() => handleDeleteClub(club.id)} title="Eliminar club" aria-label={`Eliminar club ${club.name}`}>🗑</button>
-                </div>
-              </div>
-            ))}
+          <div className="orders-toolbar" role="group" aria-label="Filtrar equipos por categoría">
+            <button className={clubCategoryFilter === 'all' ? 'primary-btn' : 'ghost-btn'} type="button" onClick={() => { setClubCategoryFilter('all'); setClubsPage(1); }}>Todos</button>
+            <button className={clubCategoryFilter === 'club' ? 'primary-btn' : 'ghost-btn'} type="button" onClick={() => { setClubCategoryFilter('club'); setClubsPage(1); }}>Clubes</button>
+            <button className={clubCategoryFilter === 'selection' ? 'primary-btn' : 'ghost-btn'} type="button" onClick={() => { setClubCategoryFilter('selection'); setClubsPage(1); }}>Selecciones</button>
+            <span className="orders-toolbar__count">{filteredAdminClubs.length} equipos</span>
           </div>
+          {visibleClubs.length ? (
+            <table className="table" style={{ marginTop: '1rem' }}>
+              <thead><tr><th>Equipo</th><th>Categoría</th><th>País</th><th>Acciones</th></tr></thead>
+              <tbody>
+                {visibleClubs.map((club) => (
+                  <tr key={club.id}>
+                    <td><strong>{club.name}</strong></td>
+                    <td>{club.category === 'selection' ? 'Selección' : 'Club'}</td>
+                    <td>{club.country || 'Sin país'}</td>
+                    <td className="table-actions">
+                      <button className="icon-btn" onClick={() => handleEditClub(club)} title="Editar equipo" aria-label={`Editar ${club.name}`}>✎</button>
+                      <button className="icon-btn icon-btn--danger" onClick={() => handleDeleteClub(club.id)} title="Eliminar equipo" aria-label={`Eliminar ${club.name}`}>🗑</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <p style={{ color: '#64748b' }}>No hay equipos en esta categoría.</p>}
+          <AdminPagination page={currentClubsPage} totalItems={filteredAdminClubs.length} onPageChange={setClubsPage} label="clubes y selecciones" />
         </div>
       ) : null}
 
@@ -1459,7 +1526,7 @@ const AdminPage = () => {
                 </div>
               ) : null}
               <ul className="dashboard-list">
-                {orderDetails[expandedOrderId].items?.map((item) => (
+                {visibleOrderItems.map((item) => (
                   <li key={item.id}>
                     <span>{item.product_title || `Producto #${item.product_id}`} · Talla {item.size || 'No indicada'} · {item.no_dorsal ? 'Sin dorsal' : item.custom_name ? `Personalizada: ${item.custom_name} #${item.custom_number}` : item.dorsal_number ? `Dorsal ${item.dorsal_number}${item.dorsal_name ? ` (${item.dorsal_name})` : ''}` : 'Sin dorsal'} · {item.quantity} und.</span>
                     <span className="order-item-actions">
@@ -1470,6 +1537,7 @@ const AdminPage = () => {
                   </li>
                 ))}
               </ul>
+              <AdminPagination page={currentOrderItemsPage} totalItems={expandedOrderItems.length} onPageChange={setOrderItemsPage} label="productos del pedido" />
             </div>
           ) : null}
 
@@ -1490,7 +1558,7 @@ const AdminPage = () => {
               </tr>
             </thead>
             <tbody>
-              {auditLogs.map((log) => (
+              {visibleAuditLogs.map((log) => (
                 <tr key={log.id}>
                   <td>{new Date(log.created_at).toLocaleString()}</td>
                   <td>{log.user?.name || 'Sistema'}</td>
@@ -1501,6 +1569,7 @@ const AdminPage = () => {
               ))}
             </tbody>
           </table>
+          <AdminPagination page={currentAuditPage} totalItems={auditLogs.length} onPageChange={setAuditPage} label="auditoría" />
         </div>
       ) : null}
 

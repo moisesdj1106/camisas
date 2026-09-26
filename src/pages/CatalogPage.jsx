@@ -27,7 +27,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const [products, setProducts] = useState([]);
   const [clubs, setClubs] = useState([]);
   const [availableTypes, setAvailableTypes] = useState([]);
-  const [filters, setFilters] = useState({ q: '', club: '', type: '', minPrice: '', maxPrice: '' });
+  const [filters, setFilters] = useState({ q: '', club: '', category: '', type: '', minPrice: '', maxPrice: '' });
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [dorsal, setDorsal] = useState('');
   const [size, setSize] = useState('');
@@ -69,7 +69,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters.q, filters.club, filters.type, filters.minPrice, filters.maxPrice, productsPerPage]);
+  }, [filters.q, filters.club, filters.category, filters.type, filters.minPrice, filters.maxPrice, productsPerPage]);
 
   useEffect(() => {
     const handleResize = () => setProductsPerPage(getProductsPerPage(window.innerWidth));
@@ -80,14 +80,16 @@ export const CatalogPage = ({ user, onAddToCart }) => {
   const filtered = products.filter((product) => {
     const matchesQ = !filters.q || product.title.toLowerCase().includes(filters.q.toLowerCase());
     const matchesClub = !filters.club || product.club_id === Number(filters.club);
+    const matchesCategory = !filters.category || (product.club?.category || 'club') === filters.category;
     const matchesType = !filters.type || product.type === filters.type;
     const matchesMin = !filters.minPrice || Number(product.price) >= Number(filters.minPrice);
     const matchesMax = !filters.maxPrice || Number(product.price) <= Number(filters.maxPrice);
-    return matchesQ && matchesClub && matchesType && matchesMin && matchesMax;
+    return matchesQ && matchesClub && matchesCategory && matchesType && matchesMin && matchesMax;
   });
 
   const stockTotal = products.reduce((sum, product) => sum + Number(product.stock || 0), 0);
   const featuredClubs = clubs.slice(0, 3);
+  const filteredClubs = clubs.filter((club) => !filters.category || (club.category || 'club') === filters.category);
   const totalPages = Math.max(1, Math.ceil(filtered.length / productsPerPage));
   const safePage = Math.min(currentPage, totalPages);
   const visibleProducts = filtered.slice((safePage - 1) * productsPerPage, safePage * productsPerPage);
@@ -157,7 +159,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
       <section className="hero-banner">
         <div className="hero-banner__content">
           <p className="eyebrow">Colección oficial • Productos en Tendencia</p>
-          <h2>Tenemos las mejores camisetas de los clubes más populares.</h2>
+          <h2>Encuentra camisetas de clubes y selecciones.</h2>
           <p>Vive la experiencia de llevar tu equipo favorito con estilo y calidad. Entregas Fisicas en San Cristóbal - Táchira, Se hacen envios a todo el pais</p>
           <div className="hero-banner__metrics">
             <div>
@@ -166,7 +168,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
             </div>
             <div>
               <strong>{clubs.length}</strong>
-              <span>Clubes disponibles</span>
+              <span>Equipos disponibles</span>
             </div>
             <div>
               <strong>{stockTotal}</strong>
@@ -251,9 +253,14 @@ export const CatalogPage = ({ user, onAddToCart }) => {
         </div>
         <div className="filter-grid">
           <input placeholder="Buscar por nombre del equipo" value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} />
+          <select value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value, club: '' })} aria-label="Categoría de camiseta">
+            <option value="">Clubes y selecciones</option>
+            <option value="club">Solo clubes</option>
+            <option value="selection">Solo selecciones</option>
+          </select>
           <select value={filters.club} onChange={(e) => setFilters({ ...filters, club: e.target.value })}>
-            <option value="">Todos los clubes</option>
-            {clubs.map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}
+            <option value="">Todos los equipos</option>
+            {filteredClubs.map((club) => <option key={club.id} value={club.id}>{club.name}</option>)}
           </select>
           <select value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })}>
             <option value="">Todos los tipos</option>
@@ -278,6 +285,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 </button>
                 <div className="product-card__content">
                 <div className="card__meta">
+                  <span className="badge">{product.club?.category === 'selection' ? 'Selección' : 'Club'}</span>
                   <span className="badge">{typeLabels[product.type] || product.type}</span>
                   <span className="stock-pill">{product.stock > 0 ? `${product.stock} disponibles` : 'Sin stock'}</span>
                 </div>
@@ -356,7 +364,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 {Number(selectedProduct.discount_percent) > 0 ? <p className="price-original">Precio anterior: {formatCurrency(selectedProduct.price, 'USD')}</p> : null}
                 <p className="price-bs">{formatCurrency(Number(selectedProduct.final_price ?? selectedProduct.price) * exchangeRate, 'BS')}</p>
               </div>
-              <p className="card__club">Club: {selectedProduct.club?.name || 'Sin club'}</p>
+              <p className="card__club">{selectedProduct.club?.category === 'selection' ? 'Selección' : 'Club'}: {selectedProduct.club?.name || 'Sin asignar'}</p>
               <button className={`like-button like-button--large ${likedProducts[selectedProduct.id] ? 'like-button--active' : ''}`} type="button" onClick={() => toggleLike(selectedProduct.id)} aria-label={likedProducts[selectedProduct.id] ? 'Quitar me gusta' : 'Me gusta'} title={likedProducts[selectedProduct.id] ? 'Quitar me gusta' : 'Me gusta'}>
                 <svg className="like-thumb-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3Zm2 11V10l4.2-7.6a1.7 1.7 0 0 1 3.1 1.2L15.5 8H20a2 2 0 0 1 1.9 2.6l-2.1 8A3.2 3.2 0 0 1 16.7 21H9Z" /></svg><small>{Number(selectedProduct.likes_count || 0)}</small>
               </button>
