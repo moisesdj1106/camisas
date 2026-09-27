@@ -108,7 +108,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
     setActiveImageIndex(0);
     setDorsal('');
     setSize('');
-    setDorsalMode('none');
+    setDorsalMode(getDorsalOptions(data)[0]?.value || 'none');
     setCustomName('');
     setCustomNumber('');
     setSelectedQuantity(1);
@@ -153,6 +153,12 @@ export const CatalogPage = ({ user, onAddToCart }) => {
     const stockBySize = product?.stock_by_size || {};
     return sizeOptions.filter((option) => Number(stockBySize[option]) > 0);
   };
+
+  const getDorsalOptions = (product) => [
+    ...(product?.allow_no_dorsal !== false ? [{ value: 'none', label: 'Sin dorsal' }] : []),
+    ...(product?.allow_catalog_dorsal !== false && product?.dorsals?.some((item) => item.is_available) ? [{ value: 'catalog', label: 'Con dorsal de jugador' }] : []),
+    ...(product?.allow_custom_dorsal !== false ? [{ value: 'custom', label: 'Camiseta personalizada' }] : [])
+  ];
 
   return (
     <div className="catalog-page">
@@ -288,7 +294,9 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                   {/*<span className="badge">{product.club?.category === 'selection' ? 'Selección' : 'Club'}</span>*/}
                   <h3 className="product-card__title">{product.title}</h3>
                   <span className="badge">{typeLabels[product.type] || product.type}</span>
-                  <span className="stock-pill">{product.stock > 0 ? `${product.stock} disponibles` : 'Sin stock'}</span>
+                  <span className={`stock-pill ${Number(product.stock) <= 0 ? 'stock-pill--empty' : Number(product.stock) <= 5 ? 'stock-pill--low' : 'stock-pill--available'}`}>
+                    {Number(product.stock) > 0 ? `${product.stock} disponibles` : 'Sin stock'}
+                  </span>
                 </div>
 
                   {/* <p className="card__club">{product.club?.name || 'Club'}</p> */}
@@ -304,7 +312,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                   <input type="number" min="1" max="10" value={quantities[product.id] || 1} onChange={(e) => updateQuantity(product.id, e.target.value)} />
                 </div>
                 <div className="product-card__actions">
-                  <button className="ghost-btn" onClick={() => openDetail(product.id)}>Personalizar</button>
+                  <button className="ghost-btn" onClick={() => openDetail(product.id)}>Ver opciones</button>
                   <button className="primary-btn" onClick={() => {
                     if (!user) return setFeedbackModal({ title: 'Inicia sesión', message: 'Debes iniciar sesión para comprar.' });
                     openDetail(product.id);
@@ -376,11 +384,11 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 ))}
               </select>
               {!getAvailableSizes(selectedProduct).length ? <p className="card__description">No hay tallas disponibles para este producto.</p> : null}
-              <select value={dorsalMode} onChange={(e) => setDorsalMode(e.target.value)}>
-                <option value="none">Sin dorsal</option>
-                <option value="catalog">Con dorsal de jugador</option>
-                <option value="custom">Camiseta personalizada</option>
-              </select>
+              {getDorsalOptions(selectedProduct).length ? (
+                <select value={dorsalMode} onChange={(e) => setDorsalMode(e.target.value)}>
+                  {getDorsalOptions(selectedProduct).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              ) : <p className="card__description">Esta camiseta no tiene opciones de dorsal configuradas.</p>}
               {dorsalMode === 'catalog' ? (
                 <select value={dorsal} onChange={(e) => setDorsal(e.target.value)}>
                   <option value="">Selecciona dorsal *</option>
@@ -404,6 +412,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 if (!size) return setFeedbackModal({ title: 'Selecciona una talla', message: 'Selecciona una talla para continuar.' });
                 if (!getAvailableSizes(selectedProduct).includes(size)) return setFeedbackModal({ title: 'Talla no disponible', message: 'La talla seleccionada ya no está disponible.' });
                 if (selectedProduct.stock_by_size?.[size] && selectedQuantity > Number(selectedProduct.stock_by_size[size])) return setFeedbackModal({ title: 'Cantidad no disponible', message: `Solo hay ${selectedProduct.stock_by_size[size]} unidad(es) en talla ${size}.` });
+                if (!getDorsalOptions(selectedProduct).some((option) => option.value === dorsalMode)) return setFeedbackModal({ title: 'Opción no disponible', message: 'Esta configuración ya no está disponible para la camiseta seleccionada.' });
                 if (dorsalMode === 'catalog' && !dorsal) return setFeedbackModal({ title: 'Selecciona un dorsal', message: 'Selecciona un dorsal o elige otra opción.' });
                 if (dorsalMode === 'custom' && (!customName.trim() || !customNumber.trim())) return setFeedbackModal({ title: 'Completa la personalización', message: 'Completa el nombre y número de la camiseta personalizada.' });
                 const selectedDorsal = selectedProduct.dorsals?.find((item) => String(item.id) === String(dorsal));

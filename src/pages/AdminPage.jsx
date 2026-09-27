@@ -38,6 +38,9 @@ const createEmptyForm = () => ({
   image_url: '',
   image_urls: '',
   dorsal_options: '',
+  allow_no_dorsal: true,
+  allow_catalog_dorsal: true,
+  allow_custom_dorsal: true,
   is_active: true
 });
 
@@ -562,6 +565,9 @@ const AdminPage = () => {
       image_url: detailedProduct.image_url || '',
       image_urls: Array.isArray(detailedProduct.image_urls) ? detailedProduct.image_urls.join(', ') : '',
       dorsal_options: Array.isArray(detailedProduct.dorsals) ? detailedProduct.dorsals.map((item) => item.dorsal_number).join(', ') : '',
+      allow_no_dorsal: detailedProduct.allow_no_dorsal !== false,
+      allow_catalog_dorsal: detailedProduct.allow_catalog_dorsal !== false,
+      allow_custom_dorsal: detailedProduct.allow_custom_dorsal !== false,
       is_active: detailedProduct.is_active !== false
     });
     setShowCreateForm(true);
@@ -1329,7 +1335,13 @@ const AdminPage = () => {
                 {isUploadingProductImages ? 'Subiendo imágenes a Cloudinary...' : 'Subir imágenes desde el PC'}
                 <input type="file" accept="image/*" multiple onChange={uploadProductImages} disabled={isUploadingProductImages} />
               </label>
-              <label className="inventory-field"><span>Dorsales disponibles</span><input placeholder="Ej. 10, 11, 7" value={form.dorsal_options} onChange={(e) => setForm({ ...form, dorsal_options: e.target.value })} /></label>
+              <label className="inventory-field"><span>Dorsales de jugadores disponibles</span><input placeholder="Ej. 10, 11, 7" value={form.dorsal_options} onChange={(e) => setForm({ ...form, dorsal_options: e.target.value })} /></label>
+              <div className="inventory-options">
+                <strong>Opciones que verá el cliente</strong>
+                <label><input type="checkbox" checked={form.allow_no_dorsal} onChange={(e) => setForm({ ...form, allow_no_dorsal: e.target.checked })} /> Sin dorsal</label>
+                <label><input type="checkbox" checked={form.allow_catalog_dorsal} onChange={(e) => setForm({ ...form, allow_catalog_dorsal: e.target.checked })} /> Dorsal de jugador</label>
+                <label><input type="checkbox" checked={form.allow_custom_dorsal} onChange={(e) => setForm({ ...form, allow_custom_dorsal: e.target.checked })} /> Personalizada</label>
+              </div>
               <label className="inventory-field"><span>Descripción</span><textarea rows="3" placeholder="Describe la camiseta" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></label>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569' }}>
                 <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
