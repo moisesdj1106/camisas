@@ -36,6 +36,16 @@ const createEmptyClubForm = () => ({
   category: 'club'
 });
 
+const createEmptyManualOrderForm = () => ({
+  client: { name: '', email: '', phone: '' },
+  items: [],
+  payment_method: 'whatsapp',
+  payment_proof_url: '',
+  delivery_method: 'personal',
+  status: 'pending',
+  shipping_details: { name: '', phone: '', cedula: '', agency: '', city: '', state: '' }
+});
+
 const AdminPagination = ({ page, totalItems, onPageChange, label }) => {
   const totalPages = Math.max(1, Math.ceil(totalItems / ADMIN_ITEMS_PER_PAGE));
   if (totalItems <= ADMIN_ITEMS_PER_PAGE) return null;
@@ -132,6 +142,9 @@ const AdminPage = () => {
   const [allDiscountDraft, setAllDiscountDraft] = useState('10');
   const [orderDiscountEdit, setOrderDiscountEdit] = useState(null);
   const [orderEdit, setOrderEdit] = useState(null);
+  const [manualOrderForm, setManualOrderForm] = useState(createEmptyManualOrderForm());
+  const [manualOrderItemForm, setManualOrderItemForm] = useState({ product_id: '', size: '', quantity: 1 });
+  const [manualOrderOpen, setManualOrderOpen] = useState(false);
   const productFormRef = useRef(null);
 
   const parseImageUrls = (value) => {
@@ -690,6 +703,88 @@ const AdminPage = () => {
     setOrders((current) => current.map((order) => order.id === orderId ? { ...order, total_amount: data.total_amount } : order));
     setMessage(`Producto eliminado del pedido #${orderId}.`);
     await loadOrderDetail(orderId, true);
+  };
+
+  const addManualOrderItem = () => {
+    if (!manualOrderItemForm.product_id || !manualOrderItemForm.size) {
+      setMessage('Selecciona una camiseta y la talla antes de agregarla al pedido.');
+      return;
+    }
+    const product = inventory.find((item) => Number(item.id) === Number(manualOrderItemForm.product_id));
+    if (!product) {
+      setMessage('La camiseta seleccionada no existe en el inventario.');
+      return;
+    }
+    const quantity = Math.max(1, Number(manualOrderItemForm.quantity) || 1);
+    setManualOrderForm((current) => ({
+      ...current,
+      items: [...current.items, {
+        product_id: Number(product.id),
+        title: product.title,
+        size: manualOrderItemForm.size,
+        quantity,
+        no_dorsal: true,
+        unit_price: Number(product.final_price ?? product.price)
+      }]
+    }));
+    setManualOrderItemForm({ product_id: '', size: '', quantity: 1 });
+  };
+
+  const removeManualOrderItem = (productId, size) => {
+    setManualOrderForm((current) => ({
+      ...current,
+      items: current.items.filter((item) => !(Number(item.product_id) === Number(productId) && item.size === size))
+    }));
+  };
+
+  const createManualOrder = async () => {
+    if (!manualOrderForm.client.name.trim() || !manualOrderForm.client.email.trim()) {
+      setMessage('Completa el nombre y el correo del cliente antes de guardar el pedido.');
+      return;
+    }
+    if (!manualOrderForm.items.length) {
+      setMessage('Agrega al menos un producto para crear el pedido manualmente.');
+      return;
+    }
+    if (manualOrderForm.delivery_method === 'national' && (!manualOrderForm.shipping_details.name || !manualOrderForm.shipping_details.phone || !manualOrderForm.shipping_details.cedula || !manualOrderForm.shipping_details.agency || !manualOrderForm.shipping_details.city || !manualOrderForm.shipping_details.state)) {
+      setMessage('Completa todos los datos del envío nacional.');
+      return;
+    }
+    const payload = {
+      client: {
+        name: manualOrderForm.client.name.trim(),
+        email: manualOrderForm.client.email.trim(),
+        phone: manualOrderForm.client.phone.trim()
+      },
+      items: manualOrderForm.items.map((item) => ({
+        product_id: item.product_id,
+        size: item.size,
+        quantity: item.quantity,
+        no_dorsal: true
+      })),
+      payment_method: manualOrderForm.payment_method,
+      payment_proof_url: manualOrderForm.payment_proof_url || null,
+      delivery_method: manualOrderForm.delivery_method,
+      shipping_details: manualOrderForm.delivery_method === 'national' ? manualOrderForm.shipping_details : null,
+      status: manualOrderForm.status
+    };
+
+    const response = await fetch(apiUrl('/api/admin/orders/manual'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'No se pudo crear el pedido manualmente.');
+      return;
+    }
+    setOrders((current) => [data.order, ...current]);
+    setManualOrderOpen(false);
+    setManualOrderForm(createEmptyManualOrderForm());
+    setManualOrderItemForm({ product_id: '', size: '', quantity: 1 });
+    setMessage(`Pedido #${data.order.id} creado correctamente.`);
+    await loadDashboard();
   };
 
   const updateExchangeRate = async () => {
@@ -1411,6 +1506,7 @@ const AdminPage = () => {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <span className="badge">{filteredOrders.length} resultado{filteredOrders.length === 1 ? '' : 's'}</span>
+              <button className="ghost-btn" type="button" onClick={() => setManualOrderOpen(true)}>＋ Nuevo pedido</button>
               <button className="primary-btn" type="button" onClick={downloadApprovedOrders} title="Descargar todos los pedidos aceptados en PDF">🖨️ Imprimir aceptados</button>
             </div>
           </div>
@@ -1572,6 +1668,68 @@ const AdminPage = () => {
           <AdminPagination page={currentAuditPage} totalItems={auditLogs.length} onPageChange={setAuditPage} label="auditoría" />
         </div>
       ) : null}
+
+      <Modal
+        open={manualOrderOpen}
+        title="Crear pedido manual"
+        message="Completa los datos del cliente y agrega los productos para registrar un pedido desde el panel administrativo."
+        onClose={() => { setManualOrderOpen(false); setManualOrderForm(createEmptyManualOrderForm()); setManualOrderItemForm({ product_id: '', size: '', quantity: 1 }); }}
+        onConfirm={createManualOrder}
+        confirmLabel="Guardar pedido"
+      >
+        <div className="order-edit-form">
+          <div className="order-edit-form__grid">
+            <label><span>Nombre</span><input value={manualOrderForm.client.name} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, name: event.target.value } }))} placeholder="Nombre del cliente" /></label>
+            <label><span>Correo</span><input type="email" value={manualOrderForm.client.email} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, email: event.target.value } }))} placeholder="cliente@email.com" /></label>
+            <label><span>Teléfono</span><input value={manualOrderForm.client.phone} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, phone: event.target.value } }))} placeholder="+58..." /></label>
+            <label><span>Método de pago</span><select value={manualOrderForm.payment_method} onChange={(event) => setManualOrderForm((current) => ({ ...current, payment_method: event.target.value }))}><option value="whatsapp">WhatsApp</option><option value="pago_movil">Pago Móvil</option><option value="efectivo">Efectivo</option></select></label>
+            <label><span>Estado</span><select value={manualOrderForm.status} onChange={(event) => setManualOrderForm((current) => ({ ...current, status: event.target.value }))}>{orderStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+            <label><span>Entrega</span><select value={manualOrderForm.delivery_method} onChange={(event) => setManualOrderForm((current) => ({ ...current, delivery_method: event.target.value }))}><option value="personal">Entrega personal</option><option value="national">Envío nacional</option></select></label>
+            <label className="order-edit-form__wide"><span>Referencia de comprobante</span><input value={manualOrderForm.payment_proof_url} onChange={(event) => setManualOrderForm((current) => ({ ...current, payment_proof_url: event.target.value }))} placeholder="URL o referencia" /></label>
+          </div>
+          <div className="order-item-editor order-item-editor--modal" style={{ marginTop: '1rem' }}>
+            <select value={manualOrderItemForm.product_id} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, product_id: event.target.value, size: '' }))} aria-label="Producto para pedido manual">
+              <option value="">Selecciona una camiseta</option>
+              {inventory.filter((product) => Number(product.stock) > 0 || Number(product.id) === Number(manualOrderItemForm.product_id)).map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}
+            </select>
+            <div className="order-item-editor__fields">
+              <select value={manualOrderItemForm.size} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, size: event.target.value }))} aria-label="Talla para pedido manual">
+                <option value="">Talla</option>
+                {(() => {
+                  const product = inventory.find((item) => Number(item.id) === Number(manualOrderItemForm.product_id));
+                  if (!product) return null;
+                  return Object.entries(product.stock_by_size || {}).filter(([, stock]) => Number(stock) > 0 || String(Object.keys(product.stock_by_size || {})[0]) === manualOrderItemForm.size).map(([size]) => <option key={size} value={size}>{size}</option>);
+                })()}
+              </select>
+              <input type="number" min="1" max="10" value={manualOrderItemForm.quantity} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, quantity: Number(event.target.value) || 1 }))} aria-label="Cantidad para pedido manual" />
+            </div>
+            <button type="button" className="ghost-btn" onClick={addManualOrderItem}>Agregar producto</button>
+          </div>
+          {manualOrderForm.items.length ? (
+            <div style={{ marginTop: '1rem' }}>
+              <h5>Productos agregados</h5>
+              <ul className="dashboard-list">
+                {manualOrderForm.items.map((item, index) => (
+                  <li key={`${item.product_id}-${item.size}-${index}`}>
+                    <span>{item.title || `Producto #${item.product_id}`} · Talla {item.size} · {item.quantity} und.</span>
+                    <button type="button" className="icon-btn icon-btn--danger" onClick={() => removeManualOrderItem(item.product_id, item.size)} aria-label={`Eliminar ${item.title || 'producto'} del pedido manual`}>🗑</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {manualOrderForm.delivery_method === 'national' ? (
+            <fieldset className="shipping-form order-edit-form__shipping" style={{ marginTop: '1rem' }}>
+              <legend>Datos de envío nacional</legend>
+              <input placeholder="Nombre y apellido" value={manualOrderForm.shipping_details.name} onChange={(event) => setManualOrderForm((current) => ({ ...current, shipping_details: { ...current.shipping_details, name: event.target.value } }))} />
+              <input placeholder="Teléfono" value={manualOrderForm.shipping_details.phone} onChange={(event) => setManualOrderForm((current) => ({ ...current, shipping_details: { ...current.shipping_details, phone: event.target.value } }))} />
+              <input placeholder="Cédula" value={manualOrderForm.shipping_details.cedula} onChange={(event) => setManualOrderForm((current) => ({ ...current, shipping_details: { ...current.shipping_details, cedula: event.target.value } }))} />
+              <input placeholder="Agencia de envío" value={manualOrderForm.shipping_details.agency} onChange={(event) => setManualOrderForm((current) => ({ ...current, shipping_details: { ...current.shipping_details, agency: event.target.value } }))} />
+              <div className="shipping-form__row"><input placeholder="Estado" value={manualOrderForm.shipping_details.state} onChange={(event) => setManualOrderForm((current) => ({ ...current, shipping_details: { ...current.shipping_details, state: event.target.value } }))} /><input placeholder="Ciudad" value={manualOrderForm.shipping_details.city} onChange={(event) => setManualOrderForm((current) => ({ ...current, shipping_details: { ...current.shipping_details, city: event.target.value } }))} /></div>
+            </fieldset>
+          ) : <p className="delivery-summary">Entrega personal en San Cristóbal</p>}
+        </div>
+      </Modal>
 
       <Modal
         open={Boolean(orderEdit)}
