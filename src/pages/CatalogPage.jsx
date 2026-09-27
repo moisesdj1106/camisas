@@ -285,11 +285,12 @@ export const CatalogPage = ({ user, onAddToCart }) => {
                 </button>
                 <div className="product-card__content">
                 <div className="card__meta">
-                  <span className="badge">{product.club?.category === 'selection' ? 'Selección' : 'Club'}</span>
+                  {/*<span className="badge">{product.club?.category === 'selection' ? 'Selección' : 'Club'}</span>*/}
+                  <h3 className="product-card__title">{product.title}</h3>
                   <span className="badge">{typeLabels[product.type] || product.type}</span>
                   <span className="stock-pill">{product.stock > 0 ? `${product.stock} disponibles` : 'Sin stock'}</span>
                 </div>
-                  <h3 className="product-card__title">{product.title}</h3>
+
                   {/* <p className="card__club">{product.club?.name || 'Club'}</p> */}
                 <p className="card__description">{product.description || 'Camiseta oficial con diseño premium y detalles exclusivos.'}</p>
                 <div className="price-stack">
