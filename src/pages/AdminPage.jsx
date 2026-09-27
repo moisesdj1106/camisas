@@ -16,6 +16,12 @@ const normalizeSearchText = (value = '') => String(value)
   .toLowerCase()
   .trim();
 
+const productTypeLabels = {
+  local: 'Local',
+  visitante: 'Visitante',
+  tercera: 'Alterna'
+};
+
 const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const ADMIN_ITEMS_PER_PAGE = 8;
 const emptyStockBySize = () => Object.fromEntries(sizeOptions.map((size) => [size, '']));
@@ -1360,11 +1366,12 @@ const AdminPage = () => {
 
           {visibleInventory.length ? (
             <table className="table" style={{ marginTop: '0.5rem' }}>
-              <thead><tr><th>Camiseta</th><th>Equipo</th><th>Stock y tallas</th><th>Precio</th><th>Acciones</th></tr></thead>
+              <thead><tr><th>Camiseta</th><th>Tipo</th><th>Equipo</th><th>Stock y tallas</th><th>Precio</th><th>Acciones</th></tr></thead>
               <tbody>
                 {visibleInventory.map((product) => (
                   <tr key={product.id}>
                     <td><strong>{product.title}</strong></td>
+                    <td>{productTypeLabels[normalizeSearchText(product.type)] || product.type || 'N/D'}</td>
                     <td>{product.club?.category === 'selection' ? 'Selección' : 'Club'} · {product.club?.name || 'Sin asignar'}</td>
                     <td><strong>{product.stock} unidades</strong><br /><small>{sizeOptions.map((size) => `${size}: ${product.stock_by_size?.[size] || 0}`).join(' · ')}</small></td>
                     <td>${Number(product.final_price ?? product.price).toFixed(2)}{Number(product.discount_percent) > 0 ? <><br /><small>Antes ${Number(product.price).toFixed(2)} (-{Number(product.discount_percent)}%)</small></> : null}</td>
