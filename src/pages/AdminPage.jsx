@@ -10,6 +10,12 @@ const formatCurrency = (value, currency = 'USD') => {
     : `$${amount.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`;
 };
 
+const normalizeSearchText = (value = '') => String(value)
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .trim();
+
 const sizeOptions = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 const ADMIN_ITEMS_PER_PAGE = 8;
 const emptyStockBySize = () => Object.fromEntries(sizeOptions.map((size) => [size, '']));
@@ -121,7 +127,8 @@ const AdminPage = () => {
   const [orderFilter, setOrderFilter] = useState('all');
   const [orderSearch, setOrderSearch] = useState('');
   const [orderPage, setOrderPage] = useState(1);
-    const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
   const [users, setUsers] = useState([]);
   const [userSearch, setUserSearch] = useState('');
   const [userPage, setUserPage] = useState(1);
@@ -1045,23 +1052,31 @@ const AdminPage = () => {
 
   if (!dashboard) return <div className="container">Cargando...</div>;
 
-  const normalizedOrderSearch = orderSearch.trim().toLowerCase();
+  const normalizedOrderSearch = normalizeSearchText(orderSearch);
   const filteredOrders = orders.filter((order) => {
     const matchesStatus = orderFilter === 'all' || order.status === orderFilter;
     const matchesSearch = !normalizedOrderSearch
       || String(order.id).includes(normalizedOrderSearch)
-      || String(order.client?.name || '').toLowerCase().includes(normalizedOrderSearch)
-      || String(order.client?.email || '').toLowerCase().includes(normalizedOrderSearch);
+      || normalizeSearchText(order.client?.name || '').includes(normalizedOrderSearch)
+      || normalizeSearchText(order.client?.email || '').includes(normalizedOrderSearch);
     return matchesStatus && matchesSearch;
   });
   const totalOrderPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
   const visibleOrders = filteredOrders.slice((orderPage - 1) * ORDERS_PER_PAGE, orderPage * ORDERS_PER_PAGE);
+  const normalizedInventorySearch = normalizeSearchText(inventorySearch);
+  const filteredInventory = inventory.filter((product) => {
+    if (!normalizedInventorySearch) return true;
+    const productName = normalizeSearchText(product.title || '');
+    const clubName = normalizeSearchText(product.club?.name || '');
+    const productType = normalizeSearchText(product.type || '');
+    return productName.includes(normalizedInventorySearch) || clubName.includes(normalizedInventorySearch) || productType.includes(normalizedInventorySearch);
+  });
   const filteredAdminClubs = clubs.filter((club) => clubCategoryFilter === 'all' || (club.category || 'club') === clubCategoryFilter);
-  const currentInventoryPage = Math.min(inventoryPage, Math.max(1, Math.ceil(inventory.length / ADMIN_ITEMS_PER_PAGE)));
+  const currentInventoryPage = Math.min(inventoryPage, Math.max(1, Math.ceil(filteredInventory.length / ADMIN_ITEMS_PER_PAGE)));
   const currentClubsPage = Math.min(clubsPage, Math.max(1, Math.ceil(filteredAdminClubs.length / ADMIN_ITEMS_PER_PAGE)));
   const currentContentPage = Math.min(contentPage, Math.max(1, Math.ceil(content.length / ADMIN_ITEMS_PER_PAGE)));
   const currentAuditPage = Math.min(auditPage, Math.max(1, Math.ceil(auditLogs.length / ADMIN_ITEMS_PER_PAGE)));
-  const visibleInventory = inventory.slice((currentInventoryPage - 1) * ADMIN_ITEMS_PER_PAGE, currentInventoryPage * ADMIN_ITEMS_PER_PAGE);
+  const visibleInventory = filteredInventory.slice((currentInventoryPage - 1) * ADMIN_ITEMS_PER_PAGE, currentInventoryPage * ADMIN_ITEMS_PER_PAGE);
   const visibleClubs = filteredAdminClubs.slice((currentClubsPage - 1) * ADMIN_ITEMS_PER_PAGE, currentClubsPage * ADMIN_ITEMS_PER_PAGE);
   const visibleContent = content.slice((currentContentPage - 1) * ADMIN_ITEMS_PER_PAGE, currentContentPage * ADMIN_ITEMS_PER_PAGE);
   const visibleAuditLogs = auditLogs.slice((currentAuditPage - 1) * ADMIN_ITEMS_PER_PAGE, currentAuditPage * ADMIN_ITEMS_PER_PAGE);
@@ -1330,8 +1345,21 @@ const AdminPage = () => {
             </div>
           </div>
 
-          {inventory.length ? (
-            <table className="table" style={{ marginTop: '1rem' }}>
+          <div className="orders-toolbar" style={{ marginBottom: '1rem' }}>
+            <input
+              type="search"
+              placeholder="Buscar por camiseta, club o tipo..."
+              value={inventorySearch}
+              onChange={(event) => {
+                setInventorySearch(event.target.value);
+                setInventoryPage(1);
+              }}
+            />
+            <span className="orders-toolbar__count">{filteredInventory.length} resultado{filteredInventory.length === 1 ? '' : 's'}</span>
+          </div>
+
+          {visibleInventory.length ? (
+            <table className="table" style={{ marginTop: '0.5rem' }}>
               <thead><tr><th>Camiseta</th><th>Equipo</th><th>Stock y tallas</th><th>Precio</th><th>Acciones</th></tr></thead>
               <tbody>
                 {visibleInventory.map((product) => (
@@ -1349,7 +1377,7 @@ const AdminPage = () => {
               </tbody>
             </table>
           ) : <p style={{ color: '#64748b' }}>Todavía no hay camisetas registradas.</p>}
-          <AdminPagination page={currentInventoryPage} totalItems={inventory.length} onPageChange={setInventoryPage} label="inventario" />
+          <AdminPagination page={currentInventoryPage} totalItems={filteredInventory.length} onPageChange={setInventoryPage} label="inventario" />
         </div>
       ) : null}
 
