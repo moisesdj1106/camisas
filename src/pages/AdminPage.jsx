@@ -143,7 +143,8 @@ const AdminPage = () => {
   const [orderDiscountEdit, setOrderDiscountEdit] = useState(null);
   const [orderEdit, setOrderEdit] = useState(null);
   const [manualOrderForm, setManualOrderForm] = useState(createEmptyManualOrderForm());
-  const [manualOrderItemForm, setManualOrderItemForm] = useState({ product_id: '', size: '', quantity: 1 });
+  const [manualOrderItemForm, setManualOrderItemForm] = useState({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
+  const [manualOrderDorsals, setManualOrderDorsals] = useState([]);
   const [manualOrderOpen, setManualOrderOpen] = useState(false);
   const productFormRef = useRef(null);
 
@@ -710,6 +711,16 @@ const AdminPage = () => {
       setMessage('Selecciona una camiseta y la talla antes de agregarla al pedido.');
       return;
     }
+    const selectedDorsal = manualOrderDorsals.find((item) => String(item.id) === String(manualOrderItemForm.dorsalId));
+    if (manualOrderItemForm.dorsalMode === 'catalog' && !selectedDorsal) {
+      setMessage('Selecciona un dorsal disponible para este producto.');
+      return;
+    }
+    if (manualOrderItemForm.dorsalMode === 'custom' && (!manualOrderItemForm.customName.trim() || !manualOrderItemForm.customNumber.trim())) {
+      setMessage('Completa el nombre y número de la personalización.');
+      return;
+    }
+
     const product = inventory.find((item) => Number(item.id) === Number(manualOrderItemForm.product_id));
     if (!product) {
       setMessage('La camiseta seleccionada no existe en el inventario.');
@@ -723,11 +734,16 @@ const AdminPage = () => {
         title: product.title,
         size: manualOrderItemForm.size,
         quantity,
-        no_dorsal: true,
+        no_dorsal: manualOrderItemForm.dorsalMode === 'none',
+        dorsal_number: manualOrderItemForm.dorsalMode === 'catalog' ? Number(selectedDorsal.dorsal_number) : null,
+        dorsal_name: manualOrderItemForm.dorsalMode === 'catalog' ? selectedDorsal.player_name : null,
+        custom_name: manualOrderItemForm.dorsalMode === 'custom' ? manualOrderItemForm.customName.trim() : null,
+        custom_number: manualOrderItemForm.dorsalMode === 'custom' ? manualOrderItemForm.customNumber.trim() : null,
         unit_price: Number(product.final_price ?? product.price)
       }]
     }));
-    setManualOrderItemForm({ product_id: '', size: '', quantity: 1 });
+    setManualOrderItemForm({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
+    setManualOrderDorsals([]);
   };
 
   const removeManualOrderItem = (productId, size) => {
@@ -760,7 +776,11 @@ const AdminPage = () => {
         product_id: item.product_id,
         size: item.size,
         quantity: item.quantity,
-        no_dorsal: true
+        no_dorsal: item.no_dorsal,
+        dorsal_number: item.dorsal_number || null,
+        dorsal_name: item.dorsal_name || null,
+        custom_name: item.custom_name || null,
+        custom_number: item.custom_number || null
       })),
       payment_method: manualOrderForm.payment_method,
       payment_proof_url: manualOrderForm.payment_proof_url || null,
@@ -782,7 +802,8 @@ const AdminPage = () => {
     setOrders((current) => [data.order, ...current]);
     setManualOrderOpen(false);
     setManualOrderForm(createEmptyManualOrderForm());
-    setManualOrderItemForm({ product_id: '', size: '', quantity: 1 });
+    setManualOrderItemForm({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
+    setManualOrderDorsals([]);
     setMessage(`Pedido #${data.order.id} creado correctamente.`);
     await loadDashboard();
   };
@@ -1673,7 +1694,7 @@ const AdminPage = () => {
         open={manualOrderOpen}
         title="Crear pedido manual"
         message="Completa los datos del cliente y agrega los productos para registrar un pedido desde el panel administrativo."
-        onClose={() => { setManualOrderOpen(false); setManualOrderForm(createEmptyManualOrderForm()); setManualOrderItemForm({ product_id: '', size: '', quantity: 1 }); }}
+        onClose={() => { setManualOrderOpen(false); setManualOrderForm(createEmptyManualOrderForm()); setManualOrderItemForm({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' }); setManualOrderDorsals([]); }}
         onConfirm={createManualOrder}
         confirmLabel="Guardar pedido"
       >
@@ -1688,7 +1709,18 @@ const AdminPage = () => {
             <label className="order-edit-form__wide"><span>Referencia de comprobante</span><input value={manualOrderForm.payment_proof_url} onChange={(event) => setManualOrderForm((current) => ({ ...current, payment_proof_url: event.target.value }))} placeholder="URL o referencia" /></label>
           </div>
           <div className="order-item-editor order-item-editor--modal" style={{ marginTop: '1rem' }}>
-            <select value={manualOrderItemForm.product_id} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, product_id: event.target.value, size: '' }))} aria-label="Producto para pedido manual">
+            <select value={manualOrderItemForm.product_id} onChange={async (event) => {
+              const productId = event.target.value;
+              const product = inventory.find((item) => Number(item.id) === Number(productId));
+              setManualOrderItemForm((current) => ({ ...current, product_id: productId, size: '', dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' }));
+              if (productId) {
+                const response = await fetch(apiUrl(`/api/products/${productId}`));
+                const data = await response.json().catch(() => ({}));
+                setManualOrderDorsals(data.dorsals || []);
+              } else {
+                setManualOrderDorsals([]);
+              }
+            }} aria-label="Producto para pedido manual">
               <option value="">Selecciona una camiseta</option>
               {inventory.filter((product) => Number(product.stock) > 0 || Number(product.id) === Number(manualOrderItemForm.product_id)).map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}
             </select>
@@ -1698,11 +1730,28 @@ const AdminPage = () => {
                 {(() => {
                   const product = inventory.find((item) => Number(item.id) === Number(manualOrderItemForm.product_id));
                   if (!product) return null;
-                  return Object.entries(product.stock_by_size || {}).filter(([, stock]) => Number(stock) > 0 || String(Object.keys(product.stock_by_size || {})[0]) === manualOrderItemForm.size).map(([size]) => <option key={size} value={size}>{size}</option>);
+                  return Object.entries(product.stock_by_size || {}).filter(([, stock]) => Number(stock) > 0).map(([size]) => <option key={size} value={size}>{size}</option>);
                 })()}
               </select>
               <input type="number" min="1" max="10" value={manualOrderItemForm.quantity} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, quantity: Number(event.target.value) || 1 }))} aria-label="Cantidad para pedido manual" />
             </div>
+            <select value={manualOrderItemForm.dorsalMode} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, dorsalMode: event.target.value, dorsalId: '', customName: '', customNumber: '' }))} aria-label="Tipo de dorsal para pedido manual">
+              <option value="none">Sin dorsal</option>
+              <option value="catalog">Dorsal de jugador</option>
+              <option value="custom">Camiseta personalizada</option>
+            </select>
+            {manualOrderItemForm.dorsalMode === 'catalog' ? (
+              <select value={manualOrderItemForm.dorsalId} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, dorsalId: event.target.value }))} aria-label="Dorsal de jugador para pedido manual">
+                <option value="">Selecciona dorsal *</option>
+                {manualOrderDorsals.filter((item) => item.is_available).map((item) => <option key={item.id} value={item.id}>{item.dorsal_number} - {item.player_name || 'Disponible'}</option>)}
+              </select>
+            ) : null}
+            {manualOrderItemForm.dorsalMode === 'custom' ? (
+              <div className="order-item-editor__fields order-item-editor__custom-fields">
+                <input placeholder="Nombre para la camiseta" value={manualOrderItemForm.customName} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, customName: event.target.value }))} />
+                <input placeholder="Número para la camiseta" inputMode="numeric" value={manualOrderItemForm.customNumber} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, customNumber: event.target.value }))} />
+              </div>
+            ) : null}
             <button type="button" className="ghost-btn" onClick={addManualOrderItem}>Agregar producto</button>
           </div>
           {manualOrderForm.items.length ? (
