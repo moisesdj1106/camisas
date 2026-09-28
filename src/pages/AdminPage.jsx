@@ -926,29 +926,60 @@ const AdminPage = () => {
         <head>
           <title>Cierre ${closureSummary.periodLabel}</title>
           <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; }
-            h1 { margin-bottom: 8px; }
-            .summary { display: grid; grid-template-columns: repeat(3, minmax(140px, 1fr)); gap: 12px; margin: 16px 0; }
-            .summary div { border: 1px solid #e2e8f0; padding: 10px; border-radius: 8px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-            th, td { border-bottom: 1px solid #e2e8f0; padding: 8px; text-align: left; }
-            .muted { color: #64748b; }
+            * { box-sizing: border-box; }
+            body { margin: 0; padding: 32px; background: #f4f8ff; color: #0f172a; font-family: Arial, sans-serif; }
+            .page { max-width: 900px; margin: 0 auto; }
+            .brand { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 22px 26px; border-radius: 12px; background: #0f2d52; color: #fff; }
+            .brand-name { margin: 0; font-size: 21px; font-weight: 700; }
+            .brand-caption { margin: 6px 0 0; color: #cfe4ff; font-size: 11px; }
+            .report-tag { padding: 10px 16px; border-radius: 8px; background: #1d4ed8; color: #fff; text-align: center; }
+            .report-tag strong { display: block; font-size: 10px; }
+            .report-tag span { display: block; margin-top: 5px; color: #dbeafe; font-size: 11px; }
+            .period { margin: 22px 0 14px; }
+            h1 { margin: 0; color: #0f2d52; font-size: 20px; }
+            .muted { margin: 6px 0 0; color: #64748b; font-size: 12px; }
+            .summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 16px 0 22px; }
+            .summary div { min-height: 72px; padding: 14px 16px; border: 1px solid #dbeafe; border-radius: 8px; background: #fff; }
+            .summary strong { color: #64748b; font-size: 10px; text-transform: uppercase; }
+            .summary span { display: block; margin-top: 8px; color: #0f2d52; font-size: 18px; font-weight: 700; }
+            table { width: 100%; border-spacing: 0; border-collapse: separate; overflow: hidden; border-radius: 7px; background: #fff; }
+            thead { background: #0f2d52; color: #fff; }
+            th { padding: 11px 12px; font-size: 10px; font-weight: 700; text-align: left; }
+            td { padding: 10px 12px; border-bottom: 1px solid #dbeafe; font-size: 11px; }
+            tbody tr:nth-child(even) { background: #f1f6fc; }
+            tbody tr:last-child td { border-bottom: 0; }
+            .amount { text-align: right; }
+            .footer { margin-top: 26px; padding-top: 12px; border-top: 1px solid #dbe5f1; color: #64748b; font-size: 9px; text-align: center; }
+            @media (max-width: 600px) { body { padding: 16px; } .brand { padding: 18px; } .summary { gap: 8px; } .summary div { padding: 11px; } }
+            @media print { body { padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; } .page { max-width: none; } .brand, thead { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
           </style>
         </head>
         <body>
-          <h1>Cierre ${closureSummary.periodLabel}</h1>
-          <p class="muted">Periodo: ${closureSummary.periodType === 'day' ? 'Diario' : closureSummary.periodType === 'month' ? 'Mensual' : 'Anual'}</p>
-          <div class="summary">
-            <div><strong>Total</strong><br />${formatCurrency(closureSummary.totalAmount, 'USD')}</div>
-            <div><strong>Pedidos</strong><br />${closureSummary.ordersCount}</div>
-            <div><strong>Unidades</strong><br />${closureSummary.itemsSold}</div>
-          </div>
-          <table>
-            <thead>
-              <tr><th># Pedido</th><th>Fecha</th><th>Monto</th></tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
+          <main class="page">
+            <header class="brand">
+              <div>
+                <p class="brand-name">MDJ SOCCER</p>
+                <p class="brand-caption">Camisetas deportivas · San Cristóbal</p>
+              </div>
+              <div class="report-tag"><strong>CIERRE DE INGRESOS</strong><span>${closureSummary.periodLabel}</span></div>
+            </header>
+            <section class="period">
+              <h1>Resumen de ingresos</h1>
+              <p class="muted">Periodo: ${closureSummary.periodType === 'day' ? 'Diario' : closureSummary.periodType === 'month' ? 'Mensual' : 'Anual'}</p>
+            </section>
+            <section class="summary">
+              <div><strong>Total recaudado</strong><span>${formatCurrency(closureSummary.totalAmount, 'USD')}</span></div>
+              <div><strong>Pedidos</strong><span>${closureSummary.ordersCount}</span></div>
+              <div><strong>Unidades vendidas</strong><span>${closureSummary.itemsSold}</span></div>
+            </section>
+            <table>
+              <thead>
+                <tr><th># Pedido</th><th>Fecha</th><th class="amount">Monto</th></tr>
+              </thead>
+              <tbody>${rows}</tbody>
+            </table>
+            <footer class="footer">MDJ SOCCER · San Cristóbal, Táchira, Venezuela · +58 0414-714-6602</footer>
+          </main>
           <script>window.print();</script>
         </body>
       </html>
