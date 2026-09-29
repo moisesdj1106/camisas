@@ -159,7 +159,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
         ].filter(Boolean).join('\n')
         : `Hola, quiero coordinar la entrega personal de mi pedido #${data.order?.id || ''} de MDJ Soccer. Productos: ${orderLines}.`;
       const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-      onOrderSubmitted?.(data.order?.id, whatsappUrl, data.invoiceBuffer || '');
+      onOrderSubmitted?.(data.order?.id, whatsappUrl);
     } catch (error) {
       setStatus('No se pudo conectar con el servidor.');
     } finally {

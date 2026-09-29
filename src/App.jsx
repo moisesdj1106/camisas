@@ -25,7 +25,9 @@ const App = () => {
   const [notifications, setNotifications] = useState([]);
   const [orderReviewOpen, setOrderReviewOpen] = useState(false);
   const [orderWhatsappUrl, setOrderWhatsappUrl] = useState('');
-  const [orderInvoiceBuffer, setOrderInvoiceBuffer] = useState('');
+  const [orderInvoiceId, setOrderInvoiceId] = useState(null);
+  const [orderInvoiceLoading, setOrderInvoiceLoading] = useState(false);
+  const [orderInvoiceError, setOrderInvoiceError] = useState('');
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
   const [sessionMessage, setSessionMessage] = useState('');
   const navigate = useNavigate();
@@ -121,27 +123,43 @@ const App = () => {
     navigate('/');
   };
 
-  const handleOrderSubmitted = (_orderId, whatsappUrl = '', invoiceBuffer = '') => {
+  const handleOrderSubmitted = (orderId, whatsappUrl = '') => {
+    setOrderInvoiceId(orderId);
     setOrderWhatsappUrl(whatsappUrl);
-    setOrderInvoiceBuffer(invoiceBuffer);
     setOrderReviewOpen(true);
   };
 
   const closeOrderReview = () => {
     setOrderReviewOpen(false);
     setOrderWhatsappUrl('');
-    setOrderInvoiceBuffer('');
+    setOrderInvoiceId(null);
+    setOrderInvoiceError('');
   };
 
-  const openInvoiceForPrint = () => {
-    if (!orderInvoiceBuffer) return;
-    const byteCharacters = atob(orderInvoiceBuffer);
-    const byteNumbers = new Array(byteCharacters.length).fill(0).map((_, index) => byteCharacters.charCodeAt(index));
-    const byteArray = new Uint8Array(byteNumbers);
-    const blob = new Blob([byteArray], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    window.open(url, '_blank', 'noopener,noreferrer');
-    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+  const openInvoiceForPrint = async () => {
+    if (!orderInvoiceId || orderInvoiceLoading) return;
+    const invoiceWindow = window.open('', '_blank');
+    if (!invoiceWindow) {
+      setOrderInvoiceError('Permite las ventanas emergentes para abrir la factura.');
+      return;
+    }
+
+    setOrderInvoiceLoading(true);
+    setOrderInvoiceError('');
+    try {
+      const response = await apiFetch(`/api/orders/${orderInvoiceId}/invoice`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) throw new Error('No se pudo generar la factura. Inténtalo de nuevo.');
+      const url = URL.createObjectURL(await response.blob());
+      invoiceWindow.location.href = url;
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      invoiceWindow.close();
+      setOrderInvoiceError(error.message || 'No se pudo abrir la factura.');
+    } finally {
+      setOrderInvoiceLoading(false);
+    }
   };
 
   const markNotificationRead = async (notificationId) => {
@@ -265,11 +283,14 @@ const App = () => {
             <h3>Tu pedido está en revisión</h3>
             <p>Tu pedido fue enviado correctamente. Está pendiente de aprobación y recibirás una notificación cuando sea aprobado.</p>
             <p className="review-modal__hint">Si la notificación no aparece de inmediato, la página seguirá revisando automáticamente tu estado.</p>
-            {orderInvoiceBuffer ? (
+            {orderInvoiceId ? (
               <div className="invoice-option">
                 <strong>Factura disponible</strong>
                 <p>¿Quieres conservarla o imprimirla? Ábrela cuando estés listo.</p>
-                <button className="primary-btn" type="button" onClick={openInvoiceForPrint}>▣ Ver e imprimir factura</button>
+                <button className="primary-btn" type="button" onClick={openInvoiceForPrint} disabled={orderInvoiceLoading}>
+                  {orderInvoiceLoading ? 'Generando factura...' : '▣ Ver e imprimir factura'}
+                </button>
+                {orderInvoiceError ? <p role="alert">{orderInvoiceError}</p> : null}
               </div>
             ) : null}
             {orderWhatsappUrl ? <a className="whatsapp-link review-modal__whatsapp" href={orderWhatsappUrl} target="_blank" rel="noreferrer">Seguir por WhatsApp (opcional)</a> : null}
