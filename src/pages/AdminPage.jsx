@@ -166,6 +166,7 @@ const AdminPage = () => {
   const [manualOrderOpen, setManualOrderOpen] = useState(false);
   const [manualOrderStep, setManualOrderStep] = useState(1);
   const [manualOrderError, setManualOrderError] = useState('');
+  const [uploadingOrderProof, setUploadingOrderProof] = useState('');
   const today = new Date().toISOString().slice(0, 10);
   const [approvedPdfFrom, setApprovedPdfFrom] = useState(today);
   const [approvedPdfTo, setApprovedPdfTo] = useState(today);
@@ -326,6 +327,38 @@ const AdminPage = () => {
     }
   };
 
+  const uploadAdminOrderProof = async (event, formName, fieldName) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+    const uploadKey = `${formName}:${fieldName}`;
+    setUploadingOrderProof(uploadKey);
+    const body = new FormData();
+    body.append('file', file);
+    try {
+      const response = await fetch(apiUrl('/api/admin/orders/upload-proof'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.proof_url) throw new Error(data.error || 'Cloudinary no devolvió el enlace del comprobante.');
+      if (formName === 'manual') {
+        setManualOrderForm((current) => ({ ...current, [fieldName]: data.proof_url }));
+        setManualOrderError('');
+      } else {
+        setOrderEdit((current) => current ? { ...current, [fieldName]: data.proof_url } : current);
+      }
+      setMessage('Comprobante subido a Cloudinary. Enlace listo para guardar.');
+    } catch (error) {
+      if (formName === 'manual') setManualOrderError(error.message || 'No se pudo subir el comprobante.');
+      else setMessage(error.message || 'No se pudo subir el comprobante.');
+    } finally {
+      setUploadingOrderProof('');
+      input.value = '';
+    }
+  };
+
   const updateStatus = async (orderId, status) => {
     try {
       const response = await fetch(apiUrl(`/api/admin/orders/${orderId}/status`), {
@@ -388,8 +421,7 @@ const AdminPage = () => {
       payment_method: detail.order.payment_method || 'whatsapp',
       payment_plan: detail.order.payment_plan || 'full',
       payment_proof_url: detail.order.payment_proof_url || '',
-      first_payment_proof_file: null,
-      delivery_payment_proof_file: null,
+      delivery_payment_proof_url: detail.order.delivery_payment_proof_url || '',
       delivery_method: detail.order.delivery_method || 'personal',
       status: detail.order.status || 'pending',
       shipping_details: { name: '', phone: '', cedula: '', agency: '', city: '', state: '', ...(detail.order.shipping_details || {}) }
@@ -398,15 +430,18 @@ const AdminPage = () => {
 
   const saveOrderEdit = async () => {
     if (!orderEdit) return;
+    if (uploadingOrderProof.startsWith('edit:')) {
+      setMessage('Espera a que termine la subida del comprobante.');
+      return;
+    }
     const formData = new FormData();
     formData.append('payment_method', orderEdit.payment_method);
     formData.append('payment_plan', orderEdit.payment_plan);
     formData.append('payment_proof_url', orderEdit.payment_proof_url || '');
+    formData.append('delivery_payment_proof_url', orderEdit.delivery_payment_proof_url || '');
     formData.append('delivery_method', orderEdit.delivery_method);
     formData.append('status', orderEdit.status);
     formData.append('shipping_details', JSON.stringify(orderEdit.shipping_details));
-    if (orderEdit.first_payment_proof_file) formData.append('first_payment_proof', orderEdit.first_payment_proof_file);
-    if (orderEdit.payment_plan === 'installments' && orderEdit.delivery_payment_proof_file) formData.append('delivery_payment_proof', orderEdit.delivery_payment_proof_file);
     const response = await fetch(apiUrl(`/api/admin/orders/${orderEdit.id}`), {
       method: 'PUT',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
@@ -841,8 +876,8 @@ const AdminPage = () => {
     formData.append('delivery_method', payload.delivery_method);
     formData.append('shipping_details', JSON.stringify(payload.shipping_details));
     formData.append('status', payload.status);
-    if (manualOrderForm.first_payment_proof) formData.append('first_payment_proof', manualOrderForm.first_payment_proof);
-    if (manualOrderForm.payment_plan === 'installments' && manualOrderForm.delivery_payment_proof) formData.append('delivery_payment_proof', manualOrderForm.delivery_payment_proof);
+    formData.append('payment_proof_url', manualOrderForm.first_payment_proof || '');
+    formData.append('delivery_payment_proof_url', manualOrderForm.payment_plan === 'installments' ? manualOrderForm.delivery_payment_proof || '' : '');
     const response = await fetch(apiUrl('/api/admin/orders/manual'), {
       method: 'POST',
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
@@ -865,6 +900,10 @@ const AdminPage = () => {
   };
 
   const continueManualOrder = () => {
+    if (uploadingOrderProof.startsWith('manual:')) {
+      setManualOrderError('Espera a que termine la subida del comprobante.');
+      return;
+    }
     setManualOrderError('');
     if (manualOrderStep === 1) {
       if (!manualOrderForm.client.name.trim() || !manualOrderForm.client.email.trim()) {
@@ -1962,8 +2001,8 @@ const AdminPage = () => {
             </div>
             <div className="admin-order-proof-fields">
               {manualOrderForm.payment_plan === 'installments' ? <p className="admin-order-payment-note">Primer pago del 50% para confirmar y 50% restante al entregar.</p> : null}
-              <label className="admin-order-file"><span>{manualOrderForm.payment_plan === 'full' ? 'Comprobante del pago completo' : 'Comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_proof: event.target.files?.[0] || null }))} /></label>
-              {manualOrderForm.payment_plan === 'installments' ? <label className="admin-order-file"><span>Comprobante del pago final · 50%</span><input type="file" accept="image/*" onChange={(event) => setManualOrderForm((current) => ({ ...current, delivery_payment_proof: event.target.files?.[0] || null }))} /><small>Puedes adjuntarlo ahora o agregarlo al editar el pedido después de la entrega.</small></label> : null}
+              <label className="admin-order-file"><span>{manualOrderForm.payment_plan === 'full' ? 'Comprobante del pago completo' : 'Comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'manual:first_payment_proof'} onChange={(event) => uploadAdminOrderProof(event, 'manual', 'first_payment_proof')} />{uploadingOrderProof === 'manual:first_payment_proof' ? <small>Subiendo a Cloudinary...</small> : null}{manualOrderForm.first_payment_proof ? <a className="admin-order-current-proof" href={getProofUrl(manualOrderForm.first_payment_proof)} target="_blank" rel="noreferrer">{manualOrderForm.first_payment_proof}</a> : null}</label>
+              {manualOrderForm.payment_plan === 'installments' ? <label className="admin-order-file"><span>Comprobante del pago final · 50%</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'manual:delivery_payment_proof'} onChange={(event) => uploadAdminOrderProof(event, 'manual', 'delivery_payment_proof')} /><small>Puedes adjuntarlo ahora o agregarlo al editar el pedido después de la entrega.</small>{uploadingOrderProof === 'manual:delivery_payment_proof' ? <small>Subiendo a Cloudinary...</small> : null}{manualOrderForm.delivery_payment_proof ? <a className="admin-order-current-proof" href={getProofUrl(manualOrderForm.delivery_payment_proof)} target="_blank" rel="noreferrer">{manualOrderForm.delivery_payment_proof}</a> : null}</label> : null}
             </div>
           </section> : null}
           <div className="admin-order-wizard__back">
@@ -1992,10 +2031,9 @@ const AdminPage = () => {
             <div className="admin-order-proof-fields">
               {orderEdit.payment_plan === 'installments' ? <p className="admin-order-payment-note">Primer pago del 50% para confirmar y 50% restante al entregar.</p> : null}
               {orderEdit.payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.payment_proof_url)} target="_blank" rel="noreferrer">Ver comprobante actual del primer pago</a> : null}
-              <label className="admin-order-file"><span>{orderEdit.payment_plan === 'full' ? 'Reemplazar comprobante del pago completo' : 'Reemplazar comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_proof_file: event.target.files?.[0] || null }))} /></label>
+              <label className="admin-order-file"><span>{orderEdit.payment_plan === 'full' ? 'Reemplazar comprobante del pago completo' : 'Reemplazar comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'edit:payment_proof_url'} onChange={(event) => uploadAdminOrderProof(event, 'edit', 'payment_proof_url')} />{uploadingOrderProof === 'edit:payment_proof_url' ? <small>Subiendo a Cloudinary...</small> : null}{orderEdit.payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.payment_proof_url)} target="_blank" rel="noreferrer">{orderEdit.payment_proof_url}</a> : null}</label>
               {orderEdit.payment_plan === 'installments' ? <>
-                {orderDetails[orderEdit.id]?.order?.delivery_payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderDetails[orderEdit.id].order.delivery_payment_proof_url)} target="_blank" rel="noreferrer">Ver comprobante actual del pago al entregar</a> : null}
-                <label className="admin-order-file"><span>Comprobante del pago final · 50%</span><input type="file" accept="image/*" onChange={(event) => setOrderEdit((current) => ({ ...current, delivery_payment_proof_file: event.target.files?.[0] || null }))} /></label>
+                <label className="admin-order-file"><span>Comprobante del pago final · 50%</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'edit:delivery_payment_proof_url'} onChange={(event) => uploadAdminOrderProof(event, 'edit', 'delivery_payment_proof_url')} />{uploadingOrderProof === 'edit:delivery_payment_proof_url' ? <small>Subiendo a Cloudinary...</small> : null}{orderEdit.delivery_payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.delivery_payment_proof_url)} target="_blank" rel="noreferrer">{orderEdit.delivery_payment_proof_url}</a> : null}</label>
               </> : null}
             </div>
             {orderEdit.delivery_method === 'national' ? (
