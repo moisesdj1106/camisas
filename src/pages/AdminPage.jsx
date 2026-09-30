@@ -10,6 +10,18 @@ const formatCurrency = (value, currency = 'USD') => {
     : `$${amount.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`;
 };
 
+const getInstallmentSummary = (order) => {
+  const rate = Number(order.exchange_rate || 0);
+  const amount = Number(order.first_payment_amount || 0);
+  const currency = order.first_payment_currency === 'BS' ? 'BS' : 'USD';
+  const paidUsd = currency === 'BS' ? (rate > 0 ? amount / rate : null) : amount;
+  const hasFirstProof = Boolean(order.payment_proof_url);
+  const hasFinalProof = Boolean(order.delivery_payment_proof_url);
+  const isComplete = hasFirstProof && hasFinalProof;
+  const remainingUsd = isComplete ? 0 : paidUsd === null ? null : Math.max(0, Number(order.total_amount || 0) - paidUsd);
+  return { amount, currency, paidUsd, remainingUsd, remainingBs: remainingUsd === null || rate <= 0 ? null : remainingUsd * rate, hasFirstProof, hasFinalProof, isComplete, rate };
+};
+
 const normalizeSearchText = (value = '') => String(value)
   .normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
@@ -56,6 +68,8 @@ const createEmptyManualOrderForm = () => ({
   items: [],
   payment_method: 'whatsapp',
   payment_plan: 'full',
+  first_payment_amount: '',
+  first_payment_currency: 'USD',
   first_payment_proof: null,
   delivery_payment_proof: null,
   delivery_method: 'personal',
@@ -136,6 +150,7 @@ const AdminPage = () => {
   const [isClosing, setIsClosing] = useState(false);
   const [isResettingMetrics, setIsResettingMetrics] = useState(false);
   const [orderFilter, setOrderFilter] = useState('all');
+  const [installmentFilter, setInstallmentFilter] = useState('all');
   const [orderSearch, setOrderSearch] = useState('');
   const [orderPage, setOrderPage] = useState(1);
   const [inventorySearch, setInventorySearch] = useState('');
@@ -420,6 +435,8 @@ const AdminPage = () => {
       id: orderId,
       payment_method: detail.order.payment_method || 'whatsapp',
       payment_plan: detail.order.payment_plan || 'full',
+      first_payment_amount: detail.order.first_payment_amount || '',
+      first_payment_currency: detail.order.first_payment_currency || 'USD',
       payment_proof_url: detail.order.payment_proof_url || '',
       delivery_payment_proof_url: detail.order.delivery_payment_proof_url || '',
       delivery_method: detail.order.delivery_method || 'personal',
@@ -434,9 +451,15 @@ const AdminPage = () => {
       setMessage('Espera a que termine la subida del comprobante.');
       return;
     }
+    if (orderEdit.payment_plan === 'installments' && (!Number.isFinite(Number(orderEdit.first_payment_amount)) || Number(orderEdit.first_payment_amount) <= 0)) {
+      setMessage('Indica el monto del primer abono.');
+      return;
+    }
     const formData = new FormData();
     formData.append('payment_method', orderEdit.payment_method);
     formData.append('payment_plan', orderEdit.payment_plan);
+    formData.append('first_payment_amount', orderEdit.first_payment_amount || '0');
+    formData.append('first_payment_currency', orderEdit.first_payment_currency || 'USD');
     formData.append('payment_proof_url', orderEdit.payment_proof_url || '');
     formData.append('delivery_payment_proof_url', orderEdit.delivery_payment_proof_url || '');
     formData.append('delivery_method', orderEdit.delivery_method);
@@ -845,6 +868,11 @@ const AdminPage = () => {
       setManualOrderStep(3);
       return;
     }
+    if (manualOrderForm.payment_plan === 'installments' && (!Number.isFinite(Number(manualOrderForm.first_payment_amount)) || Number(manualOrderForm.first_payment_amount) <= 0)) {
+      setManualOrderError('Indica el monto del primer abono.');
+      setManualOrderStep(3);
+      return;
+    }
     const payload = {
       client: {
         name: manualOrderForm.client.name.trim(),
@@ -873,6 +901,8 @@ const AdminPage = () => {
     formData.append('items', JSON.stringify(payload.items));
     formData.append('payment_method', payload.payment_method);
     formData.append('payment_plan', payload.payment_plan);
+    formData.append('first_payment_amount', manualOrderForm.payment_plan === 'installments' ? manualOrderForm.first_payment_amount || '0' : '0');
+    formData.append('first_payment_currency', manualOrderForm.first_payment_currency || 'USD');
     formData.append('delivery_method', payload.delivery_method);
     formData.append('shipping_details', JSON.stringify(payload.shipping_details));
     formData.append('status', payload.status);
@@ -1217,11 +1247,17 @@ const AdminPage = () => {
   const normalizedOrderSearch = normalizeSearchText(orderSearch);
   const filteredOrders = orders.filter((order) => {
     const matchesStatus = orderFilter === 'all' || order.status === orderFilter;
+    const hasFirstProof = Boolean(order.payment_proof_url);
+    const hasFinalProof = Boolean(order.delivery_payment_proof_url);
+    const isInstallment = order.payment_plan === 'installments';
+    const matchesInstallment = installmentFilter === 'all'
+      || (installmentFilter === 'pending' && isInstallment && hasFirstProof !== hasFinalProof)
+      || (installmentFilter === 'completed' && isInstallment && hasFirstProof && hasFinalProof);
     const matchesSearch = !normalizedOrderSearch
       || String(order.id).includes(normalizedOrderSearch)
       || normalizeSearchText(order.client?.name || '').includes(normalizedOrderSearch)
       || normalizeSearchText(order.client?.email || '').includes(normalizedOrderSearch);
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesSearch && matchesInstallment;
   });
   const totalOrderPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
   const visibleOrders = filteredOrders.slice((orderPage - 1) * ORDERS_PER_PAGE, orderPage * ORDERS_PER_PAGE);
@@ -1738,6 +1774,12 @@ const AdminPage = () => {
                 <option key={value} value={value}>{label} ({orders.filter((order) => order.status === value).length})</option>
               ))}
             </select>
+            <label htmlFor="installment-payment-filter">Pago por partes</label>
+            <select id="installment-payment-filter" value={installmentFilter} onChange={(event) => { setInstallmentFilter(event.target.value); setOrderPage(1); }}>
+              <option value="all">Todos</option>
+              <option value="pending">Falta un comprobante ({orders.filter((order) => order.payment_plan === 'installments' && Boolean(order.payment_proof_url) !== Boolean(order.delivery_payment_proof_url)).length})</option>
+              <option value="completed">Dos comprobantes · pago completado ({orders.filter((order) => order.payment_plan === 'installments' && order.payment_proof_url && order.delivery_payment_proof_url).length})</option>
+            </select>
           </div>
           <div className="orders-toolbar">
             <input
@@ -1780,7 +1822,14 @@ const AdminPage = () => {
                     <td>{order.client?.name}</td>
                     <td>
                       <div>{formatCurrency(order.total_amount, 'USD')}</div>
-                      <div className="price-bs">{formatCurrency(Number(order.total_amount) * exchangeRate, 'BS')}</div>
+                      <div className="price-bs">{formatCurrency(Number(order.total_amount) * Number(order.exchange_rate || exchangeRate), 'BS')}</div>
+                      {order.payment_plan === 'installments' ? (() => {
+                        const payment = getInstallmentSummary(order);
+                        if (payment.isComplete) return <small className="order-payment-summary order-payment-summary--complete">Pago completado</small>;
+                        if (!payment.hasFirstProof) return <small className="order-payment-summary">Falta comprobante inicial</small>;
+                        if (!payment.amount || payment.remainingUsd === null) return <small className="order-payment-summary">Registra el monto abonado</small>;
+                        return <small className="order-payment-summary">Abono {formatCurrency(payment.amount, payment.currency)} · Saldo {formatCurrency(payment.remainingUsd, 'USD')}{payment.remainingBs === null ? '' : ` (${formatCurrency(payment.remainingBs, 'BS')})`}</small>;
+                      })() : null}
                     </td>
                     <td>
                       {order.payment_proof_url ? <a href={getProofUrl(order.payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del primer pago">1er pago</a> : null}
@@ -2001,6 +2050,7 @@ const AdminPage = () => {
             </div>
             <div className="admin-order-proof-fields">
               {manualOrderForm.payment_plan === 'installments' ? <p className="admin-order-payment-note">Primer pago del 50% para confirmar y 50% restante al entregar.</p> : null}
+              {manualOrderForm.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Monto recibido</span><input type="number" min="0.01" step="0.01" value={manualOrderForm.first_payment_amount} onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="0.00" /></label><label><span>Moneda</span><select value={manualOrderForm.first_payment_currency} onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_currency: event.target.value }))}><option value="USD">USD</option><option value="BS">Bolívares (Bs)</option></select></label></div> : null}
               <label className="admin-order-file"><span>{manualOrderForm.payment_plan === 'full' ? 'Comprobante del pago completo' : 'Comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'manual:first_payment_proof'} onChange={(event) => uploadAdminOrderProof(event, 'manual', 'first_payment_proof')} />{uploadingOrderProof === 'manual:first_payment_proof' ? <small>Subiendo a Cloudinary...</small> : null}{manualOrderForm.first_payment_proof ? <a className="admin-order-current-proof" href={getProofUrl(manualOrderForm.first_payment_proof)} target="_blank" rel="noreferrer">{manualOrderForm.first_payment_proof}</a> : null}</label>
               {manualOrderForm.payment_plan === 'installments' ? <label className="admin-order-file"><span>Comprobante del pago final · 50%</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'manual:delivery_payment_proof'} onChange={(event) => uploadAdminOrderProof(event, 'manual', 'delivery_payment_proof')} /><small>Puedes adjuntarlo ahora o agregarlo al editar el pedido después de la entrega.</small>{uploadingOrderProof === 'manual:delivery_payment_proof' ? <small>Subiendo a Cloudinary...</small> : null}{manualOrderForm.delivery_payment_proof ? <a className="admin-order-current-proof" href={getProofUrl(manualOrderForm.delivery_payment_proof)} target="_blank" rel="noreferrer">{manualOrderForm.delivery_payment_proof}</a> : null}</label> : null}
             </div>
@@ -2030,6 +2080,7 @@ const AdminPage = () => {
             </div>
             <div className="admin-order-proof-fields">
               {orderEdit.payment_plan === 'installments' ? <p className="admin-order-payment-note">Primer pago del 50% para confirmar y 50% restante al entregar.</p> : null}
+              {orderEdit.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Monto del primer abono</span><input type="number" min="0.01" step="0.01" value={orderEdit.first_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="0.00" /></label><label><span>Moneda</span><select value={orderEdit.first_payment_currency} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_currency: event.target.value }))}><option value="USD">USD</option><option value="BS">Bolívares (Bs)</option></select></label></div> : null}
               {orderEdit.payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.payment_proof_url)} target="_blank" rel="noreferrer">Ver comprobante actual del primer pago</a> : null}
               <label className="admin-order-file"><span>{orderEdit.payment_plan === 'full' ? 'Reemplazar comprobante del pago completo' : 'Reemplazar comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'edit:payment_proof_url'} onChange={(event) => uploadAdminOrderProof(event, 'edit', 'payment_proof_url')} />{uploadingOrderProof === 'edit:payment_proof_url' ? <small>Subiendo a Cloudinary...</small> : null}{orderEdit.payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.payment_proof_url)} target="_blank" rel="noreferrer">{orderEdit.payment_proof_url}</a> : null}</label>
               {orderEdit.payment_plan === 'installments' ? <>

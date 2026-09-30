@@ -334,6 +334,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .order-shortcuts .ghost-btn { padding: 0.5rem 0.7rem; font-size: 0.82rem; }
 .order-shortcuts .ghost-btn.active { background: #2563eb; border-color: #2563eb; color: white; }
 .order-filter-select { display: flex; align-items: center; gap: 0.65rem; margin-bottom: 0.85rem; }
+.order-filter-select { flex-wrap: wrap; }
 .order-filter-select label { color: #475569; font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
 .order-filter-select select { width: min(300px, 100%); padding: 0.65rem 0.8rem; }
 .orders-toolbar { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.85rem; }
@@ -455,6 +456,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .admin-order-error { margin: 0; padding: 0.65rem 0.8rem; border: 1px solid #fecaca; border-radius: 8px; background: #fff7f7; color: #991b1b; font-size: 0.9rem; }
 .admin-order-proof-fields { display: grid; gap: 0.75rem; margin-top: 0.9rem; }
 .admin-order-payment-note { margin: 0; color: #126653; font-size: 0.9rem; line-height: 1.45; }
+.admin-order-amount-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 0.6fr); gap: 0.7rem; }
+.admin-order-amount-fields label { display: grid; gap: 0.35rem; min-width: 0; }
+.admin-order-amount-fields label span { color: #475569; font-size: 0.82rem; font-weight: 700; }
+.order-payment-summary { display: block; max-width: 220px; margin-top: 0.25rem; color: #9a5b08; line-height: 1.4; overflow-wrap: anywhere; }
+.order-payment-summary--complete { color: #126653; font-weight: 700; }
 .admin-order-file { display: grid; gap: 0.45rem; min-width: 0; padding: 0.8rem; border: 1px solid #dce7e6; border-radius: 8px; background: #f8fbfa; }
 .admin-order-file > span { color: #334155; font-size: 0.88rem; font-weight: 700; }
 .admin-order-file input { min-width: 0; padding: 0.45rem; background: #fff; font-size: 0.82rem; }
@@ -485,6 +491,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .order-item-editor__fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(90px, 0.75fr) minmax(75px, 0.5fr); gap: 0.55rem; }
 .order-item-editor__actions { display: flex; justify-content: flex-end; gap: 0.55rem; flex-wrap: wrap; }
 @media (max-width: 760px) {
+  .order-filter-select { align-items: stretch; flex-direction: column; }
+  .order-filter-select select { width: 100%; max-width: 100%; }
   .topbar { align-items: center; flex-direction: row; flex-wrap: wrap; padding: 0.8rem 1rem; gap: 0.7rem; }
   .brand-logo { width: 58px; height: 58px; }
   .brand p { font-size: 0.78rem; }
@@ -650,6 +658,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .admin-order-steps__item { justify-content: center; gap: 0.3rem; padding: 0.45rem 0.15rem; }
   .admin-order-steps__item small { font-size: 0.72rem; }
   .admin-order-step-panel { min-height: 0; }
+  .admin-order-amount-fields { grid-template-columns: minmax(0, 1fr); }
   .admin-order-modal .app-modal__actions { bottom: -1rem; }
   .checkout-actions { flex-direction: column; }
   .checkout-actions button { width: 100%; }
