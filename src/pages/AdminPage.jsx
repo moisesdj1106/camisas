@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiFetch, apiUrl, assetUrl } from '../api';
 import Modal from '../components/Modal';
@@ -9,6 +9,39 @@ const formatCurrency = (value, currency = 'USD') => {
     ? `BS ${amount.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`
     : `$${amount.toLocaleString('es-VE', { maximumFractionDigits: 2 })}`;
 };
+
+const parseLocalizedAmount = (value) => {
+  const raw = String(value ?? '').trim().replace(/\s/g, '').replace(/[^\d.,-]/g, '');
+  if (!raw || !/\d/.test(raw) || /[.,]$/.test(raw)) return Number.NaN;
+  const negative = raw.startsWith('-');
+  const unsigned = raw.replace(/-/g, '');
+  const lastDot = unsigned.lastIndexOf('.');
+  const lastComma = unsigned.lastIndexOf(',');
+  let decimalSeparator = '';
+  if (lastDot >= 0 && lastComma >= 0) {
+    decimalSeparator = lastDot > lastComma ? '.' : ',';
+  } else {
+    const separator = lastDot >= 0 ? '.' : lastComma >= 0 ? ',' : '';
+    if (separator) {
+      const separatorCount = unsigned.split(separator).length - 1;
+      const trailingDigits = unsigned.length - unsigned.lastIndexOf(separator) - 1;
+      if (trailingDigits > 0 && trailingDigits <= 2) decimalSeparator = separator;
+      else if (separatorCount === 1 && trailingDigits === 0) return Number.NaN;
+    }
+  }
+  let normalized = unsigned;
+  if (decimalSeparator) {
+    const decimalIndex = unsigned.lastIndexOf(decimalSeparator);
+    const integerPart = unsigned.slice(0, decimalIndex).replace(/[.,]/g, '') || '0';
+    const fractionPart = unsigned.slice(decimalIndex + 1).replace(/[.,]/g, '');
+    normalized = `${integerPart}.${fractionPart}`;
+  } else {
+    normalized = unsigned.replace(/[.,]/g, '');
+  }
+  return Number(`${negative ? '-' : ''}${normalized}`);
+};
+
+const formatAmountInput = (value) => Number(value || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const getInstallmentSummary = (order) => {
   const rate = Number(order.exchange_rate || 0);
@@ -435,7 +468,7 @@ const AdminPage = () => {
       id: orderId,
       payment_method: detail.order.payment_method || 'whatsapp',
       payment_plan: detail.order.payment_plan || 'full',
-      first_payment_amount: detail.order.first_payment_amount || '',
+      first_payment_amount: Number(detail.order.first_payment_amount || 0) > 0 ? formatAmountInput(detail.order.first_payment_amount) : '',
       first_payment_currency: detail.order.first_payment_currency || 'USD',
       payment_proof_url: detail.order.payment_proof_url || '',
       delivery_payment_proof_url: detail.order.delivery_payment_proof_url || '',
@@ -451,14 +484,15 @@ const AdminPage = () => {
       setMessage('Espera a que termine la subida del comprobante.');
       return;
     }
-    if (orderEdit.payment_plan === 'installments' && (!Number.isFinite(Number(orderEdit.first_payment_amount)) || Number(orderEdit.first_payment_amount) <= 0)) {
+    const parsedFirstPaymentAmount = parseLocalizedAmount(orderEdit.first_payment_amount);
+    if (orderEdit.payment_plan === 'installments' && (!Number.isFinite(parsedFirstPaymentAmount) || parsedFirstPaymentAmount <= 0)) {
       setMessage('Indica el monto del primer abono.');
       return;
     }
     const formData = new FormData();
     formData.append('payment_method', orderEdit.payment_method);
     formData.append('payment_plan', orderEdit.payment_plan);
-    formData.append('first_payment_amount', orderEdit.first_payment_amount || '0');
+    formData.append('first_payment_amount', orderEdit.payment_plan === 'installments' ? parsedFirstPaymentAmount.toFixed(2) : '0');
     formData.append('first_payment_currency', orderEdit.first_payment_currency || 'USD');
     formData.append('payment_proof_url', orderEdit.payment_proof_url || '');
     formData.append('delivery_payment_proof_url', orderEdit.delivery_payment_proof_url || '');
@@ -868,7 +902,8 @@ const AdminPage = () => {
       setManualOrderStep(3);
       return;
     }
-    if (manualOrderForm.payment_plan === 'installments' && (!Number.isFinite(Number(manualOrderForm.first_payment_amount)) || Number(manualOrderForm.first_payment_amount) <= 0)) {
+    const parsedFirstPaymentAmount = parseLocalizedAmount(manualOrderForm.first_payment_amount);
+    if (manualOrderForm.payment_plan === 'installments' && (!Number.isFinite(parsedFirstPaymentAmount) || parsedFirstPaymentAmount <= 0)) {
       setManualOrderError('Indica el monto del primer abono.');
       setManualOrderStep(3);
       return;
@@ -901,7 +936,7 @@ const AdminPage = () => {
     formData.append('items', JSON.stringify(payload.items));
     formData.append('payment_method', payload.payment_method);
     formData.append('payment_plan', payload.payment_plan);
-    formData.append('first_payment_amount', manualOrderForm.payment_plan === 'installments' ? manualOrderForm.first_payment_amount || '0' : '0');
+    formData.append('first_payment_amount', manualOrderForm.payment_plan === 'installments' ? parsedFirstPaymentAmount.toFixed(2) : '0');
     formData.append('first_payment_currency', manualOrderForm.first_payment_currency || 'USD');
     formData.append('delivery_method', payload.delivery_method);
     formData.append('shipping_details', JSON.stringify(payload.shipping_details));
@@ -1284,6 +1319,60 @@ const AdminPage = () => {
   const expandedOrderItems = orderDetails[expandedOrderId]?.items || [];
   const currentOrderItemsPage = Math.min(orderItemsPage, Math.max(1, Math.ceil(expandedOrderItems.length / ADMIN_ITEMS_PER_PAGE)));
   const visibleOrderItems = expandedOrderItems.slice((currentOrderItemsPage - 1) * ADMIN_ITEMS_PER_PAGE, currentOrderItemsPage * ADMIN_ITEMS_PER_PAGE);
+  const renderExpandedOrderRow = (order) => {
+    const detail = orderDetails[order.id];
+    if (!detail) return null;
+    return (
+      <tr className="order-expanded-row" key={`order-detail-${order.id}`}>
+        <td className="order-expanded-row__cell" colSpan={8}>
+          <div className="card order-expanded-panel">
+            <div className="order-detail__header">
+              <h4>Detalle del pedido #{order.id}</h4>
+              <button className="icon-btn" type="button" onClick={() => startOrderItemEdit(order.id)} title="Editar pedido y agregar producto" aria-label={`Editar pedido ${order.id}`}>✎</button>
+            </div>
+            {detail.order?.delivery_method === 'national' ? (
+              <div className="shipping-summary">
+                <h5>Datos de envío nacional</h5>
+                <p><strong>Nombre:</strong> {detail.order.shipping_details?.name}</p>
+                <p><strong>Teléfono:</strong> {detail.order.shipping_details?.phone}</p>
+                <p><strong>Cédula:</strong> {detail.order.shipping_details?.cedula}</p>
+                <p><strong>Agencia:</strong> {detail.order.shipping_details?.agency}</p>
+                <p><strong>Destino:</strong> {detail.order.shipping_details?.city}, {detail.order.shipping_details?.state}</p>
+              </div>
+            ) : <p className="delivery-summary">Entrega personal en San Cristóbal</p>}
+            {['payment_proof_url', 'delivery_payment_proof_url'].some((key) => detail.order?.[key]) ? (
+              <div className="order-expanded-panel__proofs">
+                {[
+                  ['payment_proof_url', 'Comprobante del primer pago'],
+                  ['delivery_payment_proof_url', 'Comprobante al entregar']
+                ].map(([key, label]) => detail.order?.[key] ? (
+                  <div key={key}>
+                    <h5>{label}</h5>
+                    <a href={getProofUrl(detail.order[key])} target="_blank" rel="noreferrer">
+                      <img src={getProofUrl(detail.order[key])} alt={label} />
+                    </a>
+                  </div>
+                ) : null)}
+              </div>
+            ) : null}
+            <ul className="dashboard-list">
+              {visibleOrderItems.map((item) => (
+                <li key={item.id}>
+                  <span>{item.product_title || `Producto #${item.product_id}`} · Talla {item.size || 'No indicada'} · {item.no_dorsal ? 'Sin dorsal' : item.custom_name ? `Personalizada: ${item.custom_name} #${item.custom_number}` : item.dorsal_number ? `Dorsal ${item.dorsal_number}${item.dorsal_name ? ` (${item.dorsal_name})` : ''}` : 'Sin dorsal'} · {item.quantity} und.</span>
+                  <span className="order-item-actions">
+                    <strong>{formatCurrency(Number(item.unit_price || 0) * Number(item.quantity || 1), 'USD')}</strong>
+                    <button className="icon-btn" type="button" onClick={() => startOrderItemEdit(order.id, item)} title="Editar talla o dorsal" aria-label={`Editar ${item.product_title || 'producto'} del pedido`}>✎</button>
+                    <button className="icon-btn icon-btn--danger" type="button" onClick={() => requestConfirmation('Eliminar producto del pedido', `¿Eliminar ${item.product_title || 'este producto'} del pedido?`, () => removeOrderItem(order.id, item.id))} title="Eliminar producto del pedido" aria-label={`Eliminar ${item.product_title || 'producto'} del pedido`}>🗑</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <AdminPagination page={currentOrderItemsPage} totalItems={expandedOrderItems.length} onPageChange={setOrderItemsPage} label="productos del pedido" />
+          </div>
+        </td>
+      </tr>
+    );
+  };
   const setOrderFilterAndResetPage = (filter) => {
     setOrderFilter(filter);
     setOrderPage(1);
@@ -1816,7 +1905,8 @@ const AdminPage = () => {
               </thead>
               <tbody>
                 {visibleOrders.map((order) => (
-                  <tr key={order.id}>
+                  <Fragment key={order.id}>
+                  <tr>
                     <td><input type="checkbox" checked={selectedOrderIds.includes(order.id)} onChange={() => toggleOrderSelection(order.id)} aria-label={`Seleccionar pedido ${order.id}`} /></td>
                     <td>#{order.id}</td>
                     <td>{order.client?.name}</td>
@@ -1851,6 +1941,8 @@ const AdminPage = () => {
                       <button className="icon-btn icon-btn--danger" onClick={() => requestConfirmation('Eliminar pedido', `¿Eliminar definitivamente el pedido #${order.id}? Esta acción no se puede deshacer.`, () => deleteOrder(order.id))} title={`Eliminar pedido #${order.id}`} aria-label={`Eliminar pedido #${order.id}`}>🗑</button>
                     </td>
                   </tr>
+                  {expandedOrderId === order.id && orderDetails[order.id] ? renderExpandedOrderRow(order) : null}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -1861,53 +1953,6 @@ const AdminPage = () => {
               <button className="ghost-btn" onClick={() => setOrderPage((current) => Math.max(1, current - 1))} disabled={orderPage === 1}>Anterior</button>
               <span>{(orderPage - 1) * ORDERS_PER_PAGE + 1}-{Math.min(orderPage * ORDERS_PER_PAGE, filteredOrders.length)} de {filteredOrders.length}</span>
               <button className="ghost-btn" onClick={() => setOrderPage((current) => Math.min(totalOrderPages, current + 1))} disabled={orderPage === totalOrderPages}>Siguiente</button>
-            </div>
-          ) : null}
-
-          {expandedOrderId && orderDetails[expandedOrderId] ? (
-            <div className="card" style={{ margin: '1rem 0' }}>
-              <div className="order-detail__header">
-                <h4>Detalle del pedido #{expandedOrderId}</h4>
-                <button className="icon-btn" type="button" onClick={() => startOrderItemEdit(expandedOrderId)} title="Editar pedido y agregar producto" aria-label={`Editar pedido ${expandedOrderId}`}>✎</button>
-              </div>
-              {orderDetails[expandedOrderId].order?.delivery_method === 'national' ? (
-                <div className="shipping-summary">
-                  <h5>Datos de envío nacional</h5>
-                  <p><strong>Nombre:</strong> {orderDetails[expandedOrderId].order.shipping_details?.name}</p>
-                  <p><strong>Teléfono:</strong> {orderDetails[expandedOrderId].order.shipping_details?.phone}</p>
-                  <p><strong>Cédula:</strong> {orderDetails[expandedOrderId].order.shipping_details?.cedula}</p>
-                  <p><strong>Agencia:</strong> {orderDetails[expandedOrderId].order.shipping_details?.agency}</p>
-                  <p><strong>Destino:</strong> {orderDetails[expandedOrderId].order.shipping_details?.city}, {orderDetails[expandedOrderId].order.shipping_details?.state}</p>
-                </div>
-              ) : <p className="delivery-summary">Entrega personal en San Cristóbal</p>}
-              {['payment_proof_url', 'delivery_payment_proof_url'].some((key) => orderDetails[expandedOrderId].order?.[key]) ? (
-                <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  {[
-                    ['payment_proof_url', 'Comprobante del primer pago'],
-                    ['delivery_payment_proof_url', 'Comprobante al entregar']
-                  ].map(([key, label]) => orderDetails[expandedOrderId].order?.[key] ? (
-                    <div key={key}>
-                      <h5 style={{ marginBottom: '0.5rem' }}>{label}</h5>
-                      <a href={getProofUrl(orderDetails[expandedOrderId].order[key])} target="_blank" rel="noreferrer">
-                        <img src={getProofUrl(orderDetails[expandedOrderId].order[key])} alt={label} style={{ width: '180px', height: '180px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-                      </a>
-                    </div>
-                  ) : null)}
-                </div>
-              ) : null}
-              <ul className="dashboard-list">
-                {visibleOrderItems.map((item) => (
-                  <li key={item.id}>
-                    <span>{item.product_title || `Producto #${item.product_id}`} · Talla {item.size || 'No indicada'} · {item.no_dorsal ? 'Sin dorsal' : item.custom_name ? `Personalizada: ${item.custom_name} #${item.custom_number}` : item.dorsal_number ? `Dorsal ${item.dorsal_number}${item.dorsal_name ? ` (${item.dorsal_name})` : ''}` : 'Sin dorsal'} · {item.quantity} und.</span>
-                    <span className="order-item-actions">
-                      <strong>{formatCurrency(Number(item.unit_price || 0) * Number(item.quantity || 1), 'USD')}</strong>
-                      <button className="icon-btn" type="button" onClick={() => startOrderItemEdit(expandedOrderId, item)} title="Editar talla o dorsal" aria-label={`Editar ${item.product_title || 'producto'} del pedido`}>✎</button>
-                      <button className="icon-btn icon-btn--danger" type="button" onClick={() => requestConfirmation('Eliminar producto del pedido', `¿Eliminar ${item.product_title || 'este producto'} del pedido?`, () => removeOrderItem(expandedOrderId, item.id))} title="Eliminar producto del pedido" aria-label={`Eliminar ${item.product_title || 'producto'} del pedido`}>🗑</button>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <AdminPagination page={currentOrderItemsPage} totalItems={expandedOrderItems.length} onPageChange={setOrderItemsPage} label="productos del pedido" />
             </div>
           ) : null}
 
@@ -2050,7 +2095,7 @@ const AdminPage = () => {
             </div>
             <div className="admin-order-proof-fields">
               {manualOrderForm.payment_plan === 'installments' ? <p className="admin-order-payment-note">Primer pago del 50% para confirmar y 50% restante al entregar.</p> : null}
-              {manualOrderForm.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Monto recibido</span><input type="number" min="0.01" step="0.01" value={manualOrderForm.first_payment_amount} onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="0.00" /></label><label><span>Moneda</span><select value={manualOrderForm.first_payment_currency} onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_currency: event.target.value }))}><option value="USD">USD</option><option value="BS">Bolívares (Bs)</option></select></label></div> : null}
+              {manualOrderForm.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Monto recibido</span><input type="text" inputMode="decimal" value={manualOrderForm.first_payment_amount} onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="12.187,50" /></label><label><span>Moneda</span><select value={manualOrderForm.first_payment_currency} onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_currency: event.target.value }))}><option value="USD">USD</option><option value="BS">Bolívares (Bs)</option></select></label></div> : null}
               <label className="admin-order-file"><span>{manualOrderForm.payment_plan === 'full' ? 'Comprobante del pago completo' : 'Comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'manual:first_payment_proof'} onChange={(event) => uploadAdminOrderProof(event, 'manual', 'first_payment_proof')} />{uploadingOrderProof === 'manual:first_payment_proof' ? <small>Subiendo a Cloudinary...</small> : null}{manualOrderForm.first_payment_proof ? <a className="admin-order-current-proof" href={getProofUrl(manualOrderForm.first_payment_proof)} target="_blank" rel="noreferrer">{manualOrderForm.first_payment_proof}</a> : null}</label>
               {manualOrderForm.payment_plan === 'installments' ? <label className="admin-order-file"><span>Comprobante del pago final · 50%</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'manual:delivery_payment_proof'} onChange={(event) => uploadAdminOrderProof(event, 'manual', 'delivery_payment_proof')} /><small>Puedes adjuntarlo ahora o agregarlo al editar el pedido después de la entrega.</small>{uploadingOrderProof === 'manual:delivery_payment_proof' ? <small>Subiendo a Cloudinary...</small> : null}{manualOrderForm.delivery_payment_proof ? <a className="admin-order-current-proof" href={getProofUrl(manualOrderForm.delivery_payment_proof)} target="_blank" rel="noreferrer">{manualOrderForm.delivery_payment_proof}</a> : null}</label> : null}
             </div>
@@ -2080,7 +2125,7 @@ const AdminPage = () => {
             </div>
             <div className="admin-order-proof-fields">
               {orderEdit.payment_plan === 'installments' ? <p className="admin-order-payment-note">Primer pago del 50% para confirmar y 50% restante al entregar.</p> : null}
-              {orderEdit.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Monto del primer abono</span><input type="number" min="0.01" step="0.01" value={orderEdit.first_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="0.00" /></label><label><span>Moneda</span><select value={orderEdit.first_payment_currency} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_currency: event.target.value }))}><option value="USD">USD</option><option value="BS">Bolívares (Bs)</option></select></label></div> : null}
+              {orderEdit.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Monto del primer abono</span><input type="text" inputMode="decimal" value={orderEdit.first_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="12.187,50" /></label><label><span>Moneda</span><select value={orderEdit.first_payment_currency} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_currency: event.target.value }))}><option value="USD">USD</option><option value="BS">Bolívares (Bs)</option></select></label></div> : null}
               {orderEdit.payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.payment_proof_url)} target="_blank" rel="noreferrer">Ver comprobante actual del primer pago</a> : null}
               <label className="admin-order-file"><span>{orderEdit.payment_plan === 'full' ? 'Reemplazar comprobante del pago completo' : 'Reemplazar comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'edit:payment_proof_url'} onChange={(event) => uploadAdminOrderProof(event, 'edit', 'payment_proof_url')} />{uploadingOrderProof === 'edit:payment_proof_url' ? <small>Subiendo a Cloudinary...</small> : null}{orderEdit.payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.payment_proof_url)} target="_blank" rel="noreferrer">{orderEdit.payment_proof_url}</a> : null}</label>
               {orderEdit.payment_plan === 'installments' ? <>

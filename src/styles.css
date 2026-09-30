@@ -486,6 +486,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .table-actions { white-space: nowrap; }
 .order-detail__header { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
 .order-detail__header h4 { margin: 0 0 0.8rem; }
+.order-expanded-row__cell { padding: 0.45rem 0.75rem !important; background: #f2f7f5; white-space: normal !important; }
+.order-expanded-panel { margin: 0; padding: 1rem; border-radius: 10px; box-shadow: none; }
+.order-expanded-panel__proofs { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.order-expanded-panel__proofs h5 { margin: 0 0 0.5rem; }
+.order-expanded-panel__proofs img { width: 180px; height: 180px; object-fit: cover; border: 1px solid #e2e8f0; border-radius: 8px; }
 .order-item-editor { display: grid; gap: 0.7rem; margin-top: 1rem; padding: 0.9rem; border: 1px solid #bfdbfe; border-radius: 14px; background: #f8fbff; }
 .order-item-editor--modal { margin-top: 0; padding: 0; border: 0; background: transparent; }
 .order-item-editor__fields { display: grid; grid-template-columns: minmax(0, 2fr) minmax(90px, 0.75fr) minmax(75px, 0.5fr); gap: 0.55rem; }
