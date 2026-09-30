@@ -55,7 +55,8 @@ const createEmptyManualOrderForm = () => ({
   client: { name: '', email: '', phone: '' },
   items: [],
   payment_method: 'whatsapp',
-  payment_proof_url: '',
+  first_payment_proof: null,
+  delivery_payment_proof: null,
   delivery_method: 'personal',
   status: 'pending',
   shipping_details: { name: '', phone: '', cedula: '', agency: '', city: '', state: '' }
@@ -162,6 +163,9 @@ const AdminPage = () => {
   const [manualOrderItemForm, setManualOrderItemForm] = useState({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
   const [manualOrderDorsals, setManualOrderDorsals] = useState([]);
   const [manualOrderOpen, setManualOrderOpen] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const [approvedPdfFrom, setApprovedPdfFrom] = useState(today);
+  const [approvedPdfTo, setApprovedPdfTo] = useState(today);
   const productFormRef = useRef(null);
 
   const parseImageUrls = (value) => {
@@ -802,16 +806,24 @@ const AdminPage = () => {
         custom_number: item.custom_number || null
       })),
       payment_method: manualOrderForm.payment_method,
-      payment_proof_url: manualOrderForm.payment_proof_url || null,
       delivery_method: manualOrderForm.delivery_method,
       shipping_details: manualOrderForm.delivery_method === 'national' ? manualOrderForm.shipping_details : null,
       status: manualOrderForm.status
     };
 
+    const formData = new FormData();
+    formData.append('client', JSON.stringify(payload.client));
+    formData.append('items', JSON.stringify(payload.items));
+    formData.append('payment_method', payload.payment_method);
+    formData.append('delivery_method', payload.delivery_method);
+    formData.append('shipping_details', JSON.stringify(payload.shipping_details));
+    formData.append('status', payload.status);
+    if (manualOrderForm.first_payment_proof) formData.append('first_payment_proof', manualOrderForm.first_payment_proof);
+    if (manualOrderForm.delivery_payment_proof) formData.append('delivery_payment_proof', manualOrderForm.delivery_payment_proof);
     const response = await fetch(apiUrl('/api/admin/orders/manual'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-      body: JSON.stringify(payload)
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -1072,8 +1084,13 @@ const AdminPage = () => {
   };
 
   const downloadApprovedOrders = async () => {
+    if (!approvedPdfFrom || !approvedPdfTo || approvedPdfFrom > approvedPdfTo || approvedPdfTo > today) {
+      setMessage('Selecciona un rango válido, sin fechas futuras y con inicio anterior al fin.');
+      return;
+    }
     try {
-      const response = await fetch(apiUrl('/api/admin/orders/approved/pdf'), {
+      const query = new URLSearchParams({ from: approvedPdfFrom, to: approvedPdfTo });
+      const response = await fetch(apiUrl(`/api/admin/orders/approved/pdf?${query}`), {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       if (!response.ok) {
@@ -1084,7 +1101,7 @@ const AdminPage = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'pedidos-aceptados.pdf';
+      link.download = `pedidos-aceptados-${approvedPdfFrom}-${approvedPdfTo}.pdf`;
       link.click();
       window.URL.revokeObjectURL(url);
       setMessage('PDF de pedidos aceptados descargado correctamente.');
@@ -1606,7 +1623,9 @@ const AdminPage = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
               <span className="badge">{filteredOrders.length} resultado{filteredOrders.length === 1 ? '' : 's'}</span>
               <button className="ghost-btn" type="button" onClick={() => setManualOrderOpen(true)}>＋ Nuevo pedido</button>
-              <button className="primary-btn" type="button" onClick={downloadApprovedOrders} title="Descargar todos los pedidos aceptados en PDF">🖨️ Imprimir aceptados</button>
+              <label>Desde <input type="date" value={approvedPdfFrom} max={today} onChange={(event) => setApprovedPdfFrom(event.target.value)} /></label>
+              <label>Hasta <input type="date" value={approvedPdfTo} max={today} onChange={(event) => setApprovedPdfTo(event.target.value)} /></label>
+              <button className="primary-btn" type="button" onClick={downloadApprovedOrders} title="Descargar pedidos aceptados del rango seleccionado">🖨️ Imprimir aceptados</button>
             </div>
           </div>
           <div className="order-filter-select">
@@ -1662,11 +1681,9 @@ const AdminPage = () => {
                       <div className="price-bs">{formatCurrency(Number(order.total_amount) * exchangeRate, 'BS')}</div>
                     </td>
                     <td>
-                      {order.payment_proof_url ? (
-                        <a href={getProofUrl(order.payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '38px', borderRadius: '999px', background: '#eff6ff', color: '#2563eb', textDecoration: 'none' }}>
-                          👁️
-                        </a>
-                      ) : <span className="badge">Sin comprobante</span>}
+                      {order.payment_proof_url ? <a href={getProofUrl(order.payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del primer pago">1er pago</a> : null}
+                      {order.delivery_payment_proof_url ? <a href={getProofUrl(order.delivery_payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del pago al entregar">Entrega</a> : null}
+                      {!order.payment_proof_url && !order.delivery_payment_proof_url ? <span className="badge">Sin comprobante</span> : null}
                     </td>
                     <td>
                       <button className="icon-btn" onClick={() => loadOrderDetail(order.id)} title={expandedOrderId === order.id ? 'Ocultar productos' : 'Ver productos'} aria-label={expandedOrderId === order.id ? `Ocultar productos del pedido ${order.id}` : `Ver productos del pedido ${order.id}`}>{expandedOrderId === order.id ? '⌃' : '⌄'}</button>
@@ -1712,12 +1729,19 @@ const AdminPage = () => {
                   <p><strong>Destino:</strong> {orderDetails[expandedOrderId].order.shipping_details?.city}, {orderDetails[expandedOrderId].order.shipping_details?.state}</p>
                 </div>
               ) : <p className="delivery-summary">Entrega personal en San Cristóbal</p>}
-              {orderDetails[expandedOrderId].order?.payment_proof_url ? (
-                <div style={{ marginBottom: '1rem' }}>
-                  <h5 style={{ marginBottom: '0.5rem' }}>Comprobante adjunto</h5>
-                  <a href={getProofUrl(orderDetails[expandedOrderId].order.payment_proof_url)} target="_blank" rel="noreferrer">
-                    <img src={getProofUrl(orderDetails[expandedOrderId].order.payment_proof_url)} alt="Comprobante del pedido" style={{ width: '180px', height: '180px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-                  </a>
+              {['payment_proof_url', 'delivery_payment_proof_url'].some((key) => orderDetails[expandedOrderId].order?.[key]) ? (
+                <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                  {[
+                    ['payment_proof_url', 'Comprobante del primer pago'],
+                    ['delivery_payment_proof_url', 'Comprobante al entregar']
+                  ].map(([key, label]) => orderDetails[expandedOrderId].order?.[key] ? (
+                    <div key={key}>
+                      <h5 style={{ marginBottom: '0.5rem' }}>{label}</h5>
+                      <a href={getProofUrl(orderDetails[expandedOrderId].order[key])} target="_blank" rel="noreferrer">
+                        <img src={getProofUrl(orderDetails[expandedOrderId].order[key])} alt={label} style={{ width: '180px', height: '180px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                      </a>
+                    </div>
+                  ) : null)}
                 </div>
               ) : null}
               <ul className="dashboard-list">
@@ -1781,10 +1805,11 @@ const AdminPage = () => {
             <label><span>Nombre</span><input value={manualOrderForm.client.name} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, name: event.target.value } }))} placeholder="Nombre del cliente" /></label>
             <label><span>Correo</span><input type="email" value={manualOrderForm.client.email} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, email: event.target.value } }))} placeholder="cliente@email.com" /></label>
             <label><span>Teléfono</span><input value={manualOrderForm.client.phone} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, phone: event.target.value } }))} placeholder="+58..." /></label>
-            <label><span>Método de pago</span><select value={manualOrderForm.payment_method} onChange={(event) => setManualOrderForm((current) => ({ ...current, payment_method: event.target.value }))}><option value="whatsapp">WhatsApp</option><option value="pago_movil">Pago Móvil</option><option value="efectivo">Efectivo</option></select></label>
+            <label><span>Método de pago</span><select value={manualOrderForm.payment_method} onChange={(event) => setManualOrderForm((current) => ({ ...current, payment_method: event.target.value }))}><option value="whatsapp">WhatsApp</option><option value="pago_movil">Pago Móvil</option><option value="binance">Binance</option><option value="efectivo">Efectivo</option></select></label>
             <label><span>Estado</span><select value={manualOrderForm.status} onChange={(event) => setManualOrderForm((current) => ({ ...current, status: event.target.value }))}>{orderStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
             <label><span>Entrega</span><select value={manualOrderForm.delivery_method} onChange={(event) => setManualOrderForm((current) => ({ ...current, delivery_method: event.target.value }))}><option value="personal">Entrega personal</option><option value="national">Envío nacional</option></select></label>
-            <label className="order-edit-form__wide"><span>Referencia de comprobante</span><input value={manualOrderForm.payment_proof_url} onChange={(event) => setManualOrderForm((current) => ({ ...current, payment_proof_url: event.target.value }))} placeholder="URL o referencia" /></label>
+            <label><span>Comprobante del primer pago</span><input type="file" accept="image/*" onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_proof: event.target.files?.[0] || null }))} /></label>
+            <label><span>Comprobante del pago al entregar</span><input type="file" accept="image/*" onChange={(event) => setManualOrderForm((current) => ({ ...current, delivery_payment_proof: event.target.files?.[0] || null }))} /></label>
           </div>
           <div className="order-item-editor order-item-editor--modal" style={{ marginTop: '1rem' }}>
             <select value={manualOrderItemForm.product_id} onChange={async (event) => {
@@ -1870,7 +1895,7 @@ const AdminPage = () => {
           <div className="order-edit-form">
             <div className="order-edit-form__grid">
               <label><span>Estado</span><select value={orderEdit.status} onChange={(event) => setOrderEdit((current) => ({ ...current, status: event.target.value }))}>{orderStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label><span>Método de pago</span><select value={orderEdit.payment_method} onChange={(event) => setOrderEdit((current) => ({ ...current, payment_method: event.target.value }))}><option value="whatsapp">WhatsApp</option><option value="pago_movil">Pago Móvil</option><option value="efectivo">Efectivo</option></select></label>
+              <label><span>Método de pago</span><select value={orderEdit.payment_method} onChange={(event) => setOrderEdit((current) => ({ ...current, payment_method: event.target.value }))}><option value="whatsapp">WhatsApp</option><option value="pago_movil">Pago Móvil</option><option value="binance">Binance</option><option value="efectivo">Efectivo</option></select></label>
               <label><span>Modalidad de entrega</span><select value={orderEdit.delivery_method} onChange={(event) => setOrderEdit((current) => ({ ...current, delivery_method: event.target.value }))}><option value="personal">Entrega personal</option><option value="national">Envío nacional</option></select></label>
               <label className="order-edit-form__wide"><span>Comprobante o referencia de pago</span><input value={orderEdit.payment_proof_url} onChange={(event) => setOrderEdit((current) => ({ ...current, payment_proof_url: event.target.value }))} placeholder="URL o referencia" /></label>
             </div>

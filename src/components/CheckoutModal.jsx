@@ -12,6 +12,11 @@ const paymentDetails = {
     number: 'Bco Vzla',
     message: 'Responsable: MDJ Soccer ·  Sube tu comprobante de pago para confirmar tu pedido.'
   },
+  binance: {
+    title: 'Binance Pay',
+    number: 'moises.becerra07@gmail.com',
+    message: 'Envía el pago a este correo y adjunta el comprobante para confirmar tu pedido.'
+  },
   efectivo: {
     title: 'Pago en efectivo',
     number: 'Coordina la entrega personal',
@@ -29,7 +34,7 @@ const formatCurrency = (value, currency = 'USD') => {
 };
 
 const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCart, onOrderSubmitted, onContinueShopping }) => {
-  const [paymentMethod, setPaymentMethod] = useState('whatsapp');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [proofUrl, setProofUrl] = useState('');
   const [proofFile, setProofFile] = useState(null);
   const [proofPreview, setProofPreview] = useState('');
@@ -53,6 +58,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
   useEffect(() => {
     if (!open) return;
     setCheckoutStep(1);
+    setPaymentMethod('');
 
     const loadExchangeRate = async () => {
       try {
@@ -74,6 +80,10 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
   if (!open) return null;
 
   const submitOrder = async () => {
+    if (!paymentMethod) {
+      setStatus('Selecciona un método de pago para continuar.');
+      return;
+    }
     if (!cart.length) {
       setStatus('Tu carrito está vacío. Agrega al menos una camiseta para continuar.');
       return;
@@ -210,11 +220,13 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           </div>
         </> : checkoutStep === 2 ? <>
           <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+          <option value="">Seleccione su método de pago</option>
           <option value="whatsapp">WhatsApp</option>
           <option value="pago_movil">Pago Móvil</option>
+          <option value="binance">Binance</option>
           <option value="efectivo">Efectivo (solo entrega personal)</option>
           </select>
-          <div className="card" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
+          {paymentDetails[paymentMethod] ? <div className="card" style={{ padding: '0.8rem', marginTop: '0.5rem' }}>
           <strong>{paymentDetails[paymentMethod].title}</strong>
           <p style={{ margin: '0.3rem 0 0' }}>{paymentDetails[paymentMethod].number}</p>
           <p style={{ margin: '0.25rem 0 0', color: '#64748b' }}>{paymentDetails[paymentMethod].message}</p>
@@ -230,7 +242,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
               <p className="payment-qr__fallback">Si no puedes escanearlo, usa los datos indicados en la imagen.</p>
             </div>
           ) : null}
-          </div>
+          </div> : null}
           <label style={{ display: 'block', marginTop: '0.75rem', color: '#334155', fontSize: '0.95rem' }}>
             Adjuntar comprobante de pago (imagen)
             <input type="file" accept="image/*" onChange={(event) => {
@@ -248,7 +260,7 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
           <textarea placeholder="Descripcion (opcional)" value={proofUrl} onChange={(e) => setProofUrl(e.target.value)} style={{ marginTop: '0.75rem' }} />
           <div className="checkout-actions">
             <button className="ghost-btn" type="button" onClick={() => setCheckoutStep(1)}>Atrás</button>
-            <button className="primary-btn" type="button" onClick={() => setCheckoutStep(3)}>Continuar a la entrega</button>
+            <button className="primary-btn" type="button" onClick={() => setCheckoutStep(3)} disabled={!paymentMethod}>Continuar a la entrega</button>
           </div>
         </> : checkoutStep === 3 ? <>
           <fieldset className="delivery-options">
