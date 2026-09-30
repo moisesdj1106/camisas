@@ -443,6 +443,29 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .order-edit-form__wide { grid-column: 1 / -1; }
 .order-edit-form__shipping { margin: 0; }
 .order-edit-form__shipping legend { color: #14532d; font-weight: 700; }
+.admin-order-modal { width: min(640px, 100%); }
+.admin-order-wizard { display: grid; gap: 1rem; margin-top: 0.9rem; }
+.admin-order-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.admin-order-steps__item { display: flex; align-items: center; gap: 0.5rem; min-width: 0; padding: 0.55rem; border-bottom: 2px solid #dbe5e5; color: #64748b; }
+.admin-order-steps__item > span { display: grid; place-items: center; width: 1.65rem; height: 1.65rem; flex: 0 0 auto; border-radius: 50%; background: #eef2f2; color: #475569; font-size: 0.8rem; font-weight: 700; }
+.admin-order-steps__item small { font-size: 0.82rem; font-weight: 700; }
+.admin-order-steps__item.is-active { border-color: #16806b; color: #126653; }
+.admin-order-steps__item.is-active > span, .admin-order-steps__item.is-complete > span { background: #16806b; color: #fff; }
+.admin-order-step-panel { display: grid; gap: 0.9rem; min-height: 210px; align-content: start; }
+.admin-order-error { margin: 0; padding: 0.65rem 0.8rem; border: 1px solid #fecaca; border-radius: 8px; background: #fff7f7; color: #991b1b; font-size: 0.9rem; }
+.admin-order-proof-fields { display: grid; gap: 0.75rem; margin-top: 0.9rem; }
+.admin-order-payment-note { margin: 0; color: #126653; font-size: 0.9rem; line-height: 1.45; }
+.admin-order-file { display: grid; gap: 0.45rem; min-width: 0; padding: 0.8rem; border: 1px solid #dce7e6; border-radius: 8px; background: #f8fbfa; }
+.admin-order-file > span { color: #334155; font-size: 0.88rem; font-weight: 700; }
+.admin-order-file input { min-width: 0; padding: 0.45rem; background: #fff; font-size: 0.82rem; }
+.admin-order-file small { color: #64748b; line-height: 1.4; }
+.admin-order-current-proof { color: #126653; font-size: 0.88rem; font-weight: 700; overflow-wrap: anywhere; }
+.admin-order-wizard__back { display: flex; align-items: center; justify-content: space-between; min-height: 2.5rem; color: #64748b; font-size: 0.82rem; }
+.admin-order-items-summary { margin-top: 0.9rem; }
+.admin-order-items-summary h4 { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.45rem; color: #334155; font-size: 0.95rem; }
+.admin-order-items-summary h4 span { color: #126653; }
+.admin-order-empty { margin: 0; color: #64748b; }
+.admin-order-modal .app-modal__actions { position: sticky; bottom: -1.25rem; padding: 0.8rem 0 0.1rem; border-top: 1px solid #e6eeed; background: #fff; }
 .checkout-add-more { width: 100%; margin: 0.4rem 0 0.8rem; text-align: center; }
 .review-modal__whatsapp { display: inline-flex; justify-content: center; margin-top: 0.9rem; text-decoration: none; }
 .delivery-options { display: grid; gap: 0.55rem; margin: 0.85rem 0 0; padding: 0.8rem; border: 1px solid #dbeafe; border-radius: 14px; background: #f8fbff; }
@@ -623,6 +646,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .modal-close { top: 0.55rem; right: 0.55rem; width: 2rem; height: 2rem; }
   .app-modal__actions { flex-direction: column-reverse; }
   .app-modal__actions button { width: 100%; }
+  .admin-order-steps { gap: 0.15rem; }
+  .admin-order-steps__item { justify-content: center; gap: 0.3rem; padding: 0.45rem 0.15rem; }
+  .admin-order-steps__item small { font-size: 0.72rem; }
+  .admin-order-step-panel { min-height: 0; }
+  .admin-order-modal .app-modal__actions { bottom: -1rem; }
   .checkout-actions { flex-direction: column; }
   .checkout-actions button { width: 100%; }
   .shipping-form__row { grid-template-columns: 1fr; }

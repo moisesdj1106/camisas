@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const Modal = ({ open, title, message, children, onClose, onConfirm, confirmLabel = 'Aceptar', cancelLabel = 'Cancelar', tone = 'info' }) => {
+const Modal = ({ open, title, message, children, onClose, onConfirm, confirmLabel = 'Aceptar', cancelLabel = 'Cancelar', tone = 'info', className = '' }) => {
   useEffect(() => {
     if (!open) return undefined;
     const handleKeyDown = (event) => {
@@ -14,7 +14,7 @@ const Modal = ({ open, title, message, children, onClose, onConfirm, confirmLabe
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className={`modal app-modal app-modal--${tone}`} role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={(event) => event.stopPropagation()}>
+      <div className={`modal app-modal app-modal--${tone} ${className}`} role="dialog" aria-modal="true" aria-labelledby="modal-title" onClick={(event) => event.stopPropagation()}>
         <div className="app-modal__header">
           <h3 id="modal-title">{title}</h3>
           <button className="modal-close" type="button" onClick={onClose} aria-label="Cerrar modal" title="Cerrar">×</button>
