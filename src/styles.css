@@ -374,6 +374,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .dashboard-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }
 .dashboard-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 0.8rem; background: #f8fbff; border: 1px solid #e2ebff; border-radius: 12px; }
 .dashboard-chart { width: 100%; height: auto; }
+.dashboard-ledger__scroll { overflow-x: auto; }
+.dashboard-ledger__table { min-width: 480px; }
+.dashboard-ledger__table th, .dashboard-ledger__table td { text-align: right; }
+.dashboard-ledger__table th:first-child { text-align: left; }
+.dashboard-ledger__total { font-weight: 800; background: #f0fdf4; }
+.dashboard-ledger__pending { font-weight: 800; background: #fff7ed; }
 .metric-value { font-size: 1.5rem; font-weight: 800; color: #2563eb; margin: 0.2rem 0; }
 .metric-caption { color: #64748b; font-size: 0.9rem; }
 .badge { display: inline-block; padding: 0.35rem 0.65rem; border-radius: 999px; background: #dbeafe; color: #1d4ed8; font-weight: 600; }
