@@ -113,7 +113,6 @@ const getPaymentLedger = (orders, fallbackRate) => {
     if (rate <= 0) return;
 
     const totalUsd = Number(order.total_amount || 0);
-    const orderCurrency = getPaymentMethodCurrency(order.payment_method);
     const isConfirmed = confirmedPaymentStatuses.has(order.status);
 
     let firstUsd = 0;
@@ -131,7 +130,7 @@ const getPaymentLedger = (orders, fallbackRate) => {
       const finalAmount = Number(order.delivery_payment_amount || 0);
       const finalCurrency = getPaymentMethodCurrency(order.payment_method);
       if (finalCurrency === 'BS') {
-        otherUsd = (finalAmount > 0 ? finalAmount : (order.delivery_payment_proof_url ? Math.max(0, totalUsd * rate - (firstUsd * rate)) : 0)) / rate;
+        otherUsd = (finalAmount > 0 ? finalAmount : (order.delivery_payment_proof_url ? Math.max(0, totalUsd - firstUsd) * rate : 0)) / rate;
       } else {
         otherUsd = finalAmount > 0 ? finalAmount : (order.delivery_payment_proof_url ? Math.max(0, totalUsd - firstUsd) : 0);
       }
@@ -145,20 +144,27 @@ const getPaymentLedger = (orders, fallbackRate) => {
       }
     }
 
-    const receivedUsd = Math.min(totalUsd, Math.max(0, firstUsd + otherUsd));
+    const receivedFirstUsd = Math.min(totalUsd, Math.max(0, firstUsd));
+    const receivedOtherUsd = Math.min(Math.max(0, totalUsd - receivedFirstUsd), Math.max(0, otherUsd));
+    const receivedUsd = receivedFirstUsd + receivedOtherUsd;
     const pendingUsd = Math.max(0, totalUsd - receivedUsd);
-    const currencyTotals = totals[orderCurrency];
-    const expectedAmount = orderCurrency === 'BS' ? totalUsd * rate : totalUsd;
-    const firstAmount = orderCurrency === 'BS' ? firstUsd * rate : firstUsd;
-    const otherAmount = orderCurrency === 'BS' ? otherUsd * rate : otherUsd;
-    const receivedAmount = orderCurrency === 'BS' ? receivedUsd * rate : receivedUsd;
-    const pendingAmount = orderCurrency === 'BS' ? pendingUsd * rate : pendingUsd;
+    const firstCurrency = String(order.first_payment_currency || '').toUpperCase() === 'BS' ? 'BS' : 'USD';
+    const finalCurrency = getPaymentMethodCurrency(order.payment_method);
+    const firstReceivedBs = firstCurrency === 'BS' ? receivedFirstUsd * rate : 0;
+    const firstReceivedUsd = firstCurrency === 'USD' ? receivedFirstUsd : 0;
+    const otherReceivedBs = finalCurrency === 'BS' ? receivedOtherUsd * rate : 0;
+    const otherReceivedUsd = finalCurrency === 'USD' ? receivedOtherUsd : 0;
 
-    currencyTotals.expected += expectedAmount;
-    currencyTotals.first += firstAmount;
-    currencyTotals.other += otherAmount;
-    currencyTotals.received += receivedAmount;
-    currencyTotals.pending += pendingAmount;
+    totals.USD.expected += totalUsd;
+    totals.BS.expected += totalUsd * rate;
+    totals.USD.first += firstReceivedUsd;
+    totals.BS.first += firstReceivedBs;
+    totals.USD.other += otherReceivedUsd;
+    totals.BS.other += otherReceivedBs;
+    totals.USD.received += firstReceivedUsd + otherReceivedUsd;
+    totals.BS.received += firstReceivedBs + otherReceivedBs;
+    totals.USD.pending += pendingUsd;
+    totals.BS.pending += pendingUsd * rate;
   });
 
   return totals;
@@ -1595,11 +1601,11 @@ const AdminPage = () => {
               <div>
                 <p className="eyebrow">Estado de cuenta</p>
                 <h3>Montos esperados y recibidos</h3>
-                <p className="metric-caption">Pedidos activos: total por cobrar frente a pagos confirmados.</p>
+                <p className="metric-caption">Esperado y pendiente se muestran en ambas monedas; recibido separa los cobros reales en Bs y USD. Solo cuenta pagos confirmados.</p>
               </div>
               <div className="dashboard-ledger__legend" aria-label="Monedas según método de pago">
-                <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--bs">Bs</strong> Pago móvil</span>
-                <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--usd">USD</strong> Binance y efectivo</span>
+                <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--bs">Bs</strong> Recibido en bolívares</span>
+                <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--usd">USD</strong> Recibido en dólares</span>
               </div>
             </div>
             <div className="dashboard-ledger__scroll">
@@ -1607,8 +1613,8 @@ const AdminPage = () => {
                 <thead>
                   <tr>
                     <th scope="col">Movimiento</th>
-                    <th className="dashboard-ledger__column--bs" scope="col"><span>Bs</span><small>Pago móvil</small></th>
-                    <th className="dashboard-ledger__column--usd" scope="col"><span>USD</span><small>Binance y efectivo</small></th>
+                    <th className="dashboard-ledger__column--bs" scope="col"><span>Bs</span><small>Equivalente / recibido</small></th>
+                    <th className="dashboard-ledger__column--usd" scope="col"><span>USD</span><small>Equivalente / recibido</small></th>
                   </tr>
                 </thead>
                 <tbody>
