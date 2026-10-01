@@ -8,7 +8,7 @@ import AdminPage from './pages/AdminPage';
 import CheckoutModal from './components/CheckoutModal';
 import OrderHistoryModal from './components/OrderHistoryModal';
 
-const IDLE_TIMEOUT_MS = 30 * 24 * 60 * 60 * 1000;
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
 const getUser = () => {
   const raw = localStorage.getItem('user');
