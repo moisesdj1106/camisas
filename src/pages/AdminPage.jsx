@@ -2085,9 +2085,11 @@ const AdminPage = () => {
                       })() : null}
                     </td>
                     <td>
-                      {order.payment_proof_url ? <a href={getProofUrl(order.payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del primer pago">1er pago</a> : null}
-                      {order.delivery_payment_proof_url ? <a href={getProofUrl(order.delivery_payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del pago al entregar">2do pago</a> : null}
-                      {!order.payment_proof_url && !order.delivery_payment_proof_url ? <span className="badge">Sin comprobante</span> : null}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {order.payment_proof_url ? <a href={getProofUrl(order.payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del primer pago">1er pago</a> : null}
+                        {order.delivery_payment_proof_url ? <a href={getProofUrl(order.delivery_payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del pago al entregar">2do pago</a> : null}
+                        {!order.payment_proof_url && !order.delivery_payment_proof_url ? <span className="badge">Sin comprobante</span> : null}
+                      </div>
                     </td>
                     <td>
                       <button className="icon-btn" onClick={() => loadOrderDetail(order.id)} title={expandedOrderId === order.id ? 'Ocultar productos' : 'Ver productos'} aria-label={expandedOrderId === order.id ? `Ocultar productos del pedido ${order.id}` : `Ver productos del pedido ${order.id}`}>{expandedOrderId === order.id ? '⌃' : '⌄'}</button>
