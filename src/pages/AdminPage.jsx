@@ -54,8 +54,7 @@ const getPaymentMethodCurrency = (method) => {
 
 const getOrderCurrency = (order) => {
   const firstPaymentCurrency = String(order?.first_payment_currency || '').toUpperCase();
-  const methodCurrency = getPaymentMethodCurrency(order?.payment_method);
-  return firstPaymentCurrency === 'BS' || methodCurrency === 'BS' ? 'BS' : 'USD';
+  return ['USD', 'BS'].includes(firstPaymentCurrency) ? firstPaymentCurrency : getPaymentMethodCurrency(order?.payment_method);
 };
 const confirmedPaymentStatuses = new Set(['approved', 'preparing', 'ready_pickup', 'shipped', 'delivered']);
 
@@ -67,17 +66,21 @@ const convertAmountCurrency = (value, fromCurrency, toCurrency, rate) => {
 };
 
 const changePaymentMethod = (current, paymentMethod, rate) => {
-  const fromCurrency = current.first_payment_currency || getPaymentMethodCurrency(current.payment_method);
+  const fromCurrency = getPaymentMethodCurrency(current.payment_method);
   const toCurrency = getPaymentMethodCurrency(paymentMethod);
   return {
     ...current,
     payment_method: paymentMethod,
-    first_payment_currency: toCurrency,
-    first_payment_amount: convertAmountCurrency(current.first_payment_amount, fromCurrency, toCurrency, rate),
     full_payment_amount: convertAmountCurrency(current.full_payment_amount, fromCurrency, toCurrency, rate),
     delivery_payment_amount: convertAmountCurrency(current.delivery_payment_amount, fromCurrency, toCurrency, rate)
   };
 };
+
+const changeFirstPaymentCurrency = (current, currency, rate) => ({
+  ...current,
+  first_payment_currency: currency,
+  first_payment_amount: convertAmountCurrency(current.first_payment_amount, current.first_payment_currency, currency, rate)
+});
 
 const getInstallmentSummary = (order) => {
   const rate = Number(order.exchange_rate || 0);
@@ -106,10 +109,9 @@ const getPaymentLedger = (orders, fallbackRate) => {
   orders.forEach((order) => {
     if (excludedStatuses.has(order.status)) return;
     const storedRate = Number(order.exchange_rate);
-    const currentRate = Number(fallbackRate);
     const rate = Number.isFinite(storedRate) && storedRate > 0
       ? storedRate
-      : Number.isFinite(currentRate) && currentRate > 0 ? currentRate : 0;
+      : Number(fallbackRate) > 0 ? Number(fallbackRate) : 0;
     if (rate <= 0) return;
 
     const totalUsd = Number(order.total_amount || 0);
@@ -583,12 +585,13 @@ const AdminPage = () => {
     setOrderDetails((current) => ({ ...current, [orderId]: detail }));
     const rate = Number(detail.order.exchange_rate || exchangeRate);
     const paymentCurrency = getPaymentMethodCurrency(detail.order.payment_method);
+    const firstPaymentCurrency = String(detail.order.first_payment_currency || paymentCurrency).toUpperCase();
     setOrderEdit({
       id: orderId,
       payment_method: detail.order.payment_method || 'pago_movil',
       payment_plan: detail.order.payment_plan || 'full',
-      first_payment_amount: Number(detail.order.first_payment_amount || 0) > 0 ? convertAmountCurrency(formatAmountInput(detail.order.first_payment_amount), detail.order.first_payment_currency || paymentCurrency, paymentCurrency, rate) : '',
-      first_payment_currency: paymentCurrency,
+      first_payment_amount: Number(detail.order.first_payment_amount || 0) > 0 ? formatAmountInput(detail.order.first_payment_amount) : '',
+      first_payment_currency: firstPaymentCurrency,
       full_payment_amount: Number(detail.order.full_payment_amount || 0) > 0
         ? formatAmountInput(detail.order.full_payment_amount)
         : confirmedPaymentStatuses.has(detail.order.status) && detail.order.payment_plan !== 'installments'
@@ -631,7 +634,7 @@ const AdminPage = () => {
     formData.append('payment_method', orderEdit.payment_method);
     formData.append('payment_plan', orderEdit.payment_plan);
     formData.append('first_payment_amount', orderEdit.payment_plan === 'installments' ? parsedFirstPaymentAmount.toFixed(2) : '0');
-    formData.append('first_payment_currency', getPaymentMethodCurrency(orderEdit.payment_method));
+    formData.append('first_payment_currency', orderEdit.first_payment_currency);
     formData.append('full_payment_amount', orderEdit.payment_plan === 'full' && Number.isFinite(parsedFullPaymentAmount) ? parsedFullPaymentAmount.toFixed(2) : '0');
     formData.append('delivery_payment_amount', orderEdit.payment_plan === 'installments' && Number.isFinite(parsedDeliveryPaymentAmount) ? parsedDeliveryPaymentAmount.toFixed(2) : '0');
     formData.append('payment_proof_url', orderEdit.payment_proof_url || '');
@@ -1089,7 +1092,7 @@ const AdminPage = () => {
     formData.append('payment_method', payload.payment_method);
     formData.append('payment_plan', payload.payment_plan);
     formData.append('first_payment_amount', manualOrderForm.payment_plan === 'installments' ? parsedFirstPaymentAmount.toFixed(2) : '0');
-    formData.append('first_payment_currency', getPaymentMethodCurrency(payload.payment_method));
+    formData.append('first_payment_currency', manualOrderForm.first_payment_currency);
     formData.append('full_payment_amount', manualOrderForm.payment_plan === 'full' ? parsedFullPaymentAmount.toFixed(2) : '0');
     formData.append('delivery_payment_amount', manualOrderForm.payment_plan === 'installments' && Number.isFinite(parsedDeliveryPaymentAmount) ? parsedDeliveryPaymentAmount.toFixed(2) : '0');
     formData.append('delivery_method', payload.delivery_method);
@@ -2280,7 +2283,7 @@ const AdminPage = () => {
             <div className="admin-order-proof-fields">
               {manualOrderForm.payment_plan === 'installments' ? <p className="admin-order-payment-note">Primer pago del 50% para confirmar y 50% restante al entregar.</p> : null}
               {manualOrderForm.payment_plan === 'full' ? <label><span>Monto recibido ({getPaymentMethodCurrency(manualOrderForm.payment_method)})</span><input type="text" inputMode="decimal" value={manualOrderForm.full_payment_amount} onChange={(event) => setManualOrderForm((current) => ({ ...current, full_payment_amount: event.target.value }))} placeholder="12.187,50" /></label> : null}
-              {manualOrderForm.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Primer abono recibido ({getPaymentMethodCurrency(manualOrderForm.payment_method)})</span><input type="text" inputMode="decimal" value={manualOrderForm.first_payment_amount} onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="12.187,50" /></label><span className="metric-caption">Moneda según método: Pago móvil en Bs; los demás en USD.</span></div> : null}
+              {manualOrderForm.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Moneda del primer abono</span><select value={manualOrderForm.first_payment_currency} onChange={(event) => setManualOrderForm((current) => changeFirstPaymentCurrency(current, event.target.value, exchangeRate))}><option value="USD">USD</option><option value="BS">Bs</option></select></label><label><span>Primer abono recibido ({manualOrderForm.first_payment_currency})</span><input type="text" inputMode="decimal" value={manualOrderForm.first_payment_amount} onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="12.187,50" /></label><span className="metric-caption">Elige la moneda en que recibiste este abono.</span></div> : null}
               <label className="admin-order-file"><span>{manualOrderForm.payment_plan === 'full' ? 'Comprobante del pago completo' : 'Comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'manual:first_payment_proof'} onChange={(event) => uploadAdminOrderProof(event, 'manual', 'first_payment_proof')} />{uploadingOrderProof === 'manual:first_payment_proof' ? <small>Subiendo a Cloudinary...</small> : null}{manualOrderForm.first_payment_proof ? <a className="admin-order-current-proof" href={getProofUrl(manualOrderForm.first_payment_proof)} target="_blank" rel="noreferrer">{manualOrderForm.first_payment_proof}</a> : null}</label>
               {manualOrderForm.payment_plan === 'installments' ? <>
                 <label><span>Pago final recibido ({getPaymentMethodCurrency(manualOrderForm.payment_method)})</span><input type="text" inputMode="decimal" value={manualOrderForm.delivery_payment_amount} onChange={(event) => setManualOrderForm((current) => ({ ...current, delivery_payment_amount: event.target.value }))} placeholder="12.187,50" /></label>
@@ -2314,7 +2317,7 @@ const AdminPage = () => {
             <div className="admin-order-proof-fields">
               {orderEdit.payment_plan === 'installments' ? <p className="admin-order-payment-note">Primer pago del 50% para confirmar y 50% restante al entregar.</p> : null}
               {orderEdit.payment_plan === 'full' ? <label><span>Monto recibido ({getPaymentMethodCurrency(orderEdit.payment_method)})</span><input type="text" inputMode="decimal" value={orderEdit.full_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, full_payment_amount: event.target.value }))} placeholder="12.187,50" /></label> : null}
-              {orderEdit.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Primer abono recibido ({getPaymentMethodCurrency(orderEdit.payment_method)})</span><input type="text" inputMode="decimal" value={orderEdit.first_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="12.187,50" /></label><span className="metric-caption">Moneda según método: Pago móvil en Bs; los demás en USD.</span></div> : null}
+              {orderEdit.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Moneda del primer abono</span><select value={orderEdit.first_payment_currency} onChange={(event) => setOrderEdit((current) => changeFirstPaymentCurrency(current, event.target.value, current.exchange_rate || exchangeRate))}><option value="USD">USD</option><option value="BS">Bs</option></select></label><label><span>Primer abono recibido ({orderEdit.first_payment_currency})</span><input type="text" inputMode="decimal" value={orderEdit.first_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="12.187,50" /></label><span className="metric-caption">Elige la moneda en que recibiste este abono.</span></div> : null}
               {orderEdit.payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.payment_proof_url)} target="_blank" rel="noreferrer">Ver comprobante actual del primer pago</a> : null}
               <label className="admin-order-file"><span>{orderEdit.payment_plan === 'full' ? 'Reemplazar comprobante del pago completo' : 'Reemplazar comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'edit:payment_proof_url'} onChange={(event) => uploadAdminOrderProof(event, 'edit', 'payment_proof_url')} />{uploadingOrderProof === 'edit:payment_proof_url' ? <small>Subiendo a Cloudinary...</small> : null}{orderEdit.payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.payment_proof_url)} target="_blank" rel="noreferrer">{orderEdit.payment_proof_url}</a> : null}</label>
               {orderEdit.payment_plan === 'installments' ? <>
