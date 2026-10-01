@@ -51,6 +51,12 @@ const getPaymentMethodCurrency = (method) => {
     .replace(/[^a-z0-9]/g, '');
   return normalizedMethod === 'pagomovil' ? 'BS' : 'USD';
 };
+
+const getOrderCurrency = (order) => {
+  const firstPaymentCurrency = String(order?.first_payment_currency || '').toUpperCase();
+  const methodCurrency = getPaymentMethodCurrency(order?.payment_method);
+  return firstPaymentCurrency === 'BS' || methodCurrency === 'BS' ? 'BS' : 'USD';
+};
 const confirmedPaymentStatuses = new Set(['approved', 'preparing', 'ready_pickup', 'shipped', 'delivered']);
 
 const convertAmountCurrency = (value, fromCurrency, toCurrency, rate) => {
@@ -76,7 +82,7 @@ const changePaymentMethod = (current, paymentMethod, rate) => {
 const getInstallmentSummary = (order) => {
   const rate = Number(order.exchange_rate || 0);
   const amount = Number(order.first_payment_amount || 0);
-  const currency = order.first_payment_currency === 'BS' ? 'BS' : 'USD';
+  const currency = getOrderCurrency(order);
   const paidUsd = currency === 'BS' ? (rate > 0 ? amount / rate : null) : amount;
   const hasFirstProof = Boolean(order.payment_proof_url);
   const hasFinalProof = Boolean(order.delivery_payment_proof_url);
@@ -99,7 +105,7 @@ const getPaymentLedger = (orders, fallbackRate) => {
 
   orders.forEach((order) => {
     if (excludedStatuses.has(order.status)) return;
-    const currency = getPaymentMethodCurrency(order.payment_method);
+    const currency = getOrderCurrency(order);
     const storedRate = Number(order.exchange_rate);
     const currentRate = Number(fallbackRate);
     const rate = Number.isFinite(storedRate) && storedRate > 0
@@ -114,7 +120,7 @@ const getPaymentLedger = (orders, fallbackRate) => {
 
     if (isConfirmed && order.payment_plan === 'installments') {
       const firstAmount = Number(order.first_payment_amount || 0);
-      const firstCurrency = order.first_payment_currency === 'BS' ? 'BS' : 'USD';
+      const firstCurrency = String(order.first_payment_currency || '').toUpperCase() === 'BS' ? 'BS' : 'USD';
       firstUsd = firstCurrency === 'BS' ? firstAmount / rate : firstAmount;
       const finalAmount = Number(order.delivery_payment_amount || 0);
       otherUsd = currency === 'BS' ? finalAmount / rate : finalAmount;
