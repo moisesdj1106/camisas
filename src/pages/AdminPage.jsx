@@ -43,7 +43,14 @@ const parseLocalizedAmount = (value) => {
 
 const formatAmountInput = (value) => Number(value || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const getPaymentMethodCurrency = (method) => method === 'pago_movil' ? 'BS' : 'USD';
+const getPaymentMethodCurrency = (method) => {
+  const normalizedMethod = String(method || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+  return normalizedMethod === 'pagomovil' ? 'BS' : 'USD';
+};
 const confirmedPaymentStatuses = new Set(['approved', 'preparing', 'ready_pickup', 'shipped', 'delivered']);
 
 const convertAmountCurrency = (value, fromCurrency, toCurrency, rate) => {
@@ -93,7 +100,11 @@ const getPaymentLedger = (orders, fallbackRate) => {
   orders.forEach((order) => {
     if (excludedStatuses.has(order.status)) return;
     const currency = getPaymentMethodCurrency(order.payment_method);
-    const rate = Number(order.exchange_rate || fallbackRate || 0);
+    const storedRate = Number(order.exchange_rate);
+    const currentRate = Number(fallbackRate);
+    const rate = Number.isFinite(storedRate) && storedRate > 0
+      ? storedRate
+      : Number.isFinite(currentRate) && currentRate > 0 ? currentRate : 0;
     if (rate <= 0) return;
     const totalUsd = Number(order.total_amount || 0);
     const expected = currency === 'BS' ? totalUsd * rate : totalUsd;
@@ -1505,7 +1516,7 @@ const AdminPage = () => {
       ? current.filter((id) => !filteredOrderIds.includes(id))
       : [...new Set([...current, ...filteredOrderIds])]);
   };
-  const paymentLedger = getPaymentLedger(orders, exchangeRate);
+  const paymentLedger = dashboard?.paymentLedger || getPaymentLedger(orders, exchangeRate);
 
   return (
     <div className="container">
@@ -1561,21 +1572,32 @@ const AdminPage = () => {
           </div>
 
           <div className="card dashboard-ledger">
-            <div className="filters-card__header">
+            <div className="dashboard-ledger__header">
               <div>
+                <p className="eyebrow">Estado de cuenta</p>
                 <h3>Montos esperados y recibidos</h3>
-                <p className="metric-caption">El esperado incluye pedidos no cancelados; los cobros se suman al confirmar. Pago móvil va en Bs y Binance y los demás métodos en USD.</p>
+                <p className="metric-caption">Pedidos activos: total por cobrar frente a pagos confirmados.</p>
+              </div>
+              <div className="dashboard-ledger__legend" aria-label="Monedas según método de pago">
+                <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--bs">Bs</strong> Pago móvil</span>
+                <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--usd">USD</strong> Binance y otros</span>
               </div>
             </div>
             <div className="dashboard-ledger__scroll">
               <table className="table dashboard-ledger__table">
-                <thead><tr><th>Concepto</th><th>USD</th><th>Bs</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th scope="col">Movimiento</th>
+                    <th className="dashboard-ledger__column--bs" scope="col"><span>Bs</span><small>Pago móvil</small></th>
+                    <th className="dashboard-ledger__column--usd" scope="col"><span>USD</span><small>Binance y otros</small></th>
+                  </tr>
+                </thead>
                 <tbody>
-                  <tr><th scope="row">Total esperado</th><td>{formatCurrency(paymentLedger.USD.expected, 'USD')}</td><td>{formatCurrency(paymentLedger.BS.expected, 'BS')}</td></tr>
-                  <tr><th scope="row">Primeros abonos</th><td>{formatCurrency(paymentLedger.USD.first, 'USD')}</td><td>{formatCurrency(paymentLedger.BS.first, 'BS')}</td></tr>
-                  <tr><th scope="row">Pagos finales y completos</th><td>{formatCurrency(paymentLedger.USD.other, 'USD')}</td><td>{formatCurrency(paymentLedger.BS.other, 'BS')}</td></tr>
-                  <tr className="dashboard-ledger__total"><th scope="row">Total recibido</th><td>{formatCurrency(paymentLedger.USD.received, 'USD')}</td><td>{formatCurrency(paymentLedger.BS.received, 'BS')}</td></tr>
-                  <tr className="dashboard-ledger__pending"><th scope="row">Pendiente por cobrar</th><td>{formatCurrency(paymentLedger.USD.pending, 'USD')}</td><td>{formatCurrency(paymentLedger.BS.pending, 'BS')}</td></tr>
+                  <tr><th scope="row">Total esperado</th><td>{formatCurrency(paymentLedger.BS.expected, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.expected, 'USD')}</td></tr>
+                  <tr><th scope="row">Abonos iniciales</th><td>{formatCurrency(paymentLedger.BS.first, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.first, 'USD')}</td></tr>
+                  <tr><th scope="row">Pagos finales y completos</th><td>{formatCurrency(paymentLedger.BS.other, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.other, 'USD')}</td></tr>
+                  <tr className="dashboard-ledger__total"><th scope="row">Total recibido</th><td>{formatCurrency(paymentLedger.BS.received, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.received, 'USD')}</td></tr>
+                  <tr className="dashboard-ledger__pending"><th scope="row">Pendiente por cobrar</th><td>{formatCurrency(paymentLedger.BS.pending, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.pending, 'USD')}</td></tr>
                 </tbody>
               </table>
             </div>
