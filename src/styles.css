@@ -609,7 +609,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .hero-banner__metrics { grid-template-columns: 1fr; }
   .checkout-step { flex-direction: column; gap: 0.15rem; }
 }
-.shipping-summary p { margin: 0.25rem 0; }
+.shipping-summary p { margin: 0.26rem 0; }
 .delivery-summary { color: #475569; font-size: 0.92rem; }
 .order-card__top { display: flex; justify-content: space-between; gap: 0.8rem; align-items: flex-start; }
 .order-card__top p { margin: 0.25rem 0 0; color: #64748b; font-size: 0.9rem; }

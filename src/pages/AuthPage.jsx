@@ -8,33 +8,46 @@ const AuthPage = ({ onAuth, sessionMessage = '' }) => {
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
   const [message, setMessage] = useState('');
   const [errorModal, setErrorModal] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
 
   const submit = async (event) => {
     event.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     const endpoint = mode === 'login'
       ? apiUrl('/api/auth/login')
       : mode === 'register' ? apiUrl('/api/auth/register') : apiUrl('/api/auth/forgot-password');
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setErrorModal({ title: 'No se pudo continuar', message: data.error || 'Ocurrió un error.' });
-      return;
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form)
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setErrorModal({ title: 'No se pudo continuar', message: data?.error || 'El servidor rechazó la solicitud. Inténtalo nuevamente.' });
+        return;
+      }
+      if (!data) {
+        setErrorModal({ title: 'Respuesta inválida', message: 'El servidor respondió en un formato inesperado. Inténtalo nuevamente.' });
+        return;
+      }
+      if (mode === 'forgot') {
+        setMessage(data.message);
+        setMode('login');
+        setForm({ name: '', email: form.email, phone: '', password: '' });
+        return;
+      }
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      onAuth(data.user);
+      navigate('/');
+    } catch (error) {
+      setErrorModal({ title: 'No se pudo conectar', message: 'No fue posible conectar con el servidor. Revisa la conexión e inténtalo de nuevo.' });
+    } finally {
+      setIsSubmitting(false);
     }
-    if (mode === 'forgot') {
-      setMessage(data.message);
-      setMode('login');
-      setForm({ name: '', email: form.email, phone: '', password: '' });
-      return;
-    }
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    onAuth(data.user);
-    navigate('/');
   };
 
   return (
@@ -61,7 +74,7 @@ const AuthPage = ({ onAuth, sessionMessage = '' }) => {
           {mode === 'forgot' ? <input placeholder="Teléfono registrado" onChange={(e) => setForm({ ...form, phone: e.target.value })} /> : null}
           <input type="password" placeholder="Contraseña" onChange={(e) => setForm({ ...form, password: e.target.value })} />
           {mode !== 'forgot' ? <button type="button" className="auth-link" onClick={() => { setMode('forgot'); setMessage(''); setForm({ name: '', email: '', phone: '', password: '' }); }}>¿Olvidaste tu contraseña?</button> : null}
-          <button className="submit-btn" type="submit">{mode === 'login' ? 'Ingresar' : mode === 'register' ? 'Crear cuenta' : 'Cambiar contraseña'}</button>
+          <button className="submit-btn" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Conectando...' : mode === 'login' ? 'Ingresar' : mode === 'register' ? 'Crear cuenta' : 'Cambiar contraseña'}</button>
         </form>
         {mode === 'forgot' ? <button type="button" className="auth-link" onClick={() => { setMode('login'); setMessage(''); }}>Volver a iniciar sesión</button> : null}
       </div>
