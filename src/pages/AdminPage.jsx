@@ -2086,7 +2086,7 @@ const AdminPage = () => {
                     </td>
                     <td>
                       {order.payment_proof_url ? <a href={getProofUrl(order.payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del primer pago">1er pago</a> : null}
-                      {order.delivery_payment_proof_url ? <a href={getProofUrl(order.delivery_payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del pago al entregar">Entrega</a> : null}
+                      {order.delivery_payment_proof_url ? <a href={getProofUrl(order.delivery_payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del pago al entregar">2do pago</a> : null}
                       {!order.payment_proof_url && !order.delivery_payment_proof_url ? <span className="badge">Sin comprobante</span> : null}
                     </td>
                     <td>
