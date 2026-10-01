@@ -26,9 +26,9 @@ const statusDescriptions = {
 };
 
 const paymentMethodLabels = {
-  whatsapp: 'WhatsApp',
   pago_movil: 'Pago Móvil',
-  efectivo: 'Efectivo'
+  efectivo: 'Efectivo',
+  binance: 'Binance'
 };
 
 const statusClassName = (status) => {

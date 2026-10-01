@@ -105,47 +105,60 @@ const getPaymentLedger = (orders, fallbackRate) => {
 
   orders.forEach((order) => {
     if (excludedStatuses.has(order.status)) return;
-    const currency = getOrderCurrency(order);
     const storedRate = Number(order.exchange_rate);
     const currentRate = Number(fallbackRate);
     const rate = Number.isFinite(storedRate) && storedRate > 0
       ? storedRate
       : Number.isFinite(currentRate) && currentRate > 0 ? currentRate : 0;
     if (rate <= 0) return;
+
     const totalUsd = Number(order.total_amount || 0);
-    const expected = currency === 'BS' ? totalUsd * rate : totalUsd;
+    const orderCurrency = getPaymentMethodCurrency(order.payment_method);
     const isConfirmed = confirmedPaymentStatuses.has(order.status);
+
     let firstUsd = 0;
     let otherUsd = 0;
 
     if (isConfirmed && order.payment_plan === 'installments') {
       const firstAmount = Number(order.first_payment_amount || 0);
       const firstCurrency = String(order.first_payment_currency || '').toUpperCase() === 'BS' ? 'BS' : 'USD';
-      firstUsd = firstCurrency === 'BS' ? firstAmount / rate : firstAmount;
+      if (firstCurrency === 'BS') {
+        firstUsd = firstAmount / rate;
+      } else {
+        firstUsd = firstAmount;
+      }
+
       const finalAmount = Number(order.delivery_payment_amount || 0);
-      otherUsd = currency === 'BS' ? finalAmount / rate : finalAmount;
-      if (finalAmount <= 0 && order.delivery_payment_proof_url) {
-        otherUsd = Math.max(0, totalUsd - firstUsd);
+      const finalCurrency = getPaymentMethodCurrency(order.payment_method);
+      if (finalCurrency === 'BS') {
+        otherUsd = (finalAmount > 0 ? finalAmount : (order.delivery_payment_proof_url ? Math.max(0, totalUsd * rate - (firstUsd * rate)) : 0)) / rate;
+      } else {
+        otherUsd = finalAmount > 0 ? finalAmount : (order.delivery_payment_proof_url ? Math.max(0, totalUsd - firstUsd) : 0);
       }
     } else if (isConfirmed && order.payment_plan !== 'installments') {
       const fullAmount = Number(order.full_payment_amount || 0);
-      otherUsd = fullAmount > 0
-        ? (currency === 'BS' ? fullAmount / rate : fullAmount)
-        : totalUsd;
+      const methodCurrency = getPaymentMethodCurrency(order.payment_method);
+      if (methodCurrency === 'BS') {
+        otherUsd = (fullAmount > 0 ? fullAmount : totalUsd * rate) / rate;
+      } else {
+        otherUsd = fullAmount > 0 ? fullAmount : totalUsd;
+      }
     }
 
-    const cappedFirstUsd = Math.min(totalUsd, Math.max(0, firstUsd));
-    const receivedUsd = Math.min(totalUsd, cappedFirstUsd + Math.max(0, otherUsd));
-    const firstReceived = currency === 'BS' ? Math.min(receivedUsd, cappedFirstUsd) * rate : Math.min(receivedUsd, cappedFirstUsd);
-    const otherReceived = Math.max(0, receivedUsd - Math.min(receivedUsd, cappedFirstUsd)) * (currency === 'BS' ? rate : 1);
-    const received = currency === 'BS' ? receivedUsd * rate : receivedUsd;
-    const pending = Math.max(0, expected - received);
+    const receivedUsd = Math.min(totalUsd, Math.max(0, firstUsd + otherUsd));
+    const pendingUsd = Math.max(0, totalUsd - receivedUsd);
+    const currencyTotals = totals[orderCurrency];
+    const expectedAmount = orderCurrency === 'BS' ? totalUsd * rate : totalUsd;
+    const firstAmount = orderCurrency === 'BS' ? firstUsd * rate : firstUsd;
+    const otherAmount = orderCurrency === 'BS' ? otherUsd * rate : otherUsd;
+    const receivedAmount = orderCurrency === 'BS' ? receivedUsd * rate : receivedUsd;
+    const pendingAmount = orderCurrency === 'BS' ? pendingUsd * rate : pendingUsd;
 
-    totals[currency].expected += expected;
-    totals[currency].first += firstReceived;
-    totals[currency].other += otherReceived;
-    totals[currency].received += received;
-    totals[currency].pending += pending;
+    currencyTotals.expected += expectedAmount;
+    currencyTotals.first += firstAmount;
+    currencyTotals.other += otherAmount;
+    currencyTotals.received += receivedAmount;
+    currencyTotals.pending += pendingAmount;
   });
 
   return totals;
@@ -195,7 +208,7 @@ const createEmptyClubForm = () => ({
 const createEmptyManualOrderForm = () => ({
   client: { name: '', email: '', phone: '' },
   items: [],
-  payment_method: 'whatsapp',
+  payment_method: 'pago_movil',
   payment_plan: 'full',
   first_payment_amount: '',
   first_payment_currency: 'USD',
@@ -566,7 +579,7 @@ const AdminPage = () => {
     const paymentCurrency = getPaymentMethodCurrency(detail.order.payment_method);
     setOrderEdit({
       id: orderId,
-      payment_method: detail.order.payment_method || 'whatsapp',
+      payment_method: detail.order.payment_method || 'pago_movil',
       payment_plan: detail.order.payment_plan || 'full',
       first_payment_amount: Number(detail.order.first_payment_amount || 0) > 0 ? convertAmountCurrency(formatAmountInput(detail.order.first_payment_amount), detail.order.first_payment_currency || paymentCurrency, paymentCurrency, rate) : '',
       first_payment_currency: paymentCurrency,
@@ -1586,7 +1599,7 @@ const AdminPage = () => {
               </div>
               <div className="dashboard-ledger__legend" aria-label="Monedas según método de pago">
                 <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--bs">Bs</strong> Pago móvil</span>
-                <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--usd">USD</strong> Binance y otros</span>
+                <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--usd">USD</strong> Binance y efectivo</span>
               </div>
             </div>
             <div className="dashboard-ledger__scroll">
@@ -1595,7 +1608,7 @@ const AdminPage = () => {
                   <tr>
                     <th scope="col">Movimiento</th>
                     <th className="dashboard-ledger__column--bs" scope="col"><span>Bs</span><small>Pago móvil</small></th>
-                    <th className="dashboard-ledger__column--usd" scope="col"><span>USD</span><small>Binance y otros</small></th>
+                    <th className="dashboard-ledger__column--usd" scope="col"><span>USD</span><small>Binance y efectivo</small></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2255,7 +2268,7 @@ const AdminPage = () => {
 
           {manualOrderStep === 3 ? <section className="admin-order-step-panel">
             <div className="order-edit-form__grid">
-              <label><span>Método de pago</span><select value={manualOrderForm.payment_method} onChange={(event) => setManualOrderForm((current) => changePaymentMethod(current, event.target.value, exchangeRate))}><option value="whatsapp">WhatsApp</option><option value="pago_movil">Pago Móvil</option><option value="binance">Binance</option><option value="efectivo">Efectivo</option></select></label>
+              <label><span>Método de pago</span><select value={manualOrderForm.payment_method} onChange={(event) => setManualOrderForm((current) => changePaymentMethod(current, event.target.value, exchangeRate))}><option value="pago_movil">Pago Móvil</option><option value="binance">Binance</option><option value="efectivo">Efectivo</option></select></label>
               <label><span>Forma de pago</span><select value={manualOrderForm.payment_plan} onChange={(event) => setManualOrderForm((current) => ({ ...current, payment_plan: event.target.value, delivery_payment_proof: event.target.value === 'full' ? null : current.delivery_payment_proof }))}><option value="full">Pago completo</option><option value="installments">Pago por partes</option></select></label>
             </div>
             <div className="admin-order-proof-fields">
@@ -2288,7 +2301,7 @@ const AdminPage = () => {
           <div className="order-edit-form">
             <div className="order-edit-form__grid">
               <label><span>Estado</span><select value={orderEdit.status} onChange={(event) => setOrderEdit((current) => ({ ...current, status: event.target.value }))}>{orderStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label><span>Método de pago</span><select value={orderEdit.payment_method} onChange={(event) => setOrderEdit((current) => changePaymentMethod(current, event.target.value, current.exchange_rate || exchangeRate))}><option value="whatsapp">WhatsApp</option><option value="pago_movil">Pago Móvil</option><option value="binance">Binance</option><option value="efectivo">Efectivo</option></select></label>
+              <label><span>Método de pago</span><select value={orderEdit.payment_method} onChange={(event) => setOrderEdit((current) => changePaymentMethod(current, event.target.value, current.exchange_rate || exchangeRate))}><option value="pago_movil">Pago Móvil</option><option value="binance">Binance</option><option value="efectivo">Efectivo</option></select></label>
               <label><span>Modalidad de entrega</span><select value={orderEdit.delivery_method} onChange={(event) => setOrderEdit((current) => ({ ...current, delivery_method: event.target.value }))}><option value="personal">Entrega personal</option><option value="national">Envío nacional</option></select></label>
               <label><span>Forma de pago</span><select value={orderEdit.payment_plan} onChange={(event) => setOrderEdit((current) => ({ ...current, payment_plan: event.target.value }))}><option value="full">Pago completo</option><option value="installments">Pago por partes</option></select></label>
             </div>

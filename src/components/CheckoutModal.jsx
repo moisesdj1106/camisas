@@ -2,11 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../api';
 
 const paymentDetails = {
-  whatsapp: {
-    title: 'WhatsApp',
-    number: '+58 0414-7146602',
-    message: 'Envíanos tu usuario y comprobante por WhatsApp para confirmar el pago, el monto en bs es el indicado en la pagina a la tasa del dia actual.'
-  },
   pago_movil: {
     title: 'Realiza el pago a los siguientes datos: ',
     number: 'Bco Vzla',
@@ -221,7 +216,6 @@ const CheckoutModal = ({ open, onClose, cart, user, onRemoveFromCart, onClearCar
         </> : checkoutStep === 2 ? <>
           <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
           <option value="">Seleccione su método de pago</option>
-          <option value="whatsapp">WhatsApp</option>
           <option value="pago_movil">Pago Móvil</option>
           <option value="binance">Binance</option>
           <option value="efectivo">Efectivo (solo entrega personal)</option>
