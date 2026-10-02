@@ -12,6 +12,15 @@ const formatCurrency = (value, currency = 'USD') => {
 
 const toLocalDateInput = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
+const isDateInRange = (value, dateRange) => {
+  if (!dateRange) return true;
+  if (!value) return false;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return false;
+  const localDate = toLocalDateInput(date);
+  return (!dateRange.from || localDate >= dateRange.from) && (!dateRange.to || localDate <= dateRange.to);
+};
+
 const parseLocalizedAmount = (value) => {
   const raw = String(value ?? '').trim().replace(/\s/g, '').replace(/[^\d.,-]/g, '');
   if (!raw || !/\d/.test(raw) || /[.,]$/.test(raw)) return Number.NaN;
@@ -110,7 +119,7 @@ const getInstallmentSummary = (order) => {
   return { amount, currency, finalAmount, finalCurrency, paidUsd, remainingUsd, remainingBs: remainingUsd === null || rate <= 0 ? null : remainingUsd * rate, hasFirstProof, hasFinalProof, isComplete, rate };
 };
 
-const getPaymentLedger = (orders, fallbackRate) => {
+const getPaymentLedger = (orders, fallbackRate, dateRange = null) => {
   const totals = {
     USD: { expected: 0, first: 0, other: 0, received: 0, pending: 0 },
     BS: { expected: 0, first: 0, other: 0, received: 0, pending: 0 }
@@ -127,6 +136,9 @@ const getPaymentLedger = (orders, fallbackRate) => {
 
     const totalUsd = Number(order.total_amount || 0);
     const isConfirmed = confirmedPaymentStatuses.has(order.status);
+    const orderInDateRange = isDateInRange(order.created_at, dateRange);
+    const firstPaymentInDateRange = isDateInRange(order.payment_received_at || order.created_at, dateRange);
+    const finalPaymentInDateRange = isDateInRange(order.delivery_payment_received_at || order.created_at, dateRange);
 
     let firstUsd = 0;
     let otherUsd = 0;
@@ -168,16 +180,24 @@ const getPaymentLedger = (orders, fallbackRate) => {
     const otherReceivedBs = finalCurrency === 'BS' ? receivedOtherUsd * rate : 0;
     const otherReceivedUsd = finalCurrency === 'USD' ? receivedOtherUsd : 0;
 
-    totals.USD.expected += totalUsd;
-    totals.BS.expected += totalUsd * rate;
-    totals.USD.first += firstReceivedUsd;
-    totals.BS.first += firstReceivedBs;
-    totals.USD.other += otherReceivedUsd;
-    totals.BS.other += otherReceivedBs;
-    totals.USD.received += firstReceivedUsd + otherReceivedUsd;
-    totals.BS.received += firstReceivedBs + otherReceivedBs;
-    totals.USD.pending += pendingUsd;
-    totals.BS.pending += pendingUsd * rate;
+    if (orderInDateRange) {
+      totals.USD.expected += totalUsd;
+      totals.BS.expected += totalUsd * rate;
+      totals.USD.pending += pendingUsd;
+      totals.BS.pending += pendingUsd * rate;
+    }
+    if (firstPaymentInDateRange) {
+      totals.USD.first += firstReceivedUsd;
+      totals.BS.first += firstReceivedBs;
+      totals.USD.received += firstReceivedUsd;
+      totals.BS.received += firstReceivedBs;
+    }
+    if (finalPaymentInDateRange) {
+      totals.USD.other += otherReceivedUsd;
+      totals.BS.other += otherReceivedBs;
+      totals.USD.received += otherReceivedUsd;
+      totals.BS.received += otherReceivedBs;
+    }
   });
 
   return totals;
@@ -1600,16 +1620,17 @@ const AdminPage = () => {
       : [...new Set([...current, ...filteredOrderIds])]);
   };
   const hasLedgerDateFilter = Boolean(ledgerDate || ledgerDateFrom || ledgerDateTo);
-  const ledgerOrders = hasLedgerDateFilter ? orders.filter((order) => {
-    const createdAt = new Date(order.created_at);
-    if (!Number.isFinite(createdAt.getTime())) return false;
-    const orderDate = toLocalDateInput(createdAt);
-    if (ledgerDate) return orderDate === ledgerDate;
-    return (!ledgerDateFrom || orderDate >= ledgerDateFrom) && (!ledgerDateTo || orderDate <= ledgerDateTo);
-  }) : orders;
+  const ledgerDateRange = hasLedgerDateFilter
+    ? { from: ledgerDate || ledgerDateFrom, to: ledgerDate || ledgerDateTo }
+    : null;
+  const ledgerOrders = hasLedgerDateFilter ? orders.filter((order) => (
+    isDateInRange(order.created_at, ledgerDateRange)
+    || isDateInRange(order.payment_received_at || order.created_at, ledgerDateRange)
+    || isDateInRange(order.delivery_payment_received_at || order.created_at, ledgerDateRange)
+  )) : orders;
   const ledgerIncludedOrders = ledgerOrders.filter((order) => !['rejected', 'cancelled'].includes(order.status));
   const paymentLedger = hasLedgerDateFilter
-    ? getPaymentLedger(ledgerOrders, exchangeRate)
+    ? getPaymentLedger(ledgerOrders, exchangeRate, ledgerDateRange)
     : dashboard?.paymentLedger || getPaymentLedger(orders, exchangeRate);
   const ledgerDateDescription = ledgerDate
     ? `del ${new Date(`${ledgerDate}T12:00:00`).toLocaleDateString('es-VE')}`
@@ -1678,7 +1699,7 @@ const AdminPage = () => {
               <div>
                 <p className="eyebrow">Estado de cuenta</p>
                 <h3>Montos esperados y recibidos</h3>
-                <p className="metric-caption">Esperado y pendiente se muestran en ambas monedas; recibido separa los cobros reales en Bs y USD. Solo cuenta pagos confirmados. {ledgerDateDescription ? `${ledgerIncludedOrders.length} pedido(s) incluidos ${ledgerDateDescription}.` : `${ledgerIncludedOrders.length} pedido(s) incluidos en total.`}</p>
+                <p className="metric-caption">Esperado y pendiente se agrupan por fecha del pedido; recibido, por fecha del pago. Solo cuenta pagos confirmados. {ledgerDateDescription ? `${ledgerIncludedOrders.length} pedido(s) con actividad ${ledgerDateDescription}.` : `${ledgerIncludedOrders.length} pedido(s) incluidos en total.`}</p>
               </div>
               <div className="dashboard-ledger__legend" aria-label="Monedas según método de pago">
                 <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--bs">Bs</strong> Recibido en bolívares</span>
