@@ -366,7 +366,7 @@ export const CatalogPage = ({ user, onAddToCart }) => {
             <div className="product-modal__details">
               <p className="eyebrow">Detalle de producto</p>
               <h3>{selectedProduct.title}</h3>
-              <p>{selectedProduct.description}</p>
+              <p className="product-modal__description">{selectedProduct.description}</p>
               <div className="price-stack">
                 {Number(selectedProduct.discount_percent) > 0 ? <span className="discount-badge">-{Number(selectedProduct.discount_percent)}% de descuento</span> : null}
                 <p className={Number(selectedProduct.discount_percent) > 0 ? 'price price--discounted' : 'price'}>{formatCurrency(selectedProduct.final_price ?? selectedProduct.price, 'USD')}</p>

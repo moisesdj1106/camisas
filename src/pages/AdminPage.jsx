@@ -347,6 +347,8 @@ const AdminPage = () => {
   const [manualOrderError, setManualOrderError] = useState('');
   const [uploadingOrderProof, setUploadingOrderProof] = useState('');
   const [ledgerDate, setLedgerDate] = useState('');
+  const [ledgerDateFrom, setLedgerDateFrom] = useState('');
+  const [ledgerDateTo, setLedgerDateTo] = useState('');
   const today = toLocalDateInput(new Date());
   const oldestLedgerDateValue = new Date();
   oldestLedgerDateValue.setFullYear(oldestLedgerDateValue.getFullYear() - 300);
@@ -1268,6 +1270,7 @@ const AdminPage = () => {
     if (!closureSummary) return;
     const printWindow = window.open('', '_blank', 'width=900,height=800');
     if (!printWindow) return;
+    const generatedAt = new Date().toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' });
     const rows = (closureSummary.orders || []).map((order) => `
       <tr>
         <td>#${order.id}</td>
@@ -1290,6 +1293,7 @@ const AdminPage = () => {
             .report-tag { padding: 10px 16px; border-radius: 8px; background: #1d4ed8; color: #fff; text-align: center; }
             .report-tag strong { display: block; font-size: 10px; }
             .report-tag span { display: block; margin-top: 5px; color: #dbeafe; font-size: 11px; }
+            .report-tag small { display: block; margin-top: 5px; color: #dbeafe; font-size: 10px; }
             .period { margin: 22px 0 14px; }
             h1 { margin: 0; color: #0f2d52; font-size: 20px; }
             .muted { margin: 6px 0 0; color: #64748b; font-size: 12px; }
@@ -1306,7 +1310,8 @@ const AdminPage = () => {
             .amount { text-align: right; }
             .footer { margin-top: 26px; padding-top: 12px; border-top: 1px solid #dbe5f1; color: #64748b; font-size: 9px; text-align: center; }
             @media (max-width: 600px) { body { padding: 16px; } .brand { padding: 18px; } .summary { gap: 8px; } .summary div { padding: 11px; } }
-            @media print { body { padding: 0; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; } .page { max-width: none; } .brand, thead { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
+            @page { margin: 0; }
+            @media print { body { padding: 32px; background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; } .page { max-width: none; } .brand, thead { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
           </style>
         </head>
         <body>
@@ -1316,7 +1321,7 @@ const AdminPage = () => {
                 <p class="brand-name">MDJ SOCCER</p>
                 <p class="brand-caption">Camisetas deportivas · San Cristóbal</p>
               </div>
-              <div class="report-tag"><strong>CIERRE DE VENTAS</strong><span>${closureSummary.periodLabel}</span></div>
+              <div class="report-tag"><strong>CIERRE DE VENTAS</strong><span>${closureSummary.periodLabel}</span><small>Generado: ${generatedAt}</small></div>
             </header>
             <section class="period">
               <h1>Resumen de ventas</h1>
@@ -1519,7 +1524,7 @@ const AdminPage = () => {
             {['payment_proof_url', 'delivery_payment_proof_url'].some((key) => detail.order?.[key]) ? (
               <div className="order-expanded-panel__proofs">
                 {[
-                  ['payment_proof_url', 'Comprobante del primer pago'],
+                  ['payment_proof_url', detail.order?.payment_plan === 'installments' ? 'Comprobante del primer pago' : 'Comprobante del pago completo'],
                   ['delivery_payment_proof_url', 'Comprobante al entregar']
                 ].map(([key, label]) => detail.order?.[key] ? (
                   <div key={key}>
@@ -1563,14 +1568,23 @@ const AdminPage = () => {
       ? current.filter((id) => !filteredOrderIds.includes(id))
       : [...new Set([...current, ...filteredOrderIds])]);
   };
-  const ledgerOrders = ledgerDate ? orders.filter((order) => {
+  const hasLedgerDateFilter = Boolean(ledgerDate || ledgerDateFrom || ledgerDateTo);
+  const ledgerOrders = hasLedgerDateFilter ? orders.filter((order) => {
     const createdAt = new Date(order.created_at);
-    return Number.isFinite(createdAt.getTime()) && toLocalDateInput(createdAt) === ledgerDate;
+    if (!Number.isFinite(createdAt.getTime())) return false;
+    const orderDate = toLocalDateInput(createdAt);
+    if (ledgerDate) return orderDate === ledgerDate;
+    return (!ledgerDateFrom || orderDate >= ledgerDateFrom) && (!ledgerDateTo || orderDate <= ledgerDateTo);
   }) : orders;
   const ledgerIncludedOrders = ledgerOrders.filter((order) => !['rejected', 'cancelled'].includes(order.status));
-  const paymentLedger = ledgerDate
+  const paymentLedger = hasLedgerDateFilter
     ? getPaymentLedger(ledgerOrders, exchangeRate)
     : dashboard?.paymentLedger || getPaymentLedger(orders, exchangeRate);
+  const ledgerDateDescription = ledgerDate
+    ? `del ${new Date(`${ledgerDate}T12:00:00`).toLocaleDateString('es-VE')}`
+    : ledgerDateFrom || ledgerDateTo
+      ? `${ledgerDateFrom ? `desde ${new Date(`${ledgerDateFrom}T12:00:00`).toLocaleDateString('es-VE')}` : ''}${ledgerDateFrom && ledgerDateTo ? ' ' : ''}${ledgerDateTo ? `hasta ${new Date(`${ledgerDateTo}T12:00:00`).toLocaleDateString('es-VE')}` : ''}`
+      : '';
   const currentExchangeRate = Number(exchangeRate || 0);
   const generalReceivedUsd = paymentLedger.USD.received + (currentExchangeRate > 0 ? paymentLedger.BS.received / currentExchangeRate : 0);
   const generalReceivedBs = paymentLedger.BS.received + paymentLedger.USD.received * currentExchangeRate;
@@ -1633,7 +1647,7 @@ const AdminPage = () => {
               <div>
                 <p className="eyebrow">Estado de cuenta</p>
                 <h3>Montos esperados y recibidos</h3>
-                <p className="metric-caption">Esperado y pendiente se muestran en ambas monedas; recibido separa los cobros reales en Bs y USD. Solo cuenta pagos confirmados. {ledgerDate ? `${ledgerIncludedOrders.length} pedido(s) incluidos del ${new Date(`${ledgerDate}T12:00:00`).toLocaleDateString('es-VE')}.` : `${ledgerIncludedOrders.length} pedido(s) incluidos en total.`}</p>
+                <p className="metric-caption">Esperado y pendiente se muestran en ambas monedas; recibido separa los cobros reales en Bs y USD. Solo cuenta pagos confirmados. {ledgerDateDescription ? `${ledgerIncludedOrders.length} pedido(s) incluidos ${ledgerDateDescription}.` : `${ledgerIncludedOrders.length} pedido(s) incluidos en total.`}</p>
               </div>
               <div className="dashboard-ledger__legend" aria-label="Monedas según método de pago">
                 <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--bs">Bs</strong> Recibido en bolívares</span>
@@ -1642,12 +1656,20 @@ const AdminPage = () => {
             </div>
             <div className="dashboard-ledger__filters" aria-label="Filtrar tabla por fecha">
               <div className="dashboard-ledger__filter-buttons" role="group" aria-label="Fechas rápidas">
-                <button className={!ledgerDate ? 'dashboard-ledger__filter-btn dashboard-ledger__filter-btn--active' : 'dashboard-ledger__filter-btn'} type="button" aria-pressed={!ledgerDate} onClick={() => setLedgerDate('')}>Todos</button>
+                <button className={!hasLedgerDateFilter ? 'dashboard-ledger__filter-btn dashboard-ledger__filter-btn--active' : 'dashboard-ledger__filter-btn'} type="button" aria-pressed={!hasLedgerDateFilter} onClick={() => {
+                  setLedgerDate('');
+                  setLedgerDateFrom('');
+                  setLedgerDateTo('');
+                }}>Todos</button>
                 {['Hoy', 'Ayer', 'Antier'].map((label, daysAgo) => {
                   const date = new Date();
                   date.setDate(date.getDate() - daysAgo);
                   const value = toLocalDateInput(date);
-                  return <button key={label} className={ledgerDate === value ? 'dashboard-ledger__filter-btn dashboard-ledger__filter-btn--active' : 'dashboard-ledger__filter-btn'} type="button" aria-pressed={ledgerDate === value} onClick={() => setLedgerDate(value)}>{label}</button>;
+                  return <button key={label} className={ledgerDate === value ? 'dashboard-ledger__filter-btn dashboard-ledger__filter-btn--active' : 'dashboard-ledger__filter-btn'} type="button" aria-pressed={ledgerDate === value} onClick={() => {
+                    setLedgerDate(value);
+                    setLedgerDateFrom('');
+                    setLedgerDateTo('');
+                  }}>{label}</button>;
                 })}
               </div>
               <label className="dashboard-ledger__date-label">Elegir fecha
@@ -1660,8 +1682,24 @@ const AdminPage = () => {
                   } else {
                     setLedgerDate(value);
                   }
+                  setLedgerDateFrom('');
+                  setLedgerDateTo('');
                 }} />
               </label>
+              <div className="dashboard-ledger__range" aria-label="Filtrar entre fechas">
+                <label className="dashboard-ledger__date-label">Desde
+                  <input type="date" value={ledgerDateFrom} min={oldestLedgerDate} max={ledgerDateTo || today} onChange={(event) => {
+                    setLedgerDate('');
+                    setLedgerDateFrom(event.target.value);
+                  }} />
+                </label>
+                <label className="dashboard-ledger__date-label">Hasta
+                  <input type="date" value={ledgerDateTo} min={ledgerDateFrom || oldestLedgerDate} max={today} onChange={(event) => {
+                    setLedgerDate('');
+                    setLedgerDateTo(event.target.value);
+                  }} />
+                </label>
+              </div>
             </div>
             <div className="dashboard-ledger__scroll">
               <table className="table dashboard-ledger__table">
@@ -2174,7 +2212,7 @@ const AdminPage = () => {
                     </td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        {order.payment_proof_url ? <a href={getProofUrl(order.payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del primer pago">1er pago</a> : null}
+                        {order.payment_proof_url ? <a href={getProofUrl(order.payment_proof_url)} target="_blank" rel="noreferrer" title={order.payment_plan === 'installments' ? 'Ver comprobante del primer pago' : 'Ver comprobante del pago completo'}>{order.payment_plan === 'installments' ? '1er pago' : 'Pago completo'}</a> : null}
                         {order.delivery_payment_proof_url ? <a href={getProofUrl(order.delivery_payment_proof_url)} target="_blank" rel="noreferrer" title="Ver comprobante del pago al entregar">2do pago</a> : null}
                         {!order.payment_proof_url && !order.delivery_payment_proof_url ? <span className="badge">Sin comprobante</span> : null}
                       </div>
