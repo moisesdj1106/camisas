@@ -328,8 +328,9 @@ const AdminPage = () => {
   const [editingOrderItems, setEditingOrderItems] = useState(false);
   const [editingOrderItemId, setEditingOrderItemId] = useState(null);
   const [closurePeriod, setClosurePeriod] = useState('day');
-  const [closureDate, setClosureDate] = useState(new Date().toISOString().split('T')[0]);
+  const [closureDate, setClosureDate] = useState(toLocalDateInput(new Date()));
   const [closureSummary, setClosureSummary] = useState(null);
+  const [dailyClosureOpen, setDailyClosureOpen] = useState(null);
   const [closurePage, setClosurePage] = useState(1);
   const [isClosing, setIsClosing] = useState(false);
   const [isResettingMetrics, setIsResettingMetrics] = useState(false);
@@ -1286,35 +1287,60 @@ const AdminPage = () => {
 
   const loadClosureSummary = async (periodType = closurePeriod, referenceDate = closureDate) => {
     const token = localStorage.getItem('token');
-    const response = await fetch(apiUrl(`/api/admin/closures?period=${periodType}&date=${referenceDate}`), {
+    const endpoint = periodType === 'day'
+      ? '/api/admin/closures/daily'
+      : `/api/admin/closures?period=${periodType}&date=${referenceDate}`;
+    const response = await fetch(apiUrl(endpoint), {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (!response.ok) return null;
     const data = await response.json();
     setClosureSummary(data);
+    if (periodType === 'day') setDailyClosureOpen(data.isOpen);
     return data;
   };
+
+  useEffect(() => {
+    loadClosureSummary('day');
+  }, []);
 
   const createClosure = async () => {
     setIsClosing(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(apiUrl('/api/admin/closures'), {
+      const isDaily = closurePeriod === 'day';
+      const response = await fetch(apiUrl(isDaily ? '/api/admin/closures/daily/close' : '/api/admin/closures'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ periodType: closurePeriod, referenceDate: closureDate })
       });
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error('No se pudo generar el cierre');
+        throw new Error(data.error || 'No se pudo generar el cierre');
       }
-      const data = await response.json();
       setClosureSummary(data);
+      if (isDaily) setDailyClosureOpen(false);
       setMessage(`Cierre generado para ${data.periodLabel}`);
     } catch (error) {
-      setMessage('No se pudo generar el cierre financiero.');
+      setMessage(error.message || 'No se pudo generar el cierre financiero.');
     } finally {
       setIsClosing(false);
     }
+  };
+
+  const openDailyClosureCount = async () => {
+    const response = await fetch(apiUrl('/api/admin/closures/daily/open'), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMessage(data.error || 'No se pudo abrir el conteo diario.');
+      return;
+    }
+    setDailyClosureOpen(true);
+    setClosureSummary(data);
+    setMessage('Conteo diario nuevo abierto.');
   };
 
   const printClosure = () => {
@@ -1329,6 +1355,16 @@ const AdminPage = () => {
         <td>${formatCurrency(order.totalAmount, 'USD')}</td>
       </tr>
     `).join('');
+    const paymentRows = (closureSummary.payments || []).map((payment) => `
+      <tr>
+        <td>#${payment.orderId}</td>
+        <td>${payment.kind}</td>
+        <td>${new Date(payment.receivedAt).toLocaleString('es-VE')}</td>
+        <td>${formatCurrency(payment.amount, payment.currency)}</td>
+        <td>${formatCurrency(payment.remainingUsd, 'USD')} · ${formatCurrency(payment.remainingBs, 'BS')}</td>
+      </tr>
+    `).join('');
+    const paymentTotals = closureSummary.paymentTotals || { USD: 0, BS: 0, totalUsd: 0 };
 
     printWindow.document.write(`
       <html>
@@ -1388,6 +1424,16 @@ const AdminPage = () => {
                 <tr><th># Pedido</th><th>Fecha</th><th class="amount">Monto</th></tr>
               </thead>
               <tbody>${rows}</tbody>
+            </table>
+            <section class="period">
+              <h1>Pagos recibidos en el período</h1>
+              <p class="muted">Total recibido: ${formatCurrency(paymentTotals.USD, 'USD')} · ${formatCurrency(paymentTotals.BS, 'BS')} · Equivalente: ${formatCurrency(paymentTotals.totalUsd, 'USD')}</p>
+            </section>
+            <table>
+              <thead>
+                <tr><th># Pedido</th><th>Pago</th><th>Fecha</th><th>Recibido</th><th>Saldo restante · USD / Bs</th></tr>
+              </thead>
+              <tbody>${paymentRows || '<tr><td colspan="5">No hubo pagos registrados en este período.</td></tr>'}</tbody>
             </table>
             <footer class="footer">MDJ SOCCER · San Cristóbal, Táchira, Venezuela · +58 0414-714-6602</footer>
           </main>
@@ -1858,11 +1904,12 @@ const AdminPage = () => {
                 <option value="month">Mensual</option>
                 <option value="year">Anual</option>
               </select>
-              <input type="date" value={closureDate} onChange={(e) => setClosureDate(e.target.value)} />
+              {closurePeriod !== 'day' ? <input type="date" value={closureDate} onChange={(e) => setClosureDate(e.target.value)} /> : <span className="metric-caption">Conteo diario {dailyClosureOpen === null ? 'consultando...' : dailyClosureOpen ? 'abierto' : 'cerrado'}</span>}
             </div>
               <div className="closure-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button className="ghost-btn" onClick={() => loadClosureSummary(closurePeriod, closureDate)}>Ver cierre</button>
-              <button className="primary-btn" onClick={createClosure} disabled={isClosing}>{isClosing ? 'Generando...' : 'Cerrar y guardar'}</button>
+              <button className="primary-btn" onClick={createClosure} disabled={isClosing || (closurePeriod === 'day' && dailyClosureOpen !== true)}>{isClosing ? 'Generando...' : closurePeriod === 'day' ? 'Cerrar conteo y guardar' : 'Cerrar y guardar'}</button>
+              {closurePeriod === 'day' && dailyClosureOpen === false ? <button className="ghost-btn" onClick={openDailyClosureCount}>Abrir conteo nuevo</button> : null}
               <button className="ghost-btn" onClick={printClosure} disabled={!closureSummary}>Imprimir</button>
             </div>
             {closureSummary ? (
@@ -1884,6 +1931,39 @@ const AdminPage = () => {
                     <li key={order.id}><span>Pedido #{order.id}</span><strong>{formatCurrency(order.totalAmount, 'USD')}</strong></li>
                   ))}
                 </ul>
+                <div className="dashboard-grid dashboard-grid--wide">
+                  <div className="card" style={{ padding: '0.75rem' }}>
+                    <h4 style={{ margin: '0 0 0.25rem' }}>Recibido en USD</h4>
+                    <p style={{ margin: 0 }}>{formatCurrency(closureSummary.paymentTotals?.USD || 0, 'USD')}</p>
+                  </div>
+                  <div className="card" style={{ padding: '0.75rem' }}>
+                    <h4 style={{ margin: '0 0 0.25rem' }}>Recibido en Bs</h4>
+                    <p style={{ margin: 0 }}>{formatCurrency(closureSummary.paymentTotals?.BS || 0, 'BS')}</p>
+                  </div>
+                  <div className="card" style={{ padding: '0.75rem' }}>
+                    <h4 style={{ margin: '0 0 0.25rem' }}>Equivalente recibido</h4>
+                    <p style={{ margin: 0 }}>{formatCurrency(closureSummary.paymentTotals?.totalUsd || 0, 'USD')}</p>
+                  </div>
+                </div>
+                <h4 style={{ margin: '0.5rem 0 0' }}>Abonos y saldos por pedido</h4>
+                {closureSummary.payments?.length ? (
+                  <div className="dashboard-ledger__scroll">
+                    <table className="table">
+                      <thead><tr><th>Pedido</th><th>Pago</th><th>Fecha</th><th>Recibido</th><th>Saldo restante</th></tr></thead>
+                      <tbody>
+                        {closureSummary.payments.map((payment, index) => (
+                          <tr key={`${payment.orderId}-${payment.kind}-${index}`}>
+                            <td>#{payment.orderId}</td>
+                            <td>{payment.kind}</td>
+                            <td>{new Date(payment.receivedAt).toLocaleString('es-VE')}</td>
+                            <td>{formatCurrency(payment.amount, payment.currency)}</td>
+                            <td>{formatCurrency(payment.remainingUsd, 'USD')} · {formatCurrency(payment.remainingBs, 'BS')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : <p className="metric-caption">No hubo pagos registrados en este período.</p>}
                 <AdminPagination page={currentClosurePage} totalItems={closureOrders.length} onPageChange={setClosurePage} label="pedidos del cierre" />
               </div>
             ) : <p style={{ color: '#64748b', marginTop: '0.75rem' }}>Selecciona un rango y genera el cierre para ver el resumen.</p>}
