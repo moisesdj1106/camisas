@@ -288,16 +288,9 @@ const createEmptyContentForm = () => ({
 const orderStatusOptions = [
   ['pending', 'Pendiente'],
   ['approved', 'Aprobado'],
-  ['requires_info', 'Requiere información'],
-  ['preparing', 'En preparación'],
-  ['ready_pickup', 'Listo para retirar'],
-  ['shipped', 'Enviado'],
-  ['delivered', 'Entregado'],
-  ['rejected', 'Rechazado'],
-  ['cancelled', 'Cancelado']
+  ['rejected', 'Rechazado']
 ];
 
-const orderStatusLabel = Object.fromEntries(orderStatusOptions);
 const ORDERS_PER_PAGE = 8;
 const USERS_PER_PAGE = 8;
 
@@ -562,30 +555,6 @@ const AdminPage = () => {
     } finally {
       setUploadingOrderProof('');
       input.value = '';
-    }
-  };
-
-  const updateStatus = async (orderId, status) => {
-    try {
-      const response = await fetch(apiUrl(`/api/admin/orders/${orderId}/status`), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ status })
-      });
-      let data = null;
-      try {
-        data = await response.json();
-      } catch (error) {
-        data = { id: orderId };
-      }
-      if (response.ok) {
-        setOrders((current) => current.map((item) => item.id === data.id ? { ...item, status: data.status || status } : item));
-        setMessage(`Pedido #${orderId}: ${orderStatusLabel[status] || status}`);
-      } else {
-        setMessage(data?.error || 'No se pudo actualizar el pedido.');
-      }
-    } catch (error) {
-      setMessage('No se pudo actualizar el pedido.');
     }
   };
 
@@ -1602,7 +1571,7 @@ const AdminPage = () => {
     if (!detail) return null;
     return (
       <tr className="order-expanded-row" key={`order-detail-${order.id}`}>
-        <td className="order-expanded-row__cell" colSpan={8}>
+        <td className="order-expanded-row__cell" colSpan={7}>
           <div className="card order-expanded-panel">
             <div className="order-detail__header">
               <h4>Detalle del pedido #{order.id}</h4>
@@ -2316,7 +2285,6 @@ const AdminPage = () => {
                   <th>Total</th>
                   <th>Comprobante</th>
                   <th>Detalle</th>
-                  <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -2351,11 +2319,6 @@ const AdminPage = () => {
                     </td>
                     <td>
                       <button className="icon-btn" onClick={() => loadOrderDetail(order.id)} title={expandedOrderId === order.id ? 'Ocultar productos' : 'Ver productos'} aria-label={expandedOrderId === order.id ? `Ocultar productos del pedido ${order.id}` : `Ver productos del pedido ${order.id}`}>{expandedOrderId === order.id ? '⌃' : '⌄'}</button>
-                    </td>
-                    <td>
-                      <select value={order.status} onChange={(event) => updateStatus(order.id, event.target.value)} aria-label={`Estado del pedido ${order.id}`}>
-                        {orderStatusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                      </select>
                     </td>
                     <td>
                       <button className="icon-btn" onClick={() => openOrderEdit(order.id)} title="Editar todos los datos del pedido" aria-label={`Editar todos los datos del pedido ${order.id}`}>✎</button>
