@@ -999,9 +999,41 @@ const AdminPage = () => {
     await loadOrderDetail(orderId, true);
   };
 
+  const getManualOrderAvailableStock = (product, size) => {
+    if (!product) return 0;
+    const stockBySize = product.stock_by_size || {};
+    const tracksSizes = Object.keys(stockBySize).length > 0;
+    const stock = tracksSizes ? Number(stockBySize[size] || 0) : Number(product.stock || 0);
+    const alreadyAdded = manualOrderForm.items
+      .filter((item) => Number(item.product_id) === Number(product.id) && (!tracksSizes || item.size === size))
+      .reduce((total, item) => total + Number(item.quantity || 0), 0);
+    return Math.max(0, stock - alreadyAdded);
+  };
+
   const addManualOrderItem = () => {
     if (!manualOrderItemForm.product_id || !manualOrderItemForm.size) {
       setMessage('Selecciona una camiseta y la talla antes de agregarla al pedido.');
+      return;
+    }
+    const product = inventory.find((item) => Number(item.id) === Number(manualOrderItemForm.product_id));
+    if (!product) {
+      setMessage('La camiseta seleccionada no existe en el inventario.');
+      return;
+    }
+    if (manualOrderItemForm.dorsalMode === 'none' && product.allow_no_dorsal === false) {
+      setMessage(`La camiseta ${product.title} no se vende sin dorsal.`);
+      return;
+    }
+    if (manualOrderItemForm.dorsalMode === 'catalog' && product.allow_catalog_dorsal === false) {
+      setMessage(`La camiseta ${product.title} no permite dorsales de jugador.`);
+      return;
+    }
+    if (manualOrderItemForm.dorsalMode === 'custom' && product.allow_custom_dorsal === false) {
+      setMessage(`La camiseta ${product.title} no permite personalización.`);
+      return;
+    }
+    if (!['none', 'catalog', 'custom'].includes(manualOrderItemForm.dorsalMode)) {
+      setMessage('Selecciona una modalidad de dorsal permitida para esta camiseta.');
       return;
     }
     const selectedDorsal = manualOrderDorsals.find((item) => String(item.id) === String(manualOrderItemForm.dorsalId));
@@ -1013,13 +1045,12 @@ const AdminPage = () => {
       setMessage('Completa el nombre y número de la personalización.');
       return;
     }
-
-    const product = inventory.find((item) => Number(item.id) === Number(manualOrderItemForm.product_id));
-    if (!product) {
-      setMessage('La camiseta seleccionada no existe en el inventario.');
+    const quantity = Math.max(1, Number(manualOrderItemForm.quantity) || 1);
+    const availableStock = getManualOrderAvailableStock(product, manualOrderItemForm.size);
+    if (quantity > availableStock) {
+      setMessage(`No hay suficiente stock para la talla ${manualOrderItemForm.size}. Disponibles: ${availableStock}.`);
       return;
     }
-    const quantity = Math.max(1, Number(manualOrderItemForm.quantity) || 1);
     setManualOrderForm((current) => ({
       ...current,
       items: [...current.items, {
@@ -2322,11 +2353,18 @@ const AdminPage = () => {
             <select value={manualOrderItemForm.product_id} onChange={async (event) => {
               const productId = event.target.value;
               const product = inventory.find((item) => Number(item.id) === Number(productId));
-              setManualOrderItemForm((current) => ({ ...current, product_id: productId, size: '', dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' }));
+              setManualOrderItemForm((current) => ({ ...current, product_id: productId, size: '', dorsalMode: product?.allow_no_dorsal !== false ? 'none' : '', dorsalId: '', customName: '', customNumber: '' }));
               if (productId) {
                 const response = await fetch(apiUrl(`/api/products/${productId}`));
                 const data = await response.json().catch(() => ({}));
-                setManualOrderDorsals(data.dorsals || []);
+                const dorsals = data.dorsals || [];
+                setManualOrderDorsals(dorsals);
+                const dorsalMode = product?.allow_no_dorsal !== false
+                  ? 'none'
+                  : product?.allow_catalog_dorsal !== false && dorsals.some((item) => item.is_available)
+                    ? 'catalog'
+                    : product?.allow_custom_dorsal !== false ? 'custom' : '';
+                setManualOrderItemForm((current) => ({ ...current, dorsalMode }));
               } else {
                 setManualOrderDorsals([]);
               }
@@ -2340,16 +2378,24 @@ const AdminPage = () => {
                 {(() => {
                   const product = inventory.find((item) => Number(item.id) === Number(manualOrderItemForm.product_id));
                   if (!product) return null;
-                  return Object.entries(product.stock_by_size || {}).filter(([, stock]) => Number(stock) > 0).map(([size]) => <option key={size} value={size}>{size}</option>);
+                  return sizeOptions.filter((size) => getManualOrderAvailableStock(product, size) > 0).map((size) => <option key={size} value={size}>{size} · {getManualOrderAvailableStock(product, size)} disponibles</option>);
                 })()}
               </select>
-              <input type="number" min="1" max="10" value={manualOrderItemForm.quantity} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, quantity: Number(event.target.value) || 1 }))} aria-label="Cantidad para pedido manual" />
+              <input type="number" min="1" max={manualOrderItemForm.size ? Math.min(10, getManualOrderAvailableStock(inventory.find((item) => Number(item.id) === Number(manualOrderItemForm.product_id)), manualOrderItemForm.size)) : 10} value={manualOrderItemForm.quantity} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, quantity: Number(event.target.value) || 1 }))} aria-label="Cantidad para pedido manual" />
             </div>
-            <select value={manualOrderItemForm.dorsalMode} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, dorsalMode: event.target.value, dorsalId: '', customName: '', customNumber: '' }))} aria-label="Tipo de dorsal para pedido manual">
-              <option value="none">Sin dorsal</option>
-              <option value="catalog">Dorsal de jugador</option>
-              <option value="custom">Camiseta personalizada</option>
-            </select>
+            {(() => {
+              const product = inventory.find((item) => Number(item.id) === Number(manualOrderItemForm.product_id));
+              const dorsalModes = [
+                { value: 'none', label: 'Sin dorsal', allowed: product?.allow_no_dorsal !== false },
+                { value: 'catalog', label: 'Dorsal de jugador', allowed: product?.allow_catalog_dorsal !== false && manualOrderDorsals.some((item) => item.is_available) },
+                { value: 'custom', label: 'Camiseta personalizada', allowed: product?.allow_custom_dorsal !== false }
+              ].filter((mode) => mode.allowed);
+              return (
+                <select value={manualOrderItemForm.dorsalMode} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, dorsalMode: event.target.value, dorsalId: '', customName: '', customNumber: '' }))} aria-label="Tipo de dorsal para pedido manual" disabled={!product || dorsalModes.length === 0}>
+                  {dorsalModes.length ? dorsalModes.map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>) : <option value="">Sin modalidades de dorsal configuradas</option>}
+                </select>
+              );
+            })()}
             {manualOrderItemForm.dorsalMode === 'catalog' ? (
               <select value={manualOrderItemForm.dorsalId} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, dorsalId: event.target.value }))} aria-label="Dorsal de jugador para pedido manual">
                 <option value="">Selecciona dorsal *</option>
