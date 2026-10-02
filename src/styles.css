@@ -295,6 +295,7 @@ button, input, select, textarea { font: inherit; }
   .video-tile { transition: none; }
 }
 .product-modal__details { display: flex; flex-direction: column; gap: 0.8rem; }
+.product-modal__description { text-align: justify; }
 .inventory-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.8rem; }
 .inventory-item { display: flex; flex-direction: column; gap: 0.55rem; padding: 0.9rem; border: 1px solid #e2ebff; border-radius: 16px; background: #fbfdff; }
 .inventory-item__actions { display: flex; gap: 0.45rem; flex-wrap: wrap; }
@@ -367,7 +368,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 @keyframes admin-menu-enter { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
 .dashboard-grid--wide { grid-template-columns: 2fr 1fr; }
-.dashboard-hero { display: flex; justify-content: space-between; gap: 1rem; align-items: center; padding: 1.1rem 1.2rem; }
+.dashboard-hero { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; padding: 1.1rem 1.2rem; }
 .dashboard-rate-box { display: flex; flex-direction: column; gap: 0.4rem; background: #f8fbff; border: 1px solid #dbeafe; border-radius: 16px; padding: 0.8rem; min-width: 220px; }
 .dashboard-rate-actions { display: flex; gap: 0.5rem; margin-top: 0.35rem; }
 .dashboard-rate-actions input { min-width: 90px; }
