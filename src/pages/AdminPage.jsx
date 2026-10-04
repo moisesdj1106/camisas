@@ -1664,10 +1664,15 @@ const AdminPage = () => {
     `¿Quieres eliminar definitivamente el apartado de ${request.client_name} para ${request.model}? Esta acción no se puede deshacer.`,
     async () => {
       setStockRequestError('');
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setStockRequestError('Tu sesión expiró. Inicia sesión nuevamente para eliminar el apartado.');
+        return;
+      }
       try {
-        const response = await fetch(apiUrl(`/api/admin/stock-requests/${request.id}`), {
+        const response = await apiFetch(`/api/admin/stock-requests/${request.id}`, {
           method: 'DELETE',
-          headers: { Authorization: `******'token')}` }
+          headers: { Authorization: `Bearer ${token}` }
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'No se pudo eliminar el apartado.');
