@@ -1818,6 +1818,39 @@ const AdminPage = () => {
             <div className="card">
               <h3>Alertas de stock</h3>
               <p className="metric-value">{dashboard.lowStock.length}</p>
+              <span className="metric-caption">
+                {(dashboard.lowStock || []).filter((product) => Number(product.stock) === 0).length} sin stock · {(dashboard.lowStock || []).filter((product) => Number(product.stock) > 0).length} con stock bajo
+              </span>
+            </div>
+          </div>
+
+          <div className="card">
+            <h3>Productos que requieren reposición</h3>
+            <div className="dashboard-stock-alerts">
+              {[
+                { title: 'Sin stock', products: (dashboard.lowStock || []).filter((product) => Number(product.stock) === 0) },
+                { title: 'Stock bajo (1–5 unidades)', products: (dashboard.lowStock || []).filter((product) => Number(product.stock) > 0) }
+              ].map((group) => (
+                <section className="dashboard-stock-alerts__group" key={group.title}>
+                  <h4>{group.title} <span>({group.products.length})</span></h4>
+                  {group.products.length ? (
+                    <ul>
+                      {group.products.map((product) => {
+                        const sizes = Object.entries(product.stock_by_size || {})
+                          .filter(([, quantity]) => Number(quantity) > 0)
+                          .map(([size, quantity]) => `${size}: ${quantity}`)
+                          .join(' · ');
+                        return (
+                          <li key={product.id}>
+                            <strong>{product.title}</strong>
+                            <span>{Number(product.stock)} {Number(product.stock) === 1 ? 'unidad' : 'unidades'}{sizes ? ` · ${sizes}` : ''}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : <p>No hay camisetas en esta categoría.</p>}
+                </section>
+              ))}
             </div>
           </div>
 
