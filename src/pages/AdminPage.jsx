@@ -285,6 +285,21 @@ const createEmptyContentForm = () => ({
   is_active: true
 });
 
+const createEmptyStockRequestForm = () => ({
+  client_name: '',
+  phone: '',
+  email: '',
+  model: '',
+  shirt_type: 'local',
+  size: '',
+  dorsal: '',
+  printed_name: '',
+  deposit_amount: '',
+  deposit_currency: 'USD',
+  notes: '',
+  model_image: null
+});
+
 const orderStatusOptions = [
   ['pending', 'Pendiente'],
   ['approved', 'Aprobado'],
@@ -369,6 +384,16 @@ const AdminPage = () => {
   const oldestLedgerDate = toLocalDateInput(oldestLedgerDateValue);
   const [approvedPdfFrom, setApprovedPdfFrom] = useState(today);
   const [approvedPdfTo, setApprovedPdfTo] = useState(today);
+  const [stockRequests, setStockRequests] = useState([]);
+  const [stockRequestForm, setStockRequestForm] = useState(createEmptyStockRequestForm());
+  const [stockRequestPreview, setStockRequestPreview] = useState('');
+  const [stockRequestFrom, setStockRequestFrom] = useState('');
+  const [stockRequestTo, setStockRequestTo] = useState('');
+  const [stockRequestError, setStockRequestError] = useState('');
+  const [isLoadingStockRequests, setIsLoadingStockRequests] = useState(false);
+  const [isSavingStockRequest, setIsSavingStockRequest] = useState(false);
+  const [isDownloadingStockRequests, setIsDownloadingStockRequests] = useState(false);
+  const stockRequestLoadId = useRef(0);
   const productFormRef = useRef(null);
 
   const parseImageUrls = (value) => {
@@ -391,6 +416,11 @@ const AdminPage = () => {
       window.requestAnimationFrame(() => productFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
     }
   }, [editingProductId, showCreateForm]);
+
+  useEffect(() => {
+    if (!stockRequestPreview) return undefined;
+    return () => URL.revokeObjectURL(stockRequestPreview);
+  }, [stockRequestPreview]);
 
   const loadDashboard = async () => {
     const token = localStorage.getItem('token');
@@ -427,6 +457,32 @@ const AdminPage = () => {
       setMessage('No se pudo cargar la información del panel.');
     }
   };
+
+  const loadStockRequests = async () => {
+    const loadId = ++stockRequestLoadId.current;
+    setIsLoadingStockRequests(true);
+    setStockRequestError('');
+    try {
+      const query = new URLSearchParams();
+      if (stockRequestFrom) query.set('from', stockRequestFrom);
+      if (stockRequestTo) query.set('to', stockRequestTo);
+      const queryString = query.toString();
+      const response = await fetch(apiUrl(`/api/admin/stock-requests${queryString ? `?${queryString}` : ''}`), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(data.error || 'No se pudieron cargar las solicitudes.');
+      if (loadId === stockRequestLoadId.current) setStockRequests(Array.isArray(data) ? data : []);
+    } catch (error) {
+      if (loadId === stockRequestLoadId.current) setStockRequestError(error.message || 'No se pudieron cargar las solicitudes.');
+    } finally {
+      if (loadId === stockRequestLoadId.current) setIsLoadingStockRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'stock-requests') loadStockRequests();
+  }, [activeView, stockRequestFrom, stockRequestTo]);
 
   useEffect(() => {
     loadDashboard();
@@ -1455,6 +1511,7 @@ const AdminPage = () => {
   const adminSections = [
     { value: 'overview', label: 'Resumen', description: 'Ventas, métricas y cierres' },
     { value: 'inventory', label: 'Inventario', description: 'Camisetas, stock y descuentos' },
+    { value: 'stock-requests', label: 'Pedidos por encargo', description: 'Apartados de modelos fuera de stock' },
     { value: 'orders', label: 'Pedidos', description: 'Clientes, estados y facturas' },
     { value: 'users', label: 'Usuarios', description: 'Clientes y administradores' },
     { value: 'clubs', label: 'Clubes y selecciones', description: 'Equipos y escudos' },
@@ -1494,6 +1551,77 @@ const AdminPage = () => {
       setMessage('Factura descargada correctamente.');
     } catch (error) {
       setMessage('No se pudo descargar la factura.');
+    }
+  };
+
+  const selectStockRequestImage = (event) => {
+    const file = event.currentTarget.files?.[0] || null;
+    setStockRequestForm((current) => ({ ...current, model_image: file }));
+    setStockRequestPreview(file ? URL.createObjectURL(file) : '');
+    event.currentTarget.value = '';
+  };
+
+  const saveStockRequest = async (event) => {
+    event.preventDefault();
+    setStockRequestError('');
+    if (stockRequestFrom && stockRequestTo && stockRequestFrom > stockRequestTo) {
+      setStockRequestError('La fecha inicial no puede ser posterior a la fecha final.');
+      return;
+    }
+    setIsSavingStockRequest(true);
+    try {
+      const formData = new FormData();
+      Object.entries(stockRequestForm).forEach(([key, value]) => {
+        if (key !== 'model_image') formData.append(key, String(value ?? ''));
+      });
+      if (stockRequestForm.model_image) formData.append('model_image', stockRequestForm.model_image);
+      const response = await fetch(apiUrl('/api/admin/stock-requests'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: formData
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'No se pudo registrar el pedido por encargo.');
+      setStockRequestForm(createEmptyStockRequestForm());
+      setStockRequestPreview('');
+      await loadStockRequests();
+      setMessage('Pedido por encargo registrado. El abono queda separado del estado de cuenta.');
+    } catch (error) {
+      setStockRequestError(error.message || 'No se pudo registrar el pedido por encargo.');
+    } finally {
+      setIsSavingStockRequest(false);
+    }
+  };
+
+  const downloadStockRequestsPdf = async () => {
+    if (stockRequestFrom && stockRequestTo && stockRequestFrom > stockRequestTo) {
+      setStockRequestError('La fecha inicial no puede ser posterior a la fecha final.');
+      return;
+    }
+    setIsDownloadingStockRequests(true);
+    setStockRequestError('');
+    try {
+      const query = new URLSearchParams();
+      if (stockRequestFrom) query.set('from', stockRequestFrom);
+      if (stockRequestTo) query.set('to', stockRequestTo);
+      const response = await fetch(apiUrl(`/api/admin/stock-requests/pdf${query.toString() ? `?${query}` : ''}`), {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo generar el PDF de pedidos por encargo.');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `pedidos-por-encargo${stockRequestFrom ? `-${stockRequestFrom}` : ''}${stockRequestTo ? `-${stockRequestTo}` : ''}.pdf`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setStockRequestError(error.message || 'No se pudo generar el PDF de pedidos por encargo.');
+    } finally {
+      setIsDownloadingStockRequests(false);
     }
   };
 
@@ -1675,7 +1803,7 @@ const AdminPage = () => {
               <p className="admin-menu__title">Navegación del panel</p>
               {adminSections.map((section) => (
                 <button key={section.value} className={activeView === section.value ? 'admin-menu__item admin-menu__item--active' : 'admin-menu__item'} type="button" onClick={() => setView(section.value)} role="menuitem">
-                  <span className="admin-menu__item-icon" aria-hidden="true">{section.value === 'overview' ? '⌂' : section.value === 'inventory' ? '▣' : section.value === 'orders' ? '▤' : section.value === 'users' ? '♙' : section.value === 'clubs' ? '⚽' : section.value === 'content' ? '▧' : '◌'}</span>
+                  <span className="admin-menu__item-icon" aria-hidden="true">{section.value === 'overview' ? '⌂' : section.value === 'inventory' ? '▣' : section.value === 'stock-requests' ? '＋' : section.value === 'orders' ? '▤' : section.value === 'users' ? '♙' : section.value === 'clubs' ? '⚽' : section.value === 'content' ? '▧' : '◌'}</span>
                   <span><strong>{section.label}</strong><small>{section.description}</small></span>
                   {activeView === section.value ? <span className="admin-menu__check" aria-hidden="true">✓</span> : null}
                 </button>
@@ -2091,6 +2219,78 @@ const AdminPage = () => {
             </table>
           ) : <p style={{ color: '#64748b' }}>Todavía no hay camisetas registradas.</p>}
           <AdminPagination page={currentInventoryPage} totalItems={filteredInventory.length} onPageChange={setInventoryPage} label="inventario" />
+        </div>
+      ) : null}
+
+      {activeView === 'stock-requests' ? (
+        <div className="stock-request-module">
+          <section className="card">
+            <div className="filters-card__header">
+              <div>
+                <h3>Registrar pedido por encargo</h3>
+                <p>Registra modelos que el cliente aparta y que deben solicitarse al proveedor. No modifica el inventario ni el estado de cuenta.</p>
+              </div>
+            </div>
+            <form className="inventory-form" onSubmit={saveStockRequest}>
+              <div className="filter-grid">
+                <label className="inventory-field"><span>Nombre del cliente</span><input required maxLength="150" value={stockRequestForm.client_name} onChange={(event) => setStockRequestForm((current) => ({ ...current, client_name: event.target.value }))} /></label>
+                <label className="inventory-field"><span>Teléfono</span><input required maxLength="50" value={stockRequestForm.phone} onChange={(event) => setStockRequestForm((current) => ({ ...current, phone: event.target.value }))} placeholder="+58..." /></label>
+                <label className="inventory-field"><span>Correo (opcional)</span><input type="email" maxLength="150" value={stockRequestForm.email} onChange={(event) => setStockRequestForm((current) => ({ ...current, email: event.target.value }))} /></label>
+                <label className="inventory-field"><span>Modelo de camiseta</span><input required maxLength="200" value={stockRequestForm.model} onChange={(event) => setStockRequestForm((current) => ({ ...current, model: event.target.value }))} placeholder="Ej. Real Madrid 2025/26" /></label>
+                <label className="inventory-field"><span>Versión</span><select value={stockRequestForm.shirt_type} onChange={(event) => setStockRequestForm((current) => ({ ...current, shirt_type: event.target.value }))}><option value="local">Local</option><option value="visitante">Visitante</option><option value="alternativa">Alternativa</option></select></label>
+                <label className="inventory-field"><span>Talla</span><select required value={stockRequestForm.size} onChange={(event) => setStockRequestForm((current) => ({ ...current, size: event.target.value }))}><option value="">Selecciona una talla</option>{sizeOptions.map((size) => <option value={size} key={size}>{size}</option>)}</select></label>
+                <label className="inventory-field"><span>Dorsal</span><input maxLength="50" value={stockRequestForm.dorsal} onChange={(event) => setStockRequestForm((current) => ({ ...current, dorsal: event.target.value }))} placeholder="Número o nombre del jugador" /></label>
+                <label className="inventory-field"><span>Nombre para estampar</span><input maxLength="150" value={stockRequestForm.printed_name} onChange={(event) => setStockRequestForm((current) => ({ ...current, printed_name: event.target.value }))} /></label>
+                <label className="inventory-field"><span>Abono recibido (opcional)</span><input type="number" min="0" step="0.01" value={stockRequestForm.deposit_amount} onChange={(event) => setStockRequestForm((current) => ({ ...current, deposit_amount: event.target.value }))} placeholder="0.00" /></label>
+                <label className="inventory-field"><span>Moneda del abono</span><select value={stockRequestForm.deposit_currency} onChange={(event) => setStockRequestForm((current) => ({ ...current, deposit_currency: event.target.value }))}><option value="USD">USD</option><option value="BS">Bs</option></select></label>
+              </div>
+              <label className="inventory-field"><span>Foto del modelo (JPG o PNG, opcional)</span><input type="file" accept="image/jpeg,image/png" onChange={selectStockRequestImage} /></label>
+              {stockRequestPreview ? <img className="stock-request-preview" src={stockRequestPreview} alt="Vista previa del modelo solicitado" /> : null}
+              <label className="inventory-field"><span>Notas (opcional)</span><textarea rows="2" maxLength="1000" value={stockRequestForm.notes} onChange={(event) => setStockRequestForm((current) => ({ ...current, notes: event.target.value }))} /></label>
+              {stockRequestError ? <p className="stock-request-error" role="alert">{stockRequestError}</p> : null}
+              <button className="primary-btn" type="submit" disabled={isSavingStockRequest}>{isSavingStockRequest ? 'Guardando pedido...' : 'Registrar pedido por encargo'}</button>
+            </form>
+          </section>
+
+          <section className="card">
+            <div className="filters-card__header">
+              <div>
+                <h3>Solicitudes registradas</h3>
+                <p>Elige fechas para filtrar la lista y generar un PDF. Sin fechas se incluyen todas.</p>
+              </div>
+              <button className="primary-btn" type="button" onClick={downloadStockRequestsPdf} disabled={isDownloadingStockRequests}>
+                {isDownloadingStockRequests ? 'Generando PDF...' : 'Descargar PDF'}
+              </button>
+            </div>
+            <div className="stock-request-filters">
+              <label className="inventory-field"><span>Desde</span><input type="date" value={stockRequestFrom} onChange={(event) => setStockRequestFrom(event.target.value)} /></label>
+              <label className="inventory-field"><span>Hasta</span><input type="date" value={stockRequestTo} onChange={(event) => setStockRequestTo(event.target.value)} /></label>
+              <button className="ghost-btn" type="button" onClick={() => { setStockRequestFrom(''); setStockRequestTo(''); }}>Ver todas</button>
+              <span className="metric-caption">{stockRequests.length} solicitud(es)</span>
+            </div>
+            {stockRequestError ? <p className="stock-request-error" role="alert">{stockRequestError}</p> : null}
+            {isLoadingStockRequests ? <p className="metric-caption">Cargando solicitudes...</p> : null}
+            {!isLoadingStockRequests && stockRequests.length ? (
+              <div className="stock-request-table-wrap">
+                <table className="table stock-request-table">
+                  <thead><tr><th>Fecha</th><th>Cliente</th><th>Modelo</th><th>Talla y personalización</th><th>Abono</th><th>Foto</th></tr></thead>
+                  <tbody>
+                    {stockRequests.map((request) => (
+                      <tr key={request.id}>
+                        <td>{new Date(request.created_at).toLocaleDateString('es-VE')}</td>
+                        <td><strong>{request.client_name}</strong><br /><small>{request.phone}{request.email ? ` · ${request.email}` : ''}</small></td>
+                        <td>{request.model}<br /><small>{({ local: 'Local', visitante: 'Visitante', alternativa: 'Alternativa' })[request.shirt_type]}</small></td>
+                        <td>{request.size}<br /><small>Dorsal: {request.dorsal || '—'} · Nombre: {request.printed_name || '—'}</small></td>
+                        <td>{formatCurrency(request.deposit_amount, request.deposit_currency)}</td>
+                        <td>{request.image_url ? <a href={assetUrl(request.image_url)} target="_blank" rel="noreferrer"><img className="stock-request-thumbnail" src={assetUrl(request.image_url)} alt={`Modelo solicitado por ${request.client_name}`} /></a> : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+            {!isLoadingStockRequests && !stockRequests.length && !stockRequestError ? <p className="metric-caption">No hay pedidos por encargo en este período.</p> : null}
+          </section>
         </div>
       ) : null}
 
