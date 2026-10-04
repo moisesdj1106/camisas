@@ -382,14 +382,32 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .dashboard-stock-alerts__group li span, .dashboard-stock-alerts__group > p { margin: 0; color: #64748b; font-size: 0.85rem; }
 .stock-request-module { display: grid; gap: 1rem; margin-bottom: 1rem; }
 .stock-request-module .filters-card__header p { margin: 0.25rem 0 0; color: #64748b; }
+.stock-request-heading { display: flex; align-items: center; justify-content: space-between; gap: 1.25rem; }
+.stock-request-heading h3 { margin: 0.15rem 0; color: #0f2d52; }
+.stock-request-heading p:last-child { max-width: 680px; margin: 0.3rem 0 0; color: #64748b; line-height: 1.5; }
+.stock-request-heading .eyebrow { color: #2563eb; font-size: 0.68rem; }
 .stock-request-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem; margin-bottom: 0.75rem; }
 .stock-request-filters .inventory-field { min-width: 170px; }
 .stock-request-table-wrap { overflow-x: auto; }
-.stock-request-table { min-width: 760px; }
+.stock-request-table { min-width: 920px; }
 .stock-request-table td small { color: #64748b; }
-.stock-request-thumbnail { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; }
-.stock-request-preview { display: block; width: min(260px, 100%); max-height: 260px; margin: 0.25rem 0 0.75rem; object-fit: contain; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fbff; }
+.stock-request-table .stock-request-thumbnail-link { display: block; width: 64px; height: 64px; overflow: hidden; border: 1px solid #dbeafe; border-radius: 10px; background: #f8fbff; }
+.stock-request-table .stock-request-thumbnail { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .stock-request-error { margin: 0; color: #b91c1c; font-weight: 650; }
+.admin-stock-request-modal { width: min(720px, 100%); max-height: min(92dvh, 880px); }
+.admin-stock-request-modal .app-modal__message { margin-bottom: 1rem; }
+.stock-request-form { display: grid; gap: 1rem; }
+.stock-request-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem 1rem; }
+.stock-request-form__wide { grid-column: 1 / -1; }
+.stock-request-form .inventory-field { align-content: start; }
+.stock-request-form .inventory-field > span { min-height: 1.15rem; }
+.stock-request-form .inventory-field input:not([type='file']), .stock-request-form .inventory-field select { height: 46px; min-height: 46px; padding: 0.65rem 0.8rem; }
+.stock-request-form .inventory-field textarea { min-height: 76px; resize: vertical; }
+.stock-request-form .inventory-field select { appearance: none; padding-right: 2.5rem; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='m5 7.5 5 5 5-5' stroke='%23475569' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.8rem center; background-size: 1rem; }
+.stock-request-form .inventory-field input[type='file'] { min-height: 46px; padding: 0.55rem 0.65rem; }
+.stock-request-form__preview-wrap { display: flex; align-items: center; gap: 0.75rem; grid-column: 1 / -1; }
+.stock-request-form__preview { width: 104px !important; height: 104px !important; object-fit: cover !important; border: 1px solid #dbeafe; border-radius: 12px !important; background: #f8fbff; }
+.stock-request-form__actions { position: sticky; bottom: -1.25rem; display: flex; justify-content: flex-end; gap: 0.65rem; padding: 0.9rem 0 0.15rem; border-top: 1px solid #e2e8f0; background: #fff; }
 .dashboard-chart { width: 100%; height: auto; }
 .dashboard-ledger { overflow: hidden; border-color: #cbdedb; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07); }
 .dashboard-ledger__header { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid #e2e8f0; }
@@ -591,9 +609,14 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .dashboard-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.55rem; }
   .dashboard-grid--wide { grid-template-columns: 1fr; }
   .dashboard-stock-alerts { grid-template-columns: 1fr; gap: 0.75rem; }
-  .stock-request-module .filters-card__header { align-items: flex-start; flex-direction: column; }
+  .stock-request-heading { align-items: stretch; flex-direction: column; }
+  .stock-request-heading .primary-btn { width: 100%; }
   .stock-request-filters { align-items: stretch; }
   .stock-request-filters .inventory-field { min-width: min(100%, 150px); flex: 1; }
+  .stock-request-form__grid { grid-template-columns: 1fr; gap: 0.65rem; }
+  .stock-request-form__wide, .stock-request-form__preview-wrap { grid-column: auto; }
+  .stock-request-form__actions { bottom: -1rem; flex-direction: column-reverse; }
+  .stock-request-form__actions button { width: 100%; }
   .dashboard-grid > .card { padding: 0.7rem; min-width: 0; }
   .dashboard-grid > .card h3 { margin: 0; font-size: 0.88rem; line-height: 1.15; }
   .metric-value { font-size: 1.2rem; line-height: 1.1; overflow-wrap: anywhere; }

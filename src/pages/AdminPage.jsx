@@ -292,12 +292,15 @@ const createEmptyStockRequestForm = () => ({
   model: '',
   shirt_type: 'local',
   size: '',
+  has_print: false,
   dorsal: '',
   printed_name: '',
   deposit_amount: '',
   deposit_currency: 'USD',
   notes: '',
-  model_image: null
+  model_image: null,
+  image_url: '',
+  remove_image: false
 });
 
 const orderStatusOptions = [
@@ -386,6 +389,8 @@ const AdminPage = () => {
   const [approvedPdfTo, setApprovedPdfTo] = useState(today);
   const [stockRequests, setStockRequests] = useState([]);
   const [stockRequestForm, setStockRequestForm] = useState(createEmptyStockRequestForm());
+  const [stockRequestModalOpen, setStockRequestModalOpen] = useState(false);
+  const [editingStockRequestId, setEditingStockRequestId] = useState(null);
   const [stockRequestPreview, setStockRequestPreview] = useState('');
   const [stockRequestFrom, setStockRequestFrom] = useState('');
   const [stockRequestTo, setStockRequestTo] = useState('');
@@ -471,7 +476,9 @@ const AdminPage = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       const data = await response.json().catch(() => []);
-      if (!response.ok) throw new Error(data.error || 'No se pudieron cargar las solicitudes.');
+      if (!response.ok) throw new Error(data.error || (response.status === 404
+        ? 'La ruta de apartados no existe en el backend activo. Reinicia o vuelve a desplegar el backend actualizado.'
+        : 'No se pudieron cargar las solicitudes.'));
       if (loadId === stockRequestLoadId.current) setStockRequests(Array.isArray(data) ? data : []);
     } catch (error) {
       if (loadId === stockRequestLoadId.current) setStockRequestError(error.message || 'No se pudieron cargar las solicitudes.');
@@ -1555,10 +1562,60 @@ const AdminPage = () => {
   };
 
   const selectStockRequestImage = (event) => {
+    setStockRequestError('');
     const file = event.currentTarget.files?.[0] || null;
-    setStockRequestForm((current) => ({ ...current, model_image: file }));
+    if (file && !['image/jpeg', 'image/png'].includes(file.type)) {
+      setStockRequestError('La imagen debe estar en formato JPG o PNG.');
+      event.currentTarget.value = '';
+      return;
+    }
+    if (file && file.size > 8 * 1024 * 1024) {
+      setStockRequestError('La imagen no puede superar los 8 MB.');
+      event.currentTarget.value = '';
+      return;
+    }
+    setStockRequestForm((current) => ({ ...current, model_image: file, image_url: '', remove_image: false }));
     setStockRequestPreview(file ? URL.createObjectURL(file) : '');
     event.currentTarget.value = '';
+  };
+
+  const openStockRequestEditor = (request) => {
+    setStockRequestError('');
+    if (!request) {
+      setEditingStockRequestId(null);
+      setStockRequestForm(createEmptyStockRequestForm());
+      setStockRequestPreview('');
+    } else {
+      setEditingStockRequestId(request.id);
+      setStockRequestForm({
+        client_name: request.client_name || '',
+        phone: request.phone || '',
+        email: request.email || '',
+        model: request.model || '',
+        shirt_type: request.shirt_type || 'local',
+        size: request.size || '',
+        has_print: request.has_print === true,
+        dorsal: request.dorsal || '',
+        printed_name: request.printed_name || '',
+        deposit_amount: String(request.deposit_amount ?? ''),
+        deposit_currency: request.deposit_currency || 'USD',
+        notes: request.notes || '',
+        model_image: null,
+        image_url: request.image_url || '',
+        remove_image: false
+      });
+      setStockRequestPreview(request.image_url ? assetUrl(request.image_url) : '');
+    }
+    setStockRequestModalOpen(true);
+  };
+
+  const closeStockRequestEditor = () => {
+    if (isSavingStockRequest) return;
+    setStockRequestModalOpen(false);
+    setEditingStockRequestId(null);
+    setStockRequestForm(createEmptyStockRequestForm());
+    setStockRequestPreview('');
+    setStockRequestError('');
   };
 
   const saveStockRequest = async (event) => {
@@ -1572,26 +1629,55 @@ const AdminPage = () => {
     try {
       const formData = new FormData();
       Object.entries(stockRequestForm).forEach(([key, value]) => {
-        if (key !== 'model_image') formData.append(key, String(value ?? ''));
+        if (!['model_image', 'image_url'].includes(key)) formData.append(key, String(value ?? ''));
       });
       if (stockRequestForm.model_image) formData.append('model_image', stockRequestForm.model_image);
-      const response = await fetch(apiUrl('/api/admin/stock-requests'), {
-        method: 'POST',
+      const isEditing = Boolean(editingStockRequestId);
+      const response = await fetch(apiUrl(isEditing
+        ? `/api/admin/stock-requests/${editingStockRequestId}`
+        : '/api/admin/stock-requests'), {
+        method: isEditing ? 'PUT' : 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
         body: formData
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'No se pudo registrar el pedido por encargo.');
+      if (!response.ok) throw new Error(data.error || (response.status === 404 && !isEditing
+        ? 'La ruta para registrar apartados no existe en el backend activo. Reinicia o vuelve a desplegar el backend actualizado.'
+        : `No se pudo ${isEditing ? 'actualizar' : 'registrar'} el pedido por encargo.`));
       setStockRequestForm(createEmptyStockRequestForm());
       setStockRequestPreview('');
+      setStockRequestModalOpen(false);
+      setEditingStockRequestId(null);
       await loadStockRequests();
-      setMessage('Pedido por encargo registrado. El abono queda separado del estado de cuenta.');
+      setMessage(isEditing
+        ? 'Apartado actualizado correctamente.'
+        : 'Pedido por encargo registrado. El abono queda separado del estado de cuenta.');
     } catch (error) {
-      setStockRequestError(error.message || 'No se pudo registrar el pedido por encargo.');
+      setStockRequestError(error.message || `No se pudo ${editingStockRequestId ? 'actualizar' : 'registrar'} el pedido por encargo.`);
     } finally {
       setIsSavingStockRequest(false);
     }
   };
+
+  const deleteStockRequest = (request) => requestConfirmation(
+    'Eliminar apartado',
+    `¿Quieres eliminar definitivamente el apartado de ${request.client_name} para ${request.model}? Esta acción no se puede deshacer.`,
+    async () => {
+      setStockRequestError('');
+      try {
+        const response = await fetch(apiUrl(`/api/admin/stock-requests/${request.id}`), {
+          method: 'DELETE',
+          headers: { Authorization: `******'token')}` }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'No se pudo eliminar el apartado.');
+        await loadStockRequests();
+        setMessage('Apartado eliminado correctamente.');
+      } catch (error) {
+        setStockRequestError(error.message || 'No se pudo eliminar el apartado.');
+      }
+    }
+  );
 
   const downloadStockRequestsPdf = async () => {
     if (stockRequestFrom && stockRequestTo && stockRequestFrom > stockRequestTo) {
@@ -2225,31 +2311,14 @@ const AdminPage = () => {
       {activeView === 'stock-requests' ? (
         <div className="stock-request-module">
           <section className="card">
-            <div className="filters-card__header">
+            <div className="stock-request-heading">
               <div>
-                <h3>Registrar pedido por encargo</h3>
-                <p>Registra modelos que el cliente aparta y que deben solicitarse al proveedor. No modifica el inventario ni el estado de cuenta.</p>
+                <p className="eyebrow">Control de mercancía</p>
+                <h3>Pedidos por encargo</h3>
+                <p>Registra modelos solicitados fuera de stock, junto con los datos del cliente y su abono. Este registro no modifica el inventario ni el estado de cuenta.</p>
               </div>
+              <button className="primary-btn" type="button" onClick={() => openStockRequestEditor(null)}>＋ Apartar pedido</button>
             </div>
-            <form className="inventory-form" onSubmit={saveStockRequest}>
-              <div className="filter-grid">
-                <label className="inventory-field"><span>Nombre del cliente</span><input required maxLength="150" value={stockRequestForm.client_name} onChange={(event) => setStockRequestForm((current) => ({ ...current, client_name: event.target.value }))} /></label>
-                <label className="inventory-field"><span>Teléfono</span><input required maxLength="50" value={stockRequestForm.phone} onChange={(event) => setStockRequestForm((current) => ({ ...current, phone: event.target.value }))} placeholder="+58..." /></label>
-                <label className="inventory-field"><span>Correo (opcional)</span><input type="email" maxLength="150" value={stockRequestForm.email} onChange={(event) => setStockRequestForm((current) => ({ ...current, email: event.target.value }))} /></label>
-                <label className="inventory-field"><span>Modelo de camiseta</span><input required maxLength="200" value={stockRequestForm.model} onChange={(event) => setStockRequestForm((current) => ({ ...current, model: event.target.value }))} placeholder="Ej. Real Madrid 2025/26" /></label>
-                <label className="inventory-field"><span>Versión</span><select value={stockRequestForm.shirt_type} onChange={(event) => setStockRequestForm((current) => ({ ...current, shirt_type: event.target.value }))}><option value="local">Local</option><option value="visitante">Visitante</option><option value="alternativa">Alternativa</option></select></label>
-                <label className="inventory-field"><span>Talla</span><select required value={stockRequestForm.size} onChange={(event) => setStockRequestForm((current) => ({ ...current, size: event.target.value }))}><option value="">Selecciona una talla</option>{sizeOptions.map((size) => <option value={size} key={size}>{size}</option>)}</select></label>
-                <label className="inventory-field"><span>Dorsal</span><input maxLength="50" value={stockRequestForm.dorsal} onChange={(event) => setStockRequestForm((current) => ({ ...current, dorsal: event.target.value }))} placeholder="Número o nombre del jugador" /></label>
-                <label className="inventory-field"><span>Nombre para estampar</span><input maxLength="150" value={stockRequestForm.printed_name} onChange={(event) => setStockRequestForm((current) => ({ ...current, printed_name: event.target.value }))} /></label>
-                <label className="inventory-field"><span>Abono recibido (opcional)</span><input type="number" min="0" step="0.01" value={stockRequestForm.deposit_amount} onChange={(event) => setStockRequestForm((current) => ({ ...current, deposit_amount: event.target.value }))} placeholder="0.00" /></label>
-                <label className="inventory-field"><span>Moneda del abono</span><select value={stockRequestForm.deposit_currency} onChange={(event) => setStockRequestForm((current) => ({ ...current, deposit_currency: event.target.value }))}><option value="USD">USD</option><option value="BS">Bs</option></select></label>
-              </div>
-              <label className="inventory-field"><span>Foto del modelo (JPG o PNG, opcional)</span><input type="file" accept="image/jpeg,image/png" onChange={selectStockRequestImage} /></label>
-              {stockRequestPreview ? <img className="stock-request-preview" src={stockRequestPreview} alt="Vista previa del modelo solicitado" /> : null}
-              <label className="inventory-field"><span>Notas (opcional)</span><textarea rows="2" maxLength="1000" value={stockRequestForm.notes} onChange={(event) => setStockRequestForm((current) => ({ ...current, notes: event.target.value }))} /></label>
-              {stockRequestError ? <p className="stock-request-error" role="alert">{stockRequestError}</p> : null}
-              <button className="primary-btn" type="submit" disabled={isSavingStockRequest}>{isSavingStockRequest ? 'Guardando pedido...' : 'Registrar pedido por encargo'}</button>
-            </form>
           </section>
 
           <section className="card">
@@ -2273,16 +2342,20 @@ const AdminPage = () => {
             {!isLoadingStockRequests && stockRequests.length ? (
               <div className="stock-request-table-wrap">
                 <table className="table stock-request-table">
-                  <thead><tr><th>Fecha</th><th>Cliente</th><th>Modelo</th><th>Talla y personalización</th><th>Abono</th><th>Foto</th></tr></thead>
+                  <thead><tr><th>Fecha</th><th>Cliente</th><th>Modelo</th><th>Talla y personalización</th><th>Abono</th><th>Foto</th><th>Acciones</th></tr></thead>
                   <tbody>
                     {stockRequests.map((request) => (
                       <tr key={request.id}>
                         <td>{new Date(request.created_at).toLocaleDateString('es-VE')}</td>
                         <td><strong>{request.client_name}</strong><br /><small>{request.phone}{request.email ? ` · ${request.email}` : ''}</small></td>
                         <td>{request.model}<br /><small>{({ local: 'Local', visitante: 'Visitante', alternativa: 'Alternativa' })[request.shirt_type]}</small></td>
-                        <td>{request.size}<br /><small>Dorsal: {request.dorsal || '—'} · Nombre: {request.printed_name || '—'}</small></td>
+                        <td>{request.size}<br /><small>{request.has_print ? `Estampado: ${request.printed_name} · #${request.dorsal}` : 'Sin estampar'}</small></td>
                         <td>{formatCurrency(request.deposit_amount, request.deposit_currency)}</td>
-                        <td>{request.image_url ? <a href={assetUrl(request.image_url)} target="_blank" rel="noreferrer"><img className="stock-request-thumbnail" src={assetUrl(request.image_url)} alt={`Modelo solicitado por ${request.client_name}`} /></a> : '—'}</td>
+                        <td>{request.image_url ? <a className="stock-request-thumbnail-link" href={assetUrl(request.image_url)} target="_blank" rel="noreferrer"><img className="stock-request-thumbnail" src={assetUrl(request.image_url)} alt={`Modelo solicitado por ${request.client_name}`} /></a> : '—'}</td>
+                        <td className="table-actions">
+                          <button className="icon-btn" type="button" onClick={() => openStockRequestEditor(request)} title="Editar apartado" aria-label={`Editar apartado de ${request.client_name}`}>✎</button>
+                          <button className="icon-btn icon-btn--danger" type="button" onClick={() => deleteStockRequest(request)} title="Eliminar apartado" aria-label={`Eliminar apartado de ${request.client_name}`}>🗑</button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -2607,6 +2680,111 @@ const AdminPage = () => {
         </div>
       ) : null}
 
+      <Modal
+        open={stockRequestModalOpen}
+        title={editingStockRequestId ? 'Editar apartado' : 'Apartar pedido para cliente'}
+        message={editingStockRequestId ? 'Actualiza los datos del apartado. El abono continúa separado del estado de cuenta.' : 'Completa los datos de la camiseta que debemos solicitar. El abono queda registrado por separado.'}
+        className="admin-stock-request-modal"
+        onClose={closeStockRequestEditor}
+      >
+        <form className="stock-request-form" onSubmit={saveStockRequest}>
+          <div className="stock-request-form__grid">
+            <label className="inventory-field">
+              <span>Nombre del cliente *</span>
+              <input required maxLength="150" autoComplete="name" value={stockRequestForm.client_name} onChange={(event) => setStockRequestForm((current) => ({ ...current, client_name: event.target.value }))} placeholder="Nombre y apellido" />
+            </label>
+            <label className="inventory-field">
+              <span>Teléfono *</span>
+              <input required maxLength="50" autoComplete="tel" value={stockRequestForm.phone} onChange={(event) => setStockRequestForm((current) => ({ ...current, phone: event.target.value }))} placeholder="+58..." />
+            </label>
+            <label className="inventory-field stock-request-form__wide">
+              <span>Correo (opcional)</span>
+              <input type="email" maxLength="150" autoComplete="email" value={stockRequestForm.email} onChange={(event) => setStockRequestForm((current) => ({ ...current, email: event.target.value }))} placeholder="cliente@correo.com" />
+            </label>
+            <label className="inventory-field stock-request-form__wide">
+              <span>Modelo de camiseta *</span>
+              <input required maxLength="200" value={stockRequestForm.model} onChange={(event) => setStockRequestForm((current) => ({ ...current, model: event.target.value }))} placeholder="Ej. Real Madrid 2025/26" />
+            </label>
+            <label className="inventory-field">
+              <span>Versión *</span>
+              <select required value={stockRequestForm.shirt_type} onChange={(event) => setStockRequestForm((current) => ({ ...current, shirt_type: event.target.value }))}>
+                <option value="local">Local</option>
+                <option value="visitante">Visitante</option>
+                <option value="alternativa">Alternativa</option>
+              </select>
+            </label>
+            <label className="inventory-field">
+              <span>Talla *</span>
+              <select required value={stockRequestForm.size} onChange={(event) => setStockRequestForm((current) => ({ ...current, size: event.target.value }))}>
+                <option value="">Selecciona talla</option>
+                {sizeOptions.map((size) => <option value={size} key={size}>{size}</option>)}
+              </select>
+            </label>
+            <label className="inventory-field stock-request-form__wide">
+              <span>Estampado</span>
+              <select value={stockRequestForm.has_print ? 'yes' : 'no'} onChange={(event) => setStockRequestForm((current) => ({
+                ...current,
+                has_print: event.target.value === 'yes',
+                dorsal: event.target.value === 'yes' ? current.dorsal : '',
+                printed_name: event.target.value === 'yes' ? current.printed_name : ''
+              }))}>
+                <option value="no">Sin estampar</option>
+                <option value="yes">Sí, con nombre y número</option>
+              </select>
+            </label>
+            {stockRequestForm.has_print ? (
+              <>
+                <label className="inventory-field">
+                  <span>Nombre estampado *</span>
+                  <input required maxLength="150" value={stockRequestForm.printed_name} onChange={(event) => setStockRequestForm((current) => ({ ...current, printed_name: event.target.value }))} placeholder="Nombre en la camiseta" />
+                </label>
+                <label className="inventory-field">
+                  <span>Número de dorsal *</span>
+                  <input required type="text" inputMode="numeric" pattern="[0-9]{1,2}" maxLength="2" value={stockRequestForm.dorsal} onChange={(event) => setStockRequestForm((current) => ({ ...current, dorsal: event.target.value.replace(/\D/g, '').slice(0, 2) }))} placeholder="00–99" />
+                </label>
+              </>
+            ) : null}
+            <label className="inventory-field">
+              <span>Abono (opcional)</span>
+              <input type="number" min="0" step="0.01" value={stockRequestForm.deposit_amount} onChange={(event) => setStockRequestForm((current) => ({ ...current, deposit_amount: event.target.value }))} placeholder="0.00" />
+            </label>
+            <label className="inventory-field">
+              <span>Moneda del abono</span>
+              <select value={stockRequestForm.deposit_currency} onChange={(event) => setStockRequestForm((current) => ({ ...current, deposit_currency: event.target.value }))}>
+                <option value="USD">USD</option>
+                <option value="BS">Bs</option>
+              </select>
+            </label>
+            <label className="inventory-field stock-request-form__wide">
+              <span>Foto del modelo (JPG/PNG, máximo 8 MB)</span>
+              <input type="file" accept="image/jpeg,image/png" onChange={selectStockRequestImage} />
+            </label>
+            {stockRequestPreview ? (
+              <div className="stock-request-form__preview-wrap">
+                <img className="stock-request-form__preview" src={stockRequestPreview} alt="Vista previa del modelo solicitado" />
+                <button className="ghost-btn" type="button" onClick={() => {
+                  setStockRequestForm((current) => ({
+                    ...current,
+                    model_image: null,
+                    image_url: '',
+                    remove_image: Boolean(editingStockRequestId && current.image_url)
+                  }));
+                  setStockRequestPreview('');
+                }}>Quitar foto</button>
+              </div>
+            ) : null}
+            <label className="inventory-field stock-request-form__wide">
+              <span>Notas (opcional)</span>
+              <textarea rows="2" maxLength="1000" value={stockRequestForm.notes} onChange={(event) => setStockRequestForm((current) => ({ ...current, notes: event.target.value }))} placeholder="Detalles adicionales del pedido" />
+            </label>
+          </div>
+          {stockRequestError ? <p className="stock-request-error" role="alert">{stockRequestError}</p> : null}
+          <div className="stock-request-form__actions">
+            <button className="ghost-btn" type="button" onClick={closeStockRequestEditor} disabled={isSavingStockRequest}>Cancelar</button>
+            <button className="primary-btn" type="submit" disabled={isSavingStockRequest}>{isSavingStockRequest ? 'Guardando...' : editingStockRequestId ? 'Guardar cambios' : 'Guardar apartado'}</button>
+          </div>
+        </form>
+      </Modal>
       <Modal
         open={manualOrderOpen}
         title="Crear pedido manual"
