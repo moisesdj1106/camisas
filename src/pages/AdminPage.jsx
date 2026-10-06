@@ -293,8 +293,7 @@ const createEmptyStockRequestForm = () => ({
   shirt_type: 'local',
   size_quantities: Object.fromEntries(sizeOptions.map((size) => [size, ''])),
   has_print: false,
-  dorsal: '',
-  printed_name: '',
+  printed_details: [],
   deposit_amount: '',
   deposit_currency: 'USD',
   notes: '',
@@ -1623,9 +1622,21 @@ const AdminPage = () => {
           ...Object.fromEntries(sizeOptions.map((size) => [size, ''])),
           ...(request.size_quantities || { [request.size]: 1 })
         },
+        printed_details: request.printed_details?.length
+          ? request.printed_details.map((detail) => ({
+            ...detail,
+            quantity: String(detail.quantity),
+            dorsal: String(detail.dorsal)
+          }))
+          : request.has_print
+            ? Object.entries(request.size_quantities || { [request.size]: 1 }).map(([size, quantity]) => ({
+              size,
+              quantity: String(quantity),
+              printed_name: request.printed_name || '',
+              dorsal: request.dorsal || ''
+            }))
+            : [],
         has_print: request.has_print === true,
-        dorsal: request.dorsal || '',
-        printed_name: request.printed_name || '',
         deposit_amount: String(request.deposit_amount ?? ''),
         deposit_currency: request.deposit_currency || 'USD',
         notes: request.notes || '',
@@ -1658,10 +1669,11 @@ const AdminPage = () => {
     try {
       const formData = new FormData();
       Object.entries(stockRequestForm).forEach(([key, value]) => {
-        if (!['model_image', 'image_url'].includes(key)) {
+        if (!['model_image', 'image_url', 'printed_details'].includes(key)) {
           formData.append(key, key === 'size_quantities' ? JSON.stringify(value) : String(value ?? ''));
         }
       });
+      formData.append('printed_details', JSON.stringify(stockRequestForm.printed_details));
       if (stockRequestForm.model_image) formData.append('model_image', stockRequestForm.model_image);
       const isEditing = Boolean(editingStockRequestId);
       const response = await fetch(apiUrl(isEditing
@@ -2122,13 +2134,23 @@ const AdminPage = () => {
             </div>
             {withdrawalFormOpen ? (
               <form className="dashboard-ledger__withdrawal-form" onSubmit={saveCashWithdrawal}>
+                <button
+                  className="icon-btn dashboard-ledger__withdrawal-close"
+                  type="button"
+                  onClick={() => {
+                    setWithdrawalFormOpen(false);
+                    setWithdrawalError('');
+                  }}
+                  aria-label="Cerrar formulario de retiro"
+                  title="Cerrar"
+                >×</button>
                 <label className="inventory-field">
                   <span>Monto a retirar (USD) *</span>
                   <input type="number" min="0.01" step="0.01" required value={withdrawalAmount} onChange={(event) => setWithdrawalAmount(event.target.value)} placeholder="100.00" />
                 </label>
                 <label className="inventory-field">
                   <span>Concepto del retiro *</span>
-                  <textarea rows="2" maxLength="500" required value={withdrawalConcept} onChange={(event) => setWithdrawalConcept(event.target.value)} placeholder="Indica para qué se realizó el retiro" />
+                  <textarea rows="1" maxLength="500" required value={withdrawalConcept} onChange={(event) => setWithdrawalConcept(event.target.value)} placeholder="Indica para qué se realizó el retiro" />
                 </label>
                 <p className="metric-caption">Equivalente a {formatCurrency((parseLocalizedAmount(withdrawalAmount) || 0) * currentExchangeRate, 'BS')} según la tasa actual.</p>
                 {withdrawalError ? <p className="stock-request-error" role="alert">{withdrawalError}</p> : null}
@@ -2492,7 +2514,9 @@ const AdminPage = () => {
                         <td>{request.model}<br /><small>{({ local: 'Local', visitante: 'Visitante', alternativa: 'Alternativa' })[request.shirt_type]}</small></td>
                         <td>
                           {Object.entries(request.size_quantities || { [request.size]: 1 }).map(([size, quantity]) => `${size}: ${quantity}`).join(' · ')}
-                          <br /><small>{request.has_print ? `Estampado: ${request.printed_name} · #${request.dorsal}` : 'Sin estampar'}</small>
+                          <br /><small>{request.printed_details?.length
+                            ? request.printed_details.map((detail) => `${detail.quantity} ${detail.size}: ${detail.printed_name} · #${detail.dorsal}`).join(' / ')
+                            : 'Sin estampar'}</small>
                         </td>
                         <td>{formatCurrency(request.deposit_amount, request.deposit_currency)}</td>
                         <td>{request.image_url ? <a className="stock-request-thumbnail-link" href={assetUrl(request.image_url)} target="_blank" rel="noreferrer"><img className="stock-request-thumbnail" src={assetUrl(request.image_url)} alt={`Modelo solicitado por ${request.client_name}`} /></a> : '—'}</td>
@@ -2884,24 +2908,120 @@ const AdminPage = () => {
               <select value={stockRequestForm.has_print ? 'yes' : 'no'} onChange={(event) => setStockRequestForm((current) => ({
                 ...current,
                 has_print: event.target.value === 'yes',
-                dorsal: event.target.value === 'yes' ? current.dorsal : '',
-                printed_name: event.target.value === 'yes' ? current.printed_name : ''
+                printed_details: event.target.value === 'yes'
+                  ? current.printed_details.length
+                    ? current.printed_details
+                    : [{
+                      size: Object.entries(current.size_quantities).find(([, quantity]) => Number(quantity) > 0)?.[0] || 'S',
+                      quantity: '1',
+                      printed_name: '',
+                      dorsal: ''
+                    }]
+                  : []
               }))}>
                 <option value="no">Sin estampar</option>
-                <option value="yes">Sí, con nombre y número</option>
+                <option value="yes">Sí, con estampado</option>
               </select>
             </label>
             {stockRequestForm.has_print ? (
-              <>
-                <label className="inventory-field">
-                  <span>Nombre estampado *</span>
-                  <input required maxLength="150" value={stockRequestForm.printed_name} onChange={(event) => setStockRequestForm((current) => ({ ...current, printed_name: event.target.value }))} placeholder="Nombre en la camiseta" />
-                </label>
-                <label className="inventory-field">
-                  <span>Número de dorsal *</span>
-                  <input required type="text" inputMode="numeric" pattern="[0-9]{1,2}" maxLength="2" value={stockRequestForm.dorsal} onChange={(event) => setStockRequestForm((current) => ({ ...current, dorsal: event.target.value.replace(/\D/g, '').slice(0, 2) }))} placeholder="00–99" />
-                </label>
-              </>
+              <fieldset className="stock-request-print-details stock-request-form__wide">
+                <legend>Detalles del estampado</legend>
+                <p>Agrega una línea por cada combinación de talla, cantidad, nombre y dorsal.</p>
+                {stockRequestForm.printed_details.map((detail, index) => (
+                  <div className="stock-request-print-details__row" key={index}>
+                    <label className="inventory-field">
+                      <span>Talla *</span>
+                      <select
+                        required
+                        value={detail.size}
+                        onChange={(event) => setStockRequestForm((current) => ({
+                          ...current,
+                          printed_details: current.printed_details.map((item, itemIndex) => itemIndex === index
+                            ? { ...item, size: event.target.value }
+                            : item)
+                        }))}
+                      >
+                        {sizeOptions.map((size) => <option value={size} key={size}>{size}</option>)}
+                      </select>
+                    </label>
+                    <label className="inventory-field">
+                      <span>Cantidad *</span>
+                      <input
+                        required
+                        type="number"
+                        min="1"
+                        max={stockRequestForm.size_quantities[detail.size] || undefined}
+                        step="1"
+                        value={detail.quantity}
+                        onChange={(event) => setStockRequestForm((current) => ({
+                          ...current,
+                          printed_details: current.printed_details.map((item, itemIndex) => itemIndex === index
+                            ? { ...item, quantity: event.target.value }
+                            : item)
+                        }))}
+                      />
+                    </label>
+                    <label className="inventory-field">
+                      <span>Nombre *</span>
+                      <input
+                        required
+                        maxLength="150"
+                        value={detail.printed_name}
+                        onChange={(event) => setStockRequestForm((current) => ({
+                          ...current,
+                          printed_details: current.printed_details.map((item, itemIndex) => itemIndex === index
+                            ? { ...item, printed_name: event.target.value }
+                            : item)
+                        }))}
+                        placeholder="Nombre estampado"
+                      />
+                    </label>
+                    <label className="inventory-field">
+                      <span>Dorsal *</span>
+                      <input
+                        required
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]{1,2}"
+                        maxLength="2"
+                        value={detail.dorsal}
+                        onChange={(event) => setStockRequestForm((current) => ({
+                          ...current,
+                          printed_details: current.printed_details.map((item, itemIndex) => itemIndex === index
+                            ? { ...item, dorsal: event.target.value.replace(/\D/g, '').slice(0, 2) }
+                            : item)
+                        }))}
+                        placeholder="00–99"
+                      />
+                    </label>
+                    <button
+                      className="icon-btn icon-btn--danger"
+                      type="button"
+                      onClick={() => setStockRequestForm((current) => ({
+                        ...current,
+                        printed_details: current.printed_details.filter((_, itemIndex) => itemIndex !== index),
+                        has_print: current.printed_details.length > 1
+                      }))}
+                      aria-label={`Quitar estampado ${index + 1}`}
+                      title="Quitar estampado"
+                    >×</button>
+                  </div>
+                ))}
+                <button
+                  className="ghost-btn"
+                  type="button"
+                  onClick={() => setStockRequestForm((current) => ({
+                    ...current,
+                    has_print: true,
+                    printed_details: [...current.printed_details, {
+                      size: Object.entries(current.size_quantities).find(([, quantity]) => Number(quantity) > 0)?.[0] || 'S',
+                      quantity: '1',
+                      printed_name: '',
+                      dorsal: ''
+                    }]
+                  }))}
+                >＋ Agregar otro estampado</button>
+              </fieldset>
             ) : null}
             <label className="inventory-field">
               <span>Abono (opcional)</span>
