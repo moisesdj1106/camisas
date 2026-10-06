@@ -291,7 +291,7 @@ const createEmptyStockRequestForm = () => ({
   email: '',
   model: '',
   shirt_type: 'local',
-  size: '',
+  size_quantities: Object.fromEntries(sizeOptions.map((size) => [size, ''])),
   has_print: false,
   dorsal: '',
   printed_name: '',
@@ -381,6 +381,13 @@ const AdminPage = () => {
   const [ledgerDate, setLedgerDate] = useState('');
   const [ledgerDateFrom, setLedgerDateFrom] = useState('');
   const [ledgerDateTo, setLedgerDateTo] = useState('');
+  const [cashWithdrawals, setCashWithdrawals] = useState([]);
+  const [withdrawalAmount, setWithdrawalAmount] = useState('');
+  const [withdrawalConcept, setWithdrawalConcept] = useState('');
+  const [withdrawalError, setWithdrawalError] = useState('');
+  const [withdrawalFormOpen, setWithdrawalFormOpen] = useState(false);
+  const [withdrawalHistoryOpen, setWithdrawalHistoryOpen] = useState(false);
+  const [isSavingWithdrawal, setIsSavingWithdrawal] = useState(false);
   const today = toLocalDateInput(new Date());
   const oldestLedgerDateValue = new Date();
   oldestLedgerDateValue.setFullYear(oldestLedgerDateValue.getFullYear() - 300);
@@ -398,6 +405,7 @@ const AdminPage = () => {
   const [isLoadingStockRequests, setIsLoadingStockRequests] = useState(false);
   const [isSavingStockRequest, setIsSavingStockRequest] = useState(false);
   const [isDownloadingStockRequests, setIsDownloadingStockRequests] = useState(false);
+  const [isDownloadingInventoryPdf, setIsDownloadingInventoryPdf] = useState(false);
   const stockRequestLoadId = useRef(0);
   const productFormRef = useRef(null);
 
@@ -463,6 +471,19 @@ const AdminPage = () => {
     }
   };
 
+  const loadCashWithdrawals = async () => {
+    try {
+      const response = await apiFetch('/api/admin/cash-withdrawals', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(data.error || 'No se pudieron cargar los retiros.');
+      setCashWithdrawals(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setMessage(error.message || 'No se pudieron cargar los retiros.');
+    }
+  };
+
   const loadStockRequests = async () => {
     const loadId = ++stockRequestLoadId.current;
     setIsLoadingStockRequests(true);
@@ -493,7 +514,11 @@ const AdminPage = () => {
 
   useEffect(() => {
     loadDashboard();
-    const refreshTimer = window.setInterval(loadDashboard, 15000);
+    loadCashWithdrawals();
+    const refreshTimer = window.setInterval(() => {
+      loadDashboard();
+      loadCashWithdrawals();
+    }, 15000);
     return () => window.clearInterval(refreshTimer);
   }, []);
 
@@ -1594,6 +1619,10 @@ const AdminPage = () => {
         model: request.model || '',
         shirt_type: request.shirt_type || 'local',
         size: request.size || '',
+        size_quantities: {
+          ...Object.fromEntries(sizeOptions.map((size) => [size, ''])),
+          ...(request.size_quantities || { [request.size]: 1 })
+        },
         has_print: request.has_print === true,
         dorsal: request.dorsal || '',
         printed_name: request.printed_name || '',
@@ -1629,7 +1658,9 @@ const AdminPage = () => {
     try {
       const formData = new FormData();
       Object.entries(stockRequestForm).forEach(([key, value]) => {
-        if (!['model_image', 'image_url'].includes(key)) formData.append(key, String(value ?? ''));
+        if (!['model_image', 'image_url'].includes(key)) {
+          formData.append(key, key === 'size_quantities' ? JSON.stringify(value) : String(value ?? ''));
+        }
       });
       if (stockRequestForm.model_image) formData.append('model_image', stockRequestForm.model_image);
       const isEditing = Boolean(editingStockRequestId);
@@ -1713,6 +1744,67 @@ const AdminPage = () => {
       setStockRequestError(error.message || 'No se pudo generar el PDF de pedidos por encargo.');
     } finally {
       setIsDownloadingStockRequests(false);
+    }
+  };
+
+  const saveCashWithdrawal = async (event) => {
+    event.preventDefault();
+    setWithdrawalError('');
+    const amountUsd = parseLocalizedAmount(withdrawalAmount);
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0) {
+      setWithdrawalError('Indica un monto en dólares mayor que cero.');
+      return;
+    }
+    if (!withdrawalConcept.trim()) {
+      setWithdrawalError('Indica el concepto del retiro.');
+      return;
+    }
+    setIsSavingWithdrawal(true);
+    try {
+      const response = await apiFetch('/api/admin/cash-withdrawals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ amount_usd: amountUsd, concept: withdrawalConcept.trim() })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'No se pudo registrar el retiro.');
+      setCashWithdrawals((current) => [data, ...current]);
+      setWithdrawalAmount('');
+      setWithdrawalConcept('');
+      setWithdrawalFormOpen(false);
+      setMessage('Retiro registrado y descontado del total ingresado.');
+    } catch (error) {
+      setWithdrawalError(error.message || 'No se pudo registrar el retiro.');
+    } finally {
+      setIsSavingWithdrawal(false);
+    }
+  };
+
+  const downloadInventoryPdf = async () => {
+    setIsDownloadingInventoryPdf(true);
+    try {
+      const response = await apiFetch('/api/admin/inventory/pdf', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo generar el PDF del inventario.');
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'inventario-camisetas.pdf';
+      link.click();
+      window.URL.revokeObjectURL(url);
+      setMessage('PDF de inventario descargado correctamente.');
+    } catch (error) {
+      setMessage(error.message || 'No se pudo generar el PDF del inventario.');
+    } finally {
+      setIsDownloadingInventoryPdf(false);
     }
   };
 
@@ -1872,8 +1964,12 @@ const AdminPage = () => {
       ? `${ledgerDateFrom ? `desde ${new Date(`${ledgerDateFrom}T12:00:00`).toLocaleDateString('es-VE')}` : ''}${ledgerDateFrom && ledgerDateTo ? ' ' : ''}${ledgerDateTo ? `hasta ${new Date(`${ledgerDateTo}T12:00:00`).toLocaleDateString('es-VE')}` : ''}`
       : '';
   const currentExchangeRate = Number(exchangeRate || 0);
-  const generalReceivedUsd = paymentLedger.USD.received + (currentExchangeRate > 0 ? paymentLedger.BS.received / currentExchangeRate : 0);
-  const generalReceivedBs = paymentLedger.BS.received + paymentLedger.USD.received * currentExchangeRate;
+  const visibleCashWithdrawals = cashWithdrawals.filter((withdrawal) => isDateInRange(withdrawal.created_at, ledgerDateRange));
+  const totalWithdrawnUsd = visibleCashWithdrawals.reduce((sum, withdrawal) => sum + Number(withdrawal.amount_usd || 0), 0);
+  const generalGrossReceivedUsd = paymentLedger.USD.received + (currentExchangeRate > 0 ? paymentLedger.BS.received / currentExchangeRate : 0);
+  const generalGrossReceivedBs = paymentLedger.BS.received + paymentLedger.USD.received * currentExchangeRate;
+  const generalReceivedUsd = generalGrossReceivedUsd - totalWithdrawnUsd;
+  const generalReceivedBs = generalGrossReceivedBs - totalWithdrawnUsd * currentExchangeRate;
 
   return (
     <div className="container">
@@ -2001,23 +2097,60 @@ const AdminPage = () => {
                   <tr><th scope="row">Abonos iniciales</th><td>{formatCurrency(paymentLedger.BS.first, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.first, 'USD')}</td></tr>
                   <tr><th scope="row">Pagos finales y completos</th><td>{formatCurrency(paymentLedger.BS.other, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.other, 'USD')}</td></tr>
                   <tr className="dashboard-ledger__total"><th scope="row">Total recibido</th><td>{formatCurrency(paymentLedger.BS.received, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.received, 'USD')}</td></tr>
+                  <tr className="dashboard-ledger__withdrawals"><th scope="row">Retiros registrados</th><td>−{formatCurrency(totalWithdrawnUsd * currentExchangeRate, 'BS')}</td><td>−{formatCurrency(totalWithdrawnUsd, 'USD')}</td></tr>
                   <tr className="dashboard-ledger__pending"><th scope="row">Pendiente por cobrar</th><td>{formatCurrency(paymentLedger.BS.pending, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.pending, 'USD')}</td></tr>
                 </tbody>
               </table>
             </div>
             <div className="dashboard-ledger__general" aria-label="General ingresado convertido a ambas monedas">
               <div className="dashboard-ledger__general-title">
-                <strong>GENERAL INGRESADO</strong>
+                <strong>GENERAL DISPONIBLE</strong>
                 <small>Conversión de los cobros con la tasa actual: {currentExchangeRate} BS/USD</small>
+                <button className="ghost-btn dashboard-ledger__withdrawal-trigger" type="button" onClick={() => {
+                  setWithdrawalError('');
+                  setWithdrawalFormOpen((open) => !open);
+                }}>{withdrawalFormOpen ? 'Cancelar retiro' : '＋ Registrar retiro'}</button>
               </div>
               <div className="dashboard-ledger__general-total">
-                <span>Total en dólares</span>
+                <span>Neto en dólares</span>
                 <strong>{formatCurrency(generalReceivedUsd, 'USD')}</strong>
               </div>
               <div className="dashboard-ledger__general-total">
-                <span>Total equivalente en bolívares</span>
+                <span>Neto equivalente en bolívares</span>
                 <strong>{formatCurrency(generalReceivedBs, 'BS')}</strong>
               </div>
+            </div>
+            {withdrawalFormOpen ? (
+              <form className="dashboard-ledger__withdrawal-form" onSubmit={saveCashWithdrawal}>
+                <label className="inventory-field">
+                  <span>Monto a retirar (USD) *</span>
+                  <input type="number" min="0.01" step="0.01" required value={withdrawalAmount} onChange={(event) => setWithdrawalAmount(event.target.value)} placeholder="100.00" />
+                </label>
+                <label className="inventory-field">
+                  <span>Concepto del retiro *</span>
+                  <textarea rows="2" maxLength="500" required value={withdrawalConcept} onChange={(event) => setWithdrawalConcept(event.target.value)} placeholder="Indica para qué se realizó el retiro" />
+                </label>
+                <p className="metric-caption">Equivalente a {formatCurrency((parseLocalizedAmount(withdrawalAmount) || 0) * currentExchangeRate, 'BS')} según la tasa actual.</p>
+                {withdrawalError ? <p className="stock-request-error" role="alert">{withdrawalError}</p> : null}
+                <button className="primary-btn" type="submit" disabled={isSavingWithdrawal}>{isSavingWithdrawal ? 'Guardando...' : 'Guardar retiro'}</button>
+              </form>
+            ) : null}
+            <div className="dashboard-ledger__withdrawal-history">
+              <button className="ghost-btn" type="button" aria-expanded={withdrawalHistoryOpen} onClick={() => setWithdrawalHistoryOpen((open) => !open)}>
+                {withdrawalHistoryOpen ? 'Ocultar retiros' : `Ver retiros (${visibleCashWithdrawals.length})`}
+              </button>
+              {withdrawalHistoryOpen ? (
+                visibleCashWithdrawals.length ? (
+                  <div className="dashboard-ledger__withdrawal-list">
+                    {visibleCashWithdrawals.map((withdrawal) => (
+                      <article className="dashboard-ledger__withdrawal-item" key={withdrawal.id}>
+                        <div><strong>{withdrawal.concept}</strong><small>{new Date(withdrawal.created_at).toLocaleString('es-VE')}</small></div>
+                        <span>{formatCurrency(withdrawal.amount_usd, 'USD')} · {formatCurrency(Number(withdrawal.amount_usd) * currentExchangeRate, 'BS')}</span>
+                      </article>
+                    ))}
+                  </div>
+                ) : <p className="metric-caption">No hay retiros registrados en este período.</p>
+              ) : null}
             </div>
           </div>
 
@@ -2200,6 +2333,9 @@ const AdminPage = () => {
               <p style={{ margin: '0.2rem 0 0', color: '#64748b' }}>Gestiona camisetas, stock e imágenes desde aquí.</p>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button className="ghost-btn" type="button" onClick={downloadInventoryPdf} disabled={isDownloadingInventoryPdf}>
+                {isDownloadingInventoryPdf ? 'Generando PDF...' : 'Descargar inventario PDF'}
+              </button>
               <button className="ghost-btn" onClick={() => {
                 setEditingProductId(null);
                 setForm(createEmptyForm());
@@ -2320,7 +2456,7 @@ const AdminPage = () => {
               <div>
                 <p className="eyebrow">Control de mercancía</p>
                 <h3>Pedidos por encargo</h3>
-                <p>Registra modelos solicitados fuera de stock, junto con los datos del cliente y su abono. Este registro no modifica el inventario ni el estado de cuenta.</p>
+                <p>Registra modelos solicitados fuera de stock, las cantidades por talla y los datos del cliente. Este registro no modifica el inventario ni el estado de cuenta.</p>
               </div>
               <button className="primary-btn" type="button" onClick={() => openStockRequestEditor(null)}>＋ Apartar pedido</button>
             </div>
@@ -2347,14 +2483,17 @@ const AdminPage = () => {
             {!isLoadingStockRequests && stockRequests.length ? (
               <div className="stock-request-table-wrap">
                 <table className="table stock-request-table">
-                  <thead><tr><th>Fecha</th><th>Cliente</th><th>Modelo</th><th>Talla y personalización</th><th>Abono</th><th>Foto</th><th>Acciones</th></tr></thead>
+                  <thead><tr><th>Fecha</th><th>Cliente</th><th>Modelo</th><th>Tallas y personalización</th><th>Abono</th><th>Foto</th><th>Acciones</th></tr></thead>
                   <tbody>
                     {stockRequests.map((request) => (
                       <tr key={request.id}>
                         <td>{new Date(request.created_at).toLocaleDateString('es-VE')}</td>
                         <td><strong>{request.client_name}</strong><br /><small>{request.phone}{request.email ? ` · ${request.email}` : ''}</small></td>
                         <td>{request.model}<br /><small>{({ local: 'Local', visitante: 'Visitante', alternativa: 'Alternativa' })[request.shirt_type]}</small></td>
-                        <td>{request.size}<br /><small>{request.has_print ? `Estampado: ${request.printed_name} · #${request.dorsal}` : 'Sin estampar'}</small></td>
+                        <td>
+                          {Object.entries(request.size_quantities || { [request.size]: 1 }).map(([size, quantity]) => `${size}: ${quantity}`).join(' · ')}
+                          <br /><small>{request.has_print ? `Estampado: ${request.printed_name} · #${request.dorsal}` : 'Sin estampar'}</small>
+                        </td>
                         <td>{formatCurrency(request.deposit_amount, request.deposit_currency)}</td>
                         <td>{request.image_url ? <a className="stock-request-thumbnail-link" href={assetUrl(request.image_url)} target="_blank" rel="noreferrer"><img className="stock-request-thumbnail" src={assetUrl(request.image_url)} alt={`Modelo solicitado por ${request.client_name}`} /></a> : '—'}</td>
                         <td className="table-actions">
@@ -2718,13 +2857,28 @@ const AdminPage = () => {
                 <option value="alternativa">Alternativa</option>
               </select>
             </label>
-            <label className="inventory-field">
-              <span>Talla *</span>
-              <select required value={stockRequestForm.size} onChange={(event) => setStockRequestForm((current) => ({ ...current, size: event.target.value }))}>
-                <option value="">Selecciona talla</option>
-                {sizeOptions.map((size) => <option value={size} key={size}>{size}</option>)}
-              </select>
-            </label>
+            <fieldset className="stock-request-sizes stock-request-form__wide">
+              <legend>Tallas y cantidades *</legend>
+              <p>Indica cuántas camisetas de cada talla quiere el cliente; deja en blanco las que no necesite.</p>
+              <div className="stock-request-sizes__grid">
+                {sizeOptions.map((size) => (
+                  <label className="inventory-field" key={size}>
+                    <span>Talla {size}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={stockRequestForm.size_quantities[size]}
+                      onChange={(event) => setStockRequestForm((current) => ({
+                        ...current,
+                        size_quantities: { ...current.size_quantities, [size]: event.target.value }
+                      }))}
+                      aria-label={`Cantidad talla ${size}`}
+                    />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <label className="inventory-field stock-request-form__wide">
               <span>Estampado</span>
               <select value={stockRequestForm.has_print ? 'yes' : 'no'} onChange={(event) => setStockRequestForm((current) => ({

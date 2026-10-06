@@ -398,6 +398,11 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .admin-stock-request-modal .app-modal__message { margin-bottom: 1rem; }
 .stock-request-form { display: grid; gap: 1rem; }
 .stock-request-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.85rem 1rem; }
+.stock-request-sizes { min-width: 0; margin: 0; padding: 0.85rem; border: 1px solid #dbe5f1; border-radius: 10px; }
+.stock-request-sizes legend { padding: 0 0.35rem; color: #334155; font-size: 0.82rem; font-weight: 800; }
+.stock-request-sizes > p { margin: 0 0 0.75rem; color: #64748b; font-size: 0.8rem; }
+.stock-request-sizes__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.65rem; }
+.stock-request-sizes__grid .inventory-field input { width: 100%; }
 .stock-request-form__wide { grid-column: 1 / -1; }
 .stock-request-form .inventory-field { align-content: start; }
 .stock-request-form .inventory-field > span { min-height: 1.15rem; }
@@ -427,6 +432,20 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
 .dashboard-ledger__general-title strong { font-size: 1.05rem; }
 .dashboard-ledger__general small, .dashboard-ledger__general-total span { color: #475569; font-size: 0.82rem; }
 .dashboard-ledger__general-total strong { font-size: 1.25rem; }
+.dashboard-ledger__withdrawals th, .dashboard-ledger__withdrawals td { color: #b91c1c !important; }
+.dashboard-ledger__general-title { align-items: flex-start; }
+.dashboard-ledger__withdrawal-trigger { margin-top: 0.45rem; }
+.dashboard-ledger__withdrawal-form { display: grid; grid-template-columns: minmax(130px, 0.65fr) minmax(220px, 1.5fr) auto; align-items: end; gap: 0.75rem; margin-top: 0.7rem; padding: 0.9rem; border: 1px solid #fecaca; border-radius: 8px; background: #fffafa; }
+.dashboard-ledger__withdrawal-form .inventory-field textarea { min-height: 44px; resize: vertical; }
+.dashboard-ledger__withdrawal-form .metric-caption { grid-column: 1 / 3; margin: -0.3rem 0 0; }
+.dashboard-ledger__withdrawal-form .stock-request-error { grid-column: 1 / -1; }
+.dashboard-ledger__withdrawal-form > button { min-height: 42px; }
+.dashboard-ledger__withdrawal-history { display: grid; justify-items: start; gap: 0.65rem; margin-top: 0.75rem; }
+.dashboard-ledger__withdrawal-list { display: grid; width: 100%; gap: 0.5rem; }
+.dashboard-ledger__withdrawal-item { display: flex; justify-content: space-between; gap: 1rem; padding: 0.7rem 0.85rem; border: 1px solid #fee2e2; border-radius: 7px; background: #fffafa; }
+.dashboard-ledger__withdrawal-item > div { display: grid; gap: 0.2rem; }
+.dashboard-ledger__withdrawal-item small { color: #64748b; }
+.dashboard-ledger__withdrawal-item > span { color: #991b1b; font-weight: 750; text-align: right; }
 .dashboard-ledger__currency { display: inline-grid; place-items: center; min-width: 2.7rem; min-height: 1.7rem; padding: 0 0.4rem; border-radius: 5px; font-size: 0.72rem; font-weight: 850; }
 .dashboard-ledger__currency--bs { background: #dbeafe; color: #1d4ed8; }
 .dashboard-ledger__currency--usd { background: #dcfce7; color: #166534; }
@@ -574,6 +593,10 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .dashboard-ledger__header { align-items: flex-start; flex-direction: column; gap: 0.75rem; }
   .dashboard-ledger__legend { justify-content: flex-start; }
   .dashboard-ledger__general { grid-template-columns: 1fr; }
+  .dashboard-ledger__withdrawal-form { grid-template-columns: 1fr; }
+  .dashboard-ledger__withdrawal-form .metric-caption, .dashboard-ledger__withdrawal-form .stock-request-error { grid-column: auto; }
+  .dashboard-ledger__withdrawal-item { align-items: flex-start; flex-direction: column; }
+  .dashboard-ledger__withdrawal-item > span { text-align: left; }
   .order-filter-select { align-items: stretch; flex-direction: column; }
   .order-filter-select select { width: 100%; max-width: 100%; }
   .topbar { align-items: center; flex-direction: row; flex-wrap: wrap; padding: 0.8rem 1rem; gap: 0.7rem; }
@@ -614,6 +637,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: #2563eb
   .stock-request-filters { align-items: stretch; }
   .stock-request-filters .inventory-field { min-width: min(100%, 150px); flex: 1; }
   .stock-request-form__grid { grid-template-columns: 1fr; gap: 0.65rem; }
+  .stock-request-sizes__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .stock-request-form__wide, .stock-request-form__preview-wrap { grid-column: auto; }
   .stock-request-form__actions { bottom: -1rem; flex-direction: column-reverse; }
   .stock-request-form__actions button { width: 100%; }
