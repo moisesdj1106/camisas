@@ -1371,6 +1371,8 @@ const AdminPage = () => {
 
   useEffect(() => {
     loadClosureSummary('day');
+    const refreshDailyClosure = window.setInterval(() => loadClosureSummary('day'), 60_000);
+    return () => window.clearInterval(refreshDailyClosure);
   }, []);
 
   const createClosure = async () => {
@@ -1395,21 +1397,6 @@ const AdminPage = () => {
     } finally {
       setIsClosing(false);
     }
-  };
-
-  const openDailyClosureCount = async () => {
-    const response = await fetch(apiUrl('/api/admin/closures/daily/open'), {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      setMessage(data.error || 'No se pudo abrir el conteo diario.');
-      return;
-    }
-    setDailyClosureOpen(true);
-    setClosureSummary(data);
-    setMessage('Conteo diario nuevo abierto.');
   };
 
   const printClosure = () => {
@@ -2124,7 +2111,6 @@ const AdminPage = () => {
                   <tr><th scope="row">Abonos iniciales</th><td>{formatCurrency(paymentLedger.BS.first, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.first, 'USD')}</td></tr>
                   <tr><th scope="row">Pagos finales y completos</th><td>{formatCurrency(paymentLedger.BS.other, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.other, 'USD')}</td></tr>
                   <tr className="dashboard-ledger__total"><th scope="row">Total recibido</th><td>{formatCurrency(paymentLedger.BS.received, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.received, 'USD')}</td></tr>
-                  <tr className="dashboard-ledger__withdrawals"><th scope="row">Retiros registrados</th><td>−{formatCurrency(totalWithdrawnUsd * currentExchangeRate, 'BS')}</td><td>−{formatCurrency(totalWithdrawnUsd, 'USD')}</td></tr>
                   <tr className="dashboard-ledger__pending"><th scope="row">Pendiente por cobrar</th><td>{formatCurrency(paymentLedger.BS.pending, 'BS')}</td><td>{formatCurrency(paymentLedger.USD.pending, 'USD')}</td></tr>
                 </tbody>
               </table>
@@ -2133,23 +2119,29 @@ const AdminPage = () => {
               <div className="dashboard-ledger__general-title">
                 <strong>GENERAL DISPONIBLE</strong>
                 <small>El total contable conserva la tasa de cada pago. La equivalencia actual es solo referencial ({currentExchangeRate} BS/USD).</small>
-                <button className="ghost-btn dashboard-ledger__withdrawal-trigger" type="button" onClick={() => {
-                  setWithdrawalError('');
-                  setWithdrawalFormOpen((open) => !open);
-                }}>{withdrawalFormOpen ? 'Cancelar retiro' : '＋ Registrar retiro'}</button>
               </div>
-              <div className="dashboard-ledger__general-total">
+              <div className="dashboard-ledger__general-total dashboard-ledger__general-total--historical">
                 <span>Neto histórico en USD (Bs convertido a la tasa de cada pago)</span>
                 <strong>{formatCurrency(generalReceivedUsd, 'USD')}</strong>
               </div>
-              <div className="dashboard-ledger__general-total">
+              <div className="dashboard-ledger__general-total dashboard-ledger__general-total--current">
                 <span>Equivalente neto en USD a tasa actual</span>
                 <strong>{formatCurrency(generalCurrentEquivalentUsdNet, 'USD')}</strong>
               </div>
-              <div className="dashboard-ledger__general-total">
+              <div className="dashboard-ledger__general-total dashboard-ledger__general-total--bolivars">
                 <span>Bolívares recibidos + USD convertidos a tasa actual</span>
                 <strong>{formatCurrency(generalReceivedBs, 'BS')}</strong>
               </div>
+            </div>
+            <div className="dashboard-ledger__withdrawal-summary">
+              <strong>Retiros registrados</strong>
+              <span>−{formatCurrency(totalWithdrawnUsd, 'USD')} · −{formatCurrency(totalWithdrawnUsd * currentExchangeRate, 'BS')}</span>
+            </div>
+            <div className="dashboard-ledger__withdrawal-actions">
+              <button className="ghost-btn dashboard-ledger__withdrawal-trigger" type="button" onClick={() => {
+                setWithdrawalError('');
+                setWithdrawalFormOpen((open) => !open);
+              }}>{withdrawalFormOpen ? 'Cancelar retiro' : '＋ Registrar retiro'}</button>
             </div>
             {withdrawalFormOpen ? (
               <form className="dashboard-ledger__withdrawal-form" onSubmit={saveCashWithdrawal}>
@@ -2299,12 +2291,11 @@ const AdminPage = () => {
                 <option value="month">Mensual</option>
                 <option value="year">Anual</option>
               </select>
-              {closurePeriod !== 'day' ? <input type="date" value={closureDate} onChange={(e) => setClosureDate(e.target.value)} /> : <span className="metric-caption">Conteo diario {dailyClosureOpen === null ? 'consultando...' : dailyClosureOpen ? 'abierto' : 'cerrado'}</span>}
+              {closurePeriod !== 'day' ? <input type="date" value={closureDate} onChange={(e) => setClosureDate(e.target.value)} /> : <span className="metric-caption">Conteo diario {dailyClosureOpen === null ? 'consultando...' : dailyClosureOpen ? 'abierto' : 'cerrado'} · cierre y reinicio automáticos al terminar el día.</span>}
             </div>
               <div className="closure-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button className="ghost-btn" onClick={() => loadClosureSummary(closurePeriod, closureDate)}>Ver cierre</button>
-              <button className="primary-btn" onClick={createClosure} disabled={isClosing || (closurePeriod === 'day' && dailyClosureOpen !== true)}>{isClosing ? 'Generando...' : closurePeriod === 'day' ? 'Cerrar conteo y guardar' : 'Cerrar y guardar'}</button>
-              {closurePeriod === 'day' && dailyClosureOpen === false ? <button className="ghost-btn" onClick={openDailyClosureCount}>Abrir conteo nuevo</button> : null}
+              {closurePeriod !== 'day' ? <button className="primary-btn" onClick={createClosure} disabled={isClosing}>{isClosing ? 'Generando...' : 'Cerrar y guardar'}</button> : null}
               <button className="ghost-btn" onClick={printClosure} disabled={!closureSummary}>Imprimir</button>
             </div>
             {closureSummary ? (
