@@ -104,25 +104,27 @@ const changeDeliveryPaymentCurrency = (current, currency, rate) => ({
 
 const getInstallmentSummary = (order) => {
   const rate = Number(order.exchange_rate || 0);
+  const firstRate = Number(order.first_payment_exchange_rate || rate);
+  const finalRate = Number(order.delivery_payment_exchange_rate || rate);
   const amount = Number(order.first_payment_amount || 0);
   const currency = getOrderCurrency(order);
-  const paidUsd = currency === 'BS' ? (rate > 0 ? amount / rate : null) : amount;
+  const paidUsd = currency === 'BS' ? (firstRate > 0 ? amount / firstRate : null) : amount;
   const hasFirstProof = Boolean(order.payment_proof_url);
   const hasFinalProof = Boolean(order.delivery_payment_proof_url);
   const finalAmount = Number(order.delivery_payment_amount || 0);
   const finalCurrency = order.delivery_payment_currency || getPaymentMethodCurrency(order.payment_method);
-  const finalPaidUsd = finalCurrency === 'BS' ? (rate > 0 ? finalAmount / rate : null) : finalAmount;
+  const finalPaidUsd = finalCurrency === 'BS' ? (finalRate > 0 ? finalAmount / finalRate : null) : finalAmount;
   const balanceBeforeFinal = paidUsd === null ? null : Math.max(0, Number(order.total_amount || 0) - paidUsd);
   const effectiveFinalPaidUsd = finalPaidUsd > 0 ? finalPaidUsd : hasFinalProof ? balanceBeforeFinal : 0;
   const remainingUsd = balanceBeforeFinal === null ? null : Math.max(0, balanceBeforeFinal - effectiveFinalPaidUsd);
   const isComplete = hasFirstProof && hasFinalProof && remainingUsd !== null && remainingUsd < 0.01;
-  return { amount, currency, finalAmount, finalCurrency, paidUsd, remainingUsd, remainingBs: remainingUsd === null || rate <= 0 ? null : remainingUsd * rate, hasFirstProof, hasFinalProof, isComplete, rate };
+  return { amount, currency, finalAmount, finalCurrency, paidUsd, remainingUsd, remainingBs: remainingUsd === null || rate <= 0 ? null : remainingUsd * rate, hasFirstProof, hasFinalProof, isComplete, rate, firstRate, finalRate };
 };
 
 const getPaymentLedger = (orders, fallbackRate, dateRange = null) => {
   const totals = {
     USD: { expected: 0, first: 0, other: 0, received: 0, pending: 0 },
-    BS: { expected: 0, first: 0, other: 0, received: 0, pending: 0 }
+    BS: { expected: 0, first: 0, other: 0, received: 0, pending: 0, equivalentUsd: 0 }
   };
   const excludedStatuses = new Set(['rejected', 'cancelled']);
 
@@ -133,6 +135,9 @@ const getPaymentLedger = (orders, fallbackRate, dateRange = null) => {
       ? storedRate
       : Number(fallbackRate) > 0 ? Number(fallbackRate) : 0;
     if (rate <= 0) return;
+    const firstRate = Number(order.first_payment_exchange_rate) > 0 ? Number(order.first_payment_exchange_rate) : rate;
+    const fullRate = Number(order.full_payment_exchange_rate) > 0 ? Number(order.full_payment_exchange_rate) : rate;
+    const finalRate = Number(order.delivery_payment_exchange_rate) > 0 ? Number(order.delivery_payment_exchange_rate) : rate;
 
     const totalUsd = Number(order.total_amount || 0);
     const isConfirmed = confirmedPaymentStatuses.has(order.status);
@@ -147,7 +152,7 @@ const getPaymentLedger = (orders, fallbackRate, dateRange = null) => {
       const firstAmount = Number(order.first_payment_amount || 0);
       const firstCurrency = String(order.first_payment_currency || '').toUpperCase() === 'BS' ? 'BS' : 'USD';
       if (firstCurrency === 'BS') {
-        firstUsd = firstAmount / rate;
+        firstUsd = firstAmount / firstRate;
       } else {
         firstUsd = firstAmount;
       }
@@ -155,7 +160,7 @@ const getPaymentLedger = (orders, fallbackRate, dateRange = null) => {
       const finalAmount = Number(order.delivery_payment_amount || 0);
       const finalCurrency = order.delivery_payment_currency || getPaymentMethodCurrency(order.payment_method);
       if (finalCurrency === 'BS') {
-        otherUsd = (finalAmount > 0 ? finalAmount : (order.delivery_payment_proof_url ? Math.max(0, totalUsd - firstUsd) * rate : 0)) / rate;
+        otherUsd = (finalAmount > 0 ? finalAmount : (order.delivery_payment_proof_url ? Math.max(0, totalUsd - firstUsd) * finalRate : 0)) / finalRate;
       } else {
         otherUsd = finalAmount > 0 ? finalAmount : (order.delivery_payment_proof_url ? Math.max(0, totalUsd - firstUsd) : 0);
       }
@@ -163,7 +168,7 @@ const getPaymentLedger = (orders, fallbackRate, dateRange = null) => {
       const fullAmount = Number(order.full_payment_amount || 0);
       const methodCurrency = getPaymentMethodCurrency(order.payment_method);
       if (methodCurrency === 'BS') {
-        otherUsd = (fullAmount > 0 ? fullAmount : totalUsd * rate) / rate;
+        otherUsd = (fullAmount > 0 ? fullAmount : totalUsd * fullRate) / fullRate;
       } else {
         otherUsd = fullAmount > 0 ? fullAmount : totalUsd;
       }
@@ -175,9 +180,9 @@ const getPaymentLedger = (orders, fallbackRate, dateRange = null) => {
     const pendingUsd = Math.max(0, totalUsd - receivedUsd);
     const firstCurrency = String(order.first_payment_currency || '').toUpperCase() === 'BS' ? 'BS' : 'USD';
     const finalCurrency = order.delivery_payment_currency || getPaymentMethodCurrency(order.payment_method);
-    const firstReceivedBs = firstCurrency === 'BS' ? receivedFirstUsd * rate : 0;
+    const firstReceivedBs = firstCurrency === 'BS' ? receivedFirstUsd * firstRate : 0;
     const firstReceivedUsd = firstCurrency === 'USD' ? receivedFirstUsd : 0;
-    const otherReceivedBs = finalCurrency === 'BS' ? receivedOtherUsd * rate : 0;
+    const otherReceivedBs = finalCurrency === 'BS' ? receivedOtherUsd * (order.payment_plan === 'installments' ? finalRate : fullRate) : 0;
     const otherReceivedUsd = finalCurrency === 'USD' ? receivedOtherUsd : 0;
 
     if (orderInDateRange) {
@@ -191,12 +196,14 @@ const getPaymentLedger = (orders, fallbackRate, dateRange = null) => {
       totals.BS.first += firstReceivedBs;
       totals.USD.received += firstReceivedUsd;
       totals.BS.received += firstReceivedBs;
+      totals.BS.equivalentUsd += firstCurrency === 'BS' ? receivedFirstUsd : 0;
     }
     if (finalPaymentInDateRange) {
       totals.USD.other += otherReceivedUsd;
       totals.BS.other += otherReceivedBs;
       totals.USD.received += otherReceivedUsd;
       totals.BS.received += otherReceivedBs;
+      totals.BS.equivalentUsd += finalCurrency === 'BS' ? receivedOtherUsd : 0;
     }
   });
 
@@ -687,13 +694,16 @@ const AdminPage = () => {
       payment_plan: detail.order.payment_plan || 'full',
       first_payment_amount: Number(detail.order.first_payment_amount || 0) > 0 ? formatAmountInput(detail.order.first_payment_amount) : '',
       first_payment_currency: firstPaymentCurrency,
+      first_payment_exchange_rate: Number(detail.order.first_payment_exchange_rate || (Number(detail.order.first_payment_amount || 0) > 0 ? rate : exchangeRate)).toFixed(2),
       full_payment_amount: Number(detail.order.full_payment_amount || 0) > 0
         ? formatAmountInput(detail.order.full_payment_amount)
         : confirmedPaymentStatuses.has(detail.order.status) && detail.order.payment_plan !== 'installments'
           ? formatAmountInput(Number(detail.order.total_amount) * (paymentCurrency === 'BS' ? rate : 1))
           : '',
+      full_payment_exchange_rate: Number(detail.order.full_payment_exchange_rate || (Number(detail.order.full_payment_amount || 0) > 0 ? rate : exchangeRate)).toFixed(2),
       delivery_payment_amount: Number(detail.order.delivery_payment_amount || 0) > 0 ? formatAmountInput(detail.order.delivery_payment_amount) : '',
       delivery_payment_currency: detail.order.delivery_payment_currency || paymentCurrency,
+      delivery_payment_exchange_rate: Number(detail.order.delivery_payment_exchange_rate || (Number(detail.order.delivery_payment_amount || 0) > 0 ? rate : exchangeRate)).toFixed(2),
       exchange_rate: rate,
       payment_proof_url: detail.order.payment_proof_url || '',
       delivery_payment_proof_url: detail.order.delivery_payment_proof_url || '',
@@ -731,9 +741,12 @@ const AdminPage = () => {
     formData.append('payment_plan', orderEdit.payment_plan);
     formData.append('first_payment_amount', orderEdit.payment_plan === 'installments' ? parsedFirstPaymentAmount.toFixed(2) : '0');
     formData.append('first_payment_currency', orderEdit.first_payment_currency);
+    formData.append('first_payment_exchange_rate', orderEdit.first_payment_exchange_rate);
     formData.append('full_payment_amount', orderEdit.payment_plan === 'full' && Number.isFinite(parsedFullPaymentAmount) ? parsedFullPaymentAmount.toFixed(2) : '0');
+    formData.append('full_payment_exchange_rate', orderEdit.full_payment_exchange_rate);
     formData.append('delivery_payment_amount', orderEdit.payment_plan === 'installments' && Number.isFinite(parsedDeliveryPaymentAmount) ? parsedDeliveryPaymentAmount.toFixed(2) : '0');
     formData.append('delivery_payment_currency', orderEdit.delivery_payment_currency);
+    formData.append('delivery_payment_exchange_rate', orderEdit.delivery_payment_exchange_rate);
     formData.append('payment_proof_url', orderEdit.payment_proof_url || '');
     formData.append('delivery_payment_proof_url', orderEdit.delivery_payment_proof_url || '');
     formData.append('delivery_method', orderEdit.delivery_method);
@@ -1978,9 +1991,11 @@ const AdminPage = () => {
   const currentExchangeRate = Number(exchangeRate || 0);
   const visibleCashWithdrawals = cashWithdrawals.filter((withdrawal) => isDateInRange(withdrawal.created_at, ledgerDateRange));
   const totalWithdrawnUsd = visibleCashWithdrawals.reduce((sum, withdrawal) => sum + Number(withdrawal.amount_usd || 0), 0);
-  const generalGrossReceivedUsd = paymentLedger.USD.received + (currentExchangeRate > 0 ? paymentLedger.BS.received / currentExchangeRate : 0);
+  const generalGrossReceivedUsd = paymentLedger.USD.received + Number(paymentLedger.BS.equivalentUsd || 0);
+  const generalCurrentEquivalentUsd = paymentLedger.USD.received + (currentExchangeRate > 0 ? paymentLedger.BS.received / currentExchangeRate : 0);
   const generalGrossReceivedBs = paymentLedger.BS.received + paymentLedger.USD.received * currentExchangeRate;
   const generalReceivedUsd = generalGrossReceivedUsd - totalWithdrawnUsd;
+  const generalCurrentEquivalentUsdNet = generalCurrentEquivalentUsd - totalWithdrawnUsd;
   const generalReceivedBs = generalGrossReceivedBs - totalWithdrawnUsd * currentExchangeRate;
 
   return (
@@ -2041,7 +2056,7 @@ const AdminPage = () => {
               <div>
                 <p className="eyebrow">Estado de cuenta</p>
                 <h3>Montos esperados y recibidos</h3>
-                <p className="metric-caption">Esperado y pendiente se agrupan por fecha del pedido; recibido, por fecha del pago. Solo cuenta pagos confirmados. {ledgerDateDescription ? `${ledgerIncludedOrders.length} pedido(s) con actividad ${ledgerDateDescription}.` : `${ledgerIncludedOrders.length} pedido(s) incluidos en total.`}</p>
+                <p className="metric-caption">Esperado y pendiente se agrupan por fecha del pedido; recibido, por fecha del pago. Solo cuenta pagos confirmados. Cada pago en Bs conserva su propia tasa y el total histórico no cambia cuando actualizas la tasa. {ledgerDateDescription ? `${ledgerIncludedOrders.length} pedido(s) con actividad ${ledgerDateDescription}.` : `${ledgerIncludedOrders.length} pedido(s) incluidos en total.`}</p>
               </div>
               <div className="dashboard-ledger__legend" aria-label="Monedas según método de pago">
                 <span><strong className="dashboard-ledger__currency dashboard-ledger__currency--bs">Bs</strong> Recibido en bolívares</span>
@@ -2100,8 +2115,8 @@ const AdminPage = () => {
                 <thead>
                   <tr>
                     <th scope="col">Movimiento</th>
-                    <th className="dashboard-ledger__column--bs" scope="col"><span>Bs</span><small>Equivalente / recibido</small></th>
-                    <th className="dashboard-ledger__column--usd" scope="col"><span>USD</span><small>Equivalente / recibido</small></th>
+                    <th className="dashboard-ledger__column--bs" scope="col"><span>Bs</span><small>Recibido en bolívares</small></th>
+                    <th className="dashboard-ledger__column--usd" scope="col"><span>USD</span><small>Recibido en dólares</small></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2117,18 +2132,22 @@ const AdminPage = () => {
             <div className="dashboard-ledger__general" aria-label="General ingresado convertido a ambas monedas">
               <div className="dashboard-ledger__general-title">
                 <strong>GENERAL DISPONIBLE</strong>
-                <small>Conversión de los cobros con la tasa actual: {currentExchangeRate} BS/USD</small>
+                <small>El total contable conserva la tasa de cada pago. La equivalencia actual es solo referencial ({currentExchangeRate} BS/USD).</small>
                 <button className="ghost-btn dashboard-ledger__withdrawal-trigger" type="button" onClick={() => {
                   setWithdrawalError('');
                   setWithdrawalFormOpen((open) => !open);
                 }}>{withdrawalFormOpen ? 'Cancelar retiro' : '＋ Registrar retiro'}</button>
               </div>
               <div className="dashboard-ledger__general-total">
-                <span>Neto en dólares</span>
+                <span>Neto histórico en USD (Bs convertido a la tasa de cada pago)</span>
                 <strong>{formatCurrency(generalReceivedUsd, 'USD')}</strong>
               </div>
               <div className="dashboard-ledger__general-total">
-                <span>Neto equivalente en bolívares</span>
+                <span>Equivalente neto en USD a tasa actual</span>
+                <strong>{formatCurrency(generalCurrentEquivalentUsdNet, 'USD')}</strong>
+              </div>
+              <div className="dashboard-ledger__general-total">
+                <span>Bolívares recibidos + USD convertidos a tasa actual</span>
                 <strong>{formatCurrency(generalReceivedBs, 'BS')}</strong>
               </div>
             </div>
@@ -2777,12 +2796,15 @@ const AdminPage = () => {
                         if (payment.isComplete) return <small className="order-payment-summary order-payment-summary--complete">Pago completado</small>;
                         if (!payment.hasFirstProof) return <small className="order-payment-summary">Falta comprobante inicial</small>;
                         if (!payment.amount || payment.remainingUsd === null) return <small className="order-payment-summary">Registra el monto abonado</small>;
-                        const finalCurrency = getPaymentMethodCurrency(order.payment_method);
+                        const finalCurrency = order.delivery_payment_currency || getPaymentMethodCurrency(order.payment_method);
                         const inferredFinalAmount = payment.hasFinalProof && payment.finalAmount <= 0 && payment.paidUsd !== null
-                          ? Math.max(0, Number(order.total_amount || 0) - payment.paidUsd) * (finalCurrency === 'BS' ? payment.rate : 1)
+                          ? Math.max(0, Number(order.total_amount || 0) - payment.paidUsd) * (finalCurrency === 'BS' ? payment.finalRate : 1)
                           : payment.finalAmount;
-                        return <small className="order-payment-summary">Abono {formatCurrency(payment.amount, payment.currency)}{inferredFinalAmount > 0 ? ` · Pago final ${formatCurrency(inferredFinalAmount, finalCurrency)}` : ''} · Saldo {formatCurrency(payment.remainingUsd, 'USD')}{payment.remainingBs === null ? '' : ` (${formatCurrency(payment.remainingBs, 'BS')})`}</small>;
+                        return <small className="order-payment-summary">Abono {formatCurrency(payment.amount, payment.currency)}{payment.currency === 'BS' ? ` (tasa ${payment.firstRate} BS/USD)` : ''}{inferredFinalAmount > 0 ? ` · Pago final ${formatCurrency(inferredFinalAmount, finalCurrency)}${finalCurrency === 'BS' ? ` (tasa ${payment.finalRate} BS/USD)` : ''}` : ''} · Saldo {formatCurrency(payment.remainingUsd, 'USD')}{payment.remainingBs === null ? '' : ` (${formatCurrency(payment.remainingBs, 'BS')})`}</small>;
                       })() : null}
+                      {order.payment_plan !== 'installments' && getPaymentMethodCurrency(order.payment_method) === 'BS' && order.full_payment_amount > 0 ? (
+                        <small className="order-payment-summary">Tasa del pago: {order.full_payment_exchange_rate || order.exchange_rate} BS/USD</small>
+                      ) : null}
                     </td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -3221,13 +3243,14 @@ const AdminPage = () => {
             </div>
             <div className="admin-order-proof-fields">
               {orderEdit.payment_plan === 'installments' ? <p className="admin-order-payment-note">Primer pago del 50% para confirmar y 50% restante al entregar.</p> : null}
-              {orderEdit.payment_plan === 'full' ? <label><span>Monto recibido ({getPaymentMethodCurrency(orderEdit.payment_method)})</span><input type="text" inputMode="decimal" value={orderEdit.full_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, full_payment_amount: event.target.value }))} placeholder="12.187,50" /></label> : null}
-              {orderEdit.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Moneda del primer abono</span><select value={orderEdit.first_payment_currency} onChange={(event) => setOrderEdit((current) => changeFirstPaymentCurrency(current, event.target.value, current.exchange_rate || exchangeRate))}><option value="USD">USD</option><option value="BS">Bs</option></select></label><label><span>Primer abono recibido ({orderEdit.first_payment_currency})</span><input type="text" inputMode="decimal" value={orderEdit.first_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="12.187,50" /></label><span className="metric-caption">Elige la moneda en que recibiste este abono.</span></div> : null}
+              {orderEdit.payment_plan === 'full' ? <><label><span>Monto recibido ({getPaymentMethodCurrency(orderEdit.payment_method)})</span><input type="text" inputMode="decimal" value={orderEdit.full_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, full_payment_amount: event.target.value }))} placeholder="12.187,50" /></label>{getPaymentMethodCurrency(orderEdit.payment_method) === 'BS' ? <label><span>Tasa aplicada al pago (BS/USD)</span><input type="number" min="0.01" step="0.01" value={orderEdit.full_payment_exchange_rate} onChange={(event) => setOrderEdit((current) => ({ ...current, full_payment_exchange_rate: event.target.value }))} /></label> : null}</> : null}
+              {orderEdit.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Moneda del primer abono</span><select value={orderEdit.first_payment_currency} onChange={(event) => setOrderEdit((current) => changeFirstPaymentCurrency(current, event.target.value, current.exchange_rate || exchangeRate))}><option value="USD">USD</option><option value="BS">Bs</option></select></label><label><span>Primer abono recibido ({orderEdit.first_payment_currency})</span><input type="text" inputMode="decimal" value={orderEdit.first_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="12.187,50" /></label>{orderEdit.first_payment_currency === 'BS' ? <label><span>Tasa aplicada al primer abono (BS/USD)</span><input type="number" min="0.01" step="0.01" value={orderEdit.first_payment_exchange_rate} onChange={(event) => setOrderEdit((current) => ({ ...current, first_payment_exchange_rate: event.target.value }))} /></label> : null}<span className="metric-caption">La tasa queda guardada para este pago y puedes corregirla si estás registrando un pago anterior.</span></div> : null}
               {orderEdit.payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.payment_proof_url)} target="_blank" rel="noreferrer">Ver comprobante actual del primer pago</a> : null}
               <label className="admin-order-file"><span>{orderEdit.payment_plan === 'full' ? 'Reemplazar comprobante del pago completo' : 'Reemplazar comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'edit:payment_proof_url'} onChange={(event) => uploadAdminOrderProof(event, 'edit', 'payment_proof_url')} />{uploadingOrderProof === 'edit:payment_proof_url' ? <small>Subiendo a Cloudinary...</small> : null}{orderEdit.payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.payment_proof_url)} target="_blank" rel="noreferrer">{orderEdit.payment_proof_url}</a> : null}</label>
               {orderEdit.payment_plan === 'installments' ? <>
                 <label><span>Moneda del segundo pago</span><select value={orderEdit.delivery_payment_currency} onChange={(event) => setOrderEdit((current) => changeDeliveryPaymentCurrency(current, event.target.value, current.exchange_rate || exchangeRate))}><option value="USD">USD</option><option value="BS">Bs</option></select></label>
                 <label><span>Segundo pago recibido ({orderEdit.delivery_payment_currency})</span><input type="text" inputMode="decimal" value={orderEdit.delivery_payment_amount} onChange={(event) => setOrderEdit((current) => ({ ...current, delivery_payment_amount: event.target.value }))} placeholder="12.187,50" /></label>
+                {orderEdit.delivery_payment_currency === 'BS' ? <label><span>Tasa aplicada al segundo pago (BS/USD)</span><input type="number" min="0.01" step="0.01" value={orderEdit.delivery_payment_exchange_rate} onChange={(event) => setOrderEdit((current) => ({ ...current, delivery_payment_exchange_rate: event.target.value }))} /></label> : null}
                 <label className="admin-order-file"><span>Comprobante del pago final</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'edit:delivery_payment_proof_url'} onChange={(event) => uploadAdminOrderProof(event, 'edit', 'delivery_payment_proof_url')} />{uploadingOrderProof === 'edit:delivery_payment_proof_url' ? <small>Subiendo a Cloudinary...</small> : null}{orderEdit.delivery_payment_proof_url ? <a className="admin-order-current-proof" href={getProofUrl(orderEdit.delivery_payment_proof_url)} target="_blank" rel="noreferrer">{orderEdit.delivery_payment_proof_url}</a> : null}</label>
               </> : null}
             </div>
