@@ -1569,7 +1569,7 @@ const AdminPage = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       if (!response.ok) {
-        setMessage('No se pudo descargar la factura.');
+        setMessage('No se pudo descargar la factura');
         return;
       }
       const blob = await response.blob();
