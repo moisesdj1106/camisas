@@ -2305,14 +2305,11 @@ const AdminPage = () => {
                   const badgeStyle = getProductTypeBadgeStyle(item.type || item.shirt_type || 'local');
                   return (
                     <li key={`${item.name}-${item.type || item.shirt_type || 'local'}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.7rem 0.8rem', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                      <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.55rem' }}>
                         <span style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>
-                        <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.1rem' }}>{productType}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                         <span style={badgeStyle}>{productType}</span>
-                        <strong style={{ color: '#0f172a' }}>{item.qty} und.</strong>
                       </div>
+                      <strong style={{ color: '#0f172a', flexShrink: 0 }}>{item.qty} und.</strong>
                     </li>
                   );
                 }) : <li><span>No hay ventas aprobadas</span></li>}
