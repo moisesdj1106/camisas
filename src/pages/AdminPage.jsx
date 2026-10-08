@@ -1308,6 +1308,44 @@ const AdminPage = () => {
     setManualOrderDorsals([]);
   };
 
+  const getProductTypeLabel = (product) => {
+    const normalizedType = String(product?.type || product?.shirt_type || 'local').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const labels = {
+      local: 'Local',
+      visitante: 'Visitante',
+      tercera: 'Alterna',
+      alternativa: 'Alterna'
+    };
+    return labels[normalizedType] || productTypeLabels[normalizedType] || 'Local';
+  };
+
+  const formatProductSelectionLabel = (product) => {
+    if (!product) return 'Selecciona una camiseta';
+    return `${product.title} · ${getProductTypeLabel(product)}`;
+  };
+
+  const getProductTypeBadgeStyle = (productType) => {
+    const type = normalizeSearchText(productType || 'local');
+    const colorMap = {
+      local: { background: '#dbeafe', color: '#1d4ed8', border: '#bfdbfe' },
+      visitante: { background: '#f3e8ff', color: '#7c3aed', border: '#e9d5ff' },
+      tercera: { background: '#fef3c7', color: '#b45309', border: '#fde68a' },
+      alternativa: { background: '#fef3c7', color: '#b45309', border: '#fde68a' }
+    };
+    const chosen = colorMap[type] || colorMap.local;
+    return { ...chosen, border: `1px solid ${chosen.border}`, borderRadius: '999px', padding: '0.2rem 0.55rem', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.02em', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' };
+  };
+
+  const getAllowedDorsalModes = (product, dorsals = []) => {
+    if (!product) return [];
+    const availableDorsals = Array.isArray(dorsals) ? dorsals.filter((item) => item.is_available !== false) : [];
+    return [
+      { value: 'none', label: 'Sin dorsal', allowed: product.allow_no_dorsal !== false },
+      { value: 'catalog', label: 'Dorsal de jugador', allowed: product.allow_catalog_dorsal !== false && availableDorsals.length > 0 },
+      { value: 'custom', label: 'Camiseta personalizada', allowed: product.allow_custom_dorsal !== false }
+    ].filter((mode) => mode.allowed);
+  };
+
   const handleSelectExistingCustomer = (userId) => {
     const nextCustomerId = String(userId || '');
     setSelectedExistingCustomerId(nextCustomerId);
@@ -2261,16 +2299,34 @@ const AdminPage = () => {
           <div className="dashboard-grid dashboard-grid--wide">
             <div className="card">
               <h3>Top productos</h3>
-              <ul className="dashboard-list">
-                {dashboard.topProducts?.length ? dashboard.topProducts.map((item) => (
-                  <li key={item.name}><span>{item.name}</span><strong>{item.qty} und.</strong></li>
-                )) : <li><span>No hay ventas aprobadas</span></li>}
+              <ul className="dashboard-list" style={{ display: 'grid', gap: '0.5rem' }}>
+                {dashboard.topProducts?.length ? dashboard.topProducts.map((item) => {
+                  const productType = getProductTypeLabel({ type: item.type || item.shirt_type || 'local' });
+                  const badgeStyle = getProductTypeBadgeStyle(item.type || item.shirt_type || 'local');
+                  return (
+                    <li key={`${item.name}-${item.type || item.shirt_type || 'local'}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', padding: '0.7rem 0.8rem', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                        <span style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>
+                        <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.1rem' }}>{productType}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                        <span style={badgeStyle}>{productType}</span>
+                        <strong style={{ color: '#0f172a' }}>{item.qty} und.</strong>
+                      </div>
+                    </li>
+                  );
+                }) : <li><span>No hay ventas aprobadas</span></li>}
               </ul>
             </div>
             <div className="card">
               <h3>Más vendida</h3>
               <p className="metric-value">{dashboard.bestSeller?.name || 'Sin ventas'}</p>
-              <span className="metric-caption">{dashboard.bestSeller ? `${dashboard.bestSeller.qty} unidades` : 'Todavía no hay ventas aprobadas'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginTop: '0.75rem' }}>
+                <span style={getProductTypeBadgeStyle(dashboard.bestSeller?.type || dashboard.bestSeller?.shirt_type || 'local')}>
+                  {getProductTypeLabel({ type: dashboard.bestSeller?.type || dashboard.bestSeller?.shirt_type || 'local' })}
+                </span>
+                <span className="metric-caption">{dashboard.bestSeller ? `${dashboard.bestSeller.qty} unidades` : 'Todavía no hay ventas aprobadas'}</span>
+              </div>
             </div>
           </div>
 
@@ -3117,7 +3173,20 @@ const AdminPage = () => {
 
           {manualOrderStep === 1 ? <section className="admin-order-step-panel">
             <div className="order-edit-form__grid">
-              <label className="order-edit-form__wide"><span>Cliente registrado</span><select value={selectedExistingCustomerId} onChange={(event) => handleSelectExistingCustomer(event.target.value)}><option value="">Selecciona un usuario registrado</option>{users.filter((user) => user && (user.name || user.email)).map((user) => <option key={user.id} value={user.id}>{user.name || 'Cliente sin nombre'}{user.email ? ` — ${user.email}` : ''}</option>)}</select></label>
+              <label className="order-edit-form__wide">
+                <span>Cliente registrado</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button type="button" className="icon-btn" title="Seleccionar cliente registrado" aria-label="Seleccionar cliente registrado" onClick={() => setSelectedExistingCustomerId((current) => (current ? '' : selectedExistingCustomerId))} style={{ width: '2.25rem', flexShrink: 0 }}>
+                    👤
+                  </button>
+                  <select value={selectedExistingCustomerId} onChange={(event) => handleSelectExistingCustomer(event.target.value)} style={{ flex: 1, minWidth: 0 }}>
+                    <option value="">Selecciona usuario registrado</option>
+                    {users.filter((user) => user && (user.name || user.email)).map((user) => (
+                      <option key={user.id} value={user.id}>{user.name || 'Cliente sin nombre'}{user.email ? ` — ${user.email}` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+              </label>
               <label><span>Nombre del cliente</span><input value={manualOrderForm.client.name} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, name: event.target.value } }))} placeholder="Nombre completo" /></label>
               <label><span>Correo</span><input type="email" value={manualOrderForm.client.email} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, email: event.target.value } }))} placeholder="cliente@email.com" /></label>
               <label><span>Teléfono</span><input value={manualOrderForm.client.phone} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, phone: event.target.value } }))} placeholder="+58..." /></label>
@@ -3140,24 +3209,27 @@ const AdminPage = () => {
             <select value={manualOrderItemForm.product_id} onChange={async (event) => {
               const productId = event.target.value;
               const product = inventory.find((item) => Number(item.id) === Number(productId));
-              setManualOrderItemForm((current) => ({ ...current, product_id: productId, size: '', dorsalMode: product?.allow_no_dorsal !== false ? 'none' : '', dorsalId: '', customName: '', customNumber: '' }));
+              setManualOrderDorsals([]);
+              let nextMode = '';
               if (productId) {
                 const response = await fetch(apiUrl(`/api/products/${productId}`));
                 const data = await response.json().catch(() => ({}));
-                const dorsals = data.dorsals || [];
-                setManualOrderDorsals(dorsals);
-                const dorsalMode = product?.allow_no_dorsal !== false
-                  ? 'none'
-                  : product?.allow_catalog_dorsal !== false && dorsals.some((item) => item.is_available)
-                    ? 'catalog'
-                    : product?.allow_custom_dorsal !== false ? 'custom' : '';
-                setManualOrderItemForm((current) => ({ ...current, dorsalMode }));
-              } else {
-                setManualOrderDorsals([]);
+                const dorsals = Array.isArray(data.dorsals) ? data.dorsals : [];
+                const availableDorsals = dorsals.filter((item) => item.is_available !== false);
+                setManualOrderDorsals(availableDorsals);
+                const availableModes = getAllowedDorsalModes(product, availableDorsals);
+                nextMode = availableModes.length ? availableModes[0].value : '';
+                if (product?.allow_catalog_dorsal !== false && availableDorsals.length === 0) {
+                  const fallbackModes = getAllowedDorsalModes(product, []);
+                  nextMode = fallbackModes.length ? fallbackModes.find((mode) => mode.value !== 'catalog')?.value || fallbackModes[0].value : '';
+                }
               }
+              setManualOrderItemForm((current) => ({ ...current, product_id: productId, size: '', dorsalMode: nextMode, dorsalId: '', customName: '', customNumber: '' }));
             }} aria-label="Producto para pedido manual">
               <option value="">Selecciona una camiseta</option>
-              {inventory.filter((product) => Number(product.stock) > 0 || Number(product.id) === Number(manualOrderItemForm.product_id)).map((product) => <option key={product.id} value={product.id}>{product.title}</option>)}
+              {inventory.filter((product) => Number(product.stock) > 0 || Number(product.id) === Number(manualOrderItemForm.product_id)).map((product) => (
+                <option key={product.id} value={product.id}>{formatProductSelectionLabel(product)}</option>
+              ))}
             </select>
             <div className="order-item-editor__fields">
               <select value={manualOrderItemForm.size} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, size: event.target.value }))} aria-label="Talla para pedido manual">
@@ -3172,14 +3244,10 @@ const AdminPage = () => {
             </div>
             {(() => {
               const product = inventory.find((item) => Number(item.id) === Number(manualOrderItemForm.product_id));
-              const dorsalModes = [
-                { value: 'none', label: 'Sin dorsal', allowed: product?.allow_no_dorsal !== false },
-                { value: 'catalog', label: 'Dorsal de jugador', allowed: product?.allow_catalog_dorsal !== false && manualOrderDorsals.some((item) => item.is_available) },
-                { value: 'custom', label: 'Camiseta personalizada', allowed: product?.allow_custom_dorsal !== false }
-              ].filter((mode) => mode.allowed);
+              const dorsalModes = getAllowedDorsalModes(product, manualOrderDorsals);
               return (
                 <select value={manualOrderItemForm.dorsalMode} onChange={(event) => setManualOrderItemForm((current) => ({ ...current, dorsalMode: event.target.value, dorsalId: '', customName: '', customNumber: '' }))} aria-label="Tipo de dorsal para pedido manual" disabled={!product || dorsalModes.length === 0}>
-                  {dorsalModes.length ? dorsalModes.map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>) : <option value="">Sin modalidades de dorsal configuradas</option>}
+                  {dorsalModes.length ? dorsalModes.map((mode) => <option key={mode.value} value={mode.value}>{mode.label}</option>) : <option value="">Sin modalidades de dorsal</option>}
                 </select>
               );
             })()}
