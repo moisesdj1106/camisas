@@ -378,6 +378,7 @@ const AdminPage = () => {
   const [orderDiscountEdit, setOrderDiscountEdit] = useState(null);
   const [orderEdit, setOrderEdit] = useState(null);
   const [manualOrderForm, setManualOrderForm] = useState(createEmptyManualOrderForm());
+  const [selectedExistingCustomerId, setSelectedExistingCustomerId] = useState('');
   const [manualOrderItemForm, setManualOrderItemForm] = useState({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
   const [manualOrderDorsals, setManualOrderDorsals] = useState([]);
   const [manualOrderOpen, setManualOrderOpen] = useState(false);
@@ -1256,6 +1257,7 @@ const AdminPage = () => {
     setManualOrderOpen(false);
     setManualOrderStep(1);
     setManualOrderError('');
+    setSelectedExistingCustomerId('');
     setManualOrderForm(createEmptyManualOrderForm());
     setManualOrderItemForm({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
     setManualOrderDorsals([]);
@@ -1300,9 +1302,26 @@ const AdminPage = () => {
     setManualOrderOpen(false);
     setManualOrderStep(1);
     setManualOrderError('');
+    setSelectedExistingCustomerId('');
     setManualOrderForm(createEmptyManualOrderForm());
     setManualOrderItemForm({ product_id: '', size: '', quantity: 1, dorsalMode: 'none', dorsalId: '', customName: '', customNumber: '' });
     setManualOrderDorsals([]);
+  };
+
+  const handleSelectExistingCustomer = (userId) => {
+    const nextCustomerId = String(userId || '');
+    setSelectedExistingCustomerId(nextCustomerId);
+    if (!nextCustomerId) return;
+    const selectedUser = users.find((user) => String(user.id) === nextCustomerId);
+    if (!selectedUser) return;
+    setManualOrderForm((current) => ({
+      ...current,
+      client: {
+        name: selectedUser.name || '',
+        email: selectedUser.email || '',
+        phone: selectedUser.phone || ''
+      }
+    }));
   };
 
   const updateExchangeRate = async () => {
@@ -3098,6 +3117,7 @@ const AdminPage = () => {
 
           {manualOrderStep === 1 ? <section className="admin-order-step-panel">
             <div className="order-edit-form__grid">
+              <label className="order-edit-form__wide"><span>Cliente registrado</span><select value={selectedExistingCustomerId} onChange={(event) => handleSelectExistingCustomer(event.target.value)}><option value="">Selecciona un usuario registrado</option>{users.filter((user) => user && (user.name || user.email)).map((user) => <option key={user.id} value={user.id}>{user.name || 'Cliente sin nombre'}{user.email ? ` — ${user.email}` : ''}</option>)}</select></label>
               <label><span>Nombre del cliente</span><input value={manualOrderForm.client.name} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, name: event.target.value } }))} placeholder="Nombre completo" /></label>
               <label><span>Correo</span><input type="email" value={manualOrderForm.client.email} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, email: event.target.value } }))} placeholder="cliente@email.com" /></label>
               <label><span>Teléfono</span><input value={manualOrderForm.client.phone} onChange={(event) => setManualOrderForm((current) => ({ ...current, client: { ...current.client, phone: event.target.value } }))} placeholder="+58..." /></label>
