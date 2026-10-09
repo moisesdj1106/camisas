@@ -2700,12 +2700,12 @@ const AdminPage = () => {
           </div>
           {visibleClubs.length ? (
             <table className="table" style={{ marginTop: '1rem' }}>
-              <thead><tr><th>Equipo</th><th>ID</th><th>Categoría</th><th>País</th><th>Acciones</th></tr></thead>
+              <thead><tr><th>ID</th><th>Equipo</th><th>Categoría</th><th>País</th><th>Acciones</th></tr></thead>
               <tbody>
                 {visibleClubs.map((club) => (
                   <tr key={club.id}>
-                    <td><strong>{club.name}</strong></td>
                     <td>{club.id}</td>
+                    <td><strong>{club.name}</strong></td>
                     <td>{club.category === 'selection' ? 'Selección' : 'Club'}</td>
                     <td>{club.country || 'Sin país'}</td>
                     <td className="table-actions">
