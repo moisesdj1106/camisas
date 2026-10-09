@@ -19,7 +19,7 @@ const paymentDetails = {
   }
 };
 
-const whatsappNumber = '584147146602';
+const whatsappNumber = '584148274232';
 
 const formatCurrency = (value, currency = 'USD') => {
   const amount = Number(value || 0);

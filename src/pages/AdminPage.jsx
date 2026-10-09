@@ -1548,7 +1548,7 @@ const AdminPage = () => {
               </thead>
               <tbody>${paymentRows || '<tr><td colspan="5">No hubo pagos registrados en este período.</td></tr>'}</tbody>
             </table>
-            <footer class="footer">MDJ SOCCER · San Cristóbal, Táchira, Venezuela · +58 0414-714-6602</footer>
+            <footer class="footer">MDJ SOCCER · San Cristóbal, Táchira, Venezuela · +58 0414-827-4232</footer>
           </main>
           <script>window.print();</script>
         </body>
