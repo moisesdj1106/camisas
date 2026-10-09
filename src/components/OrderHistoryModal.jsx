@@ -129,7 +129,7 @@ const OrderHistoryModal = ({ open, onClose, user }) => {
                   <span key={step} className={step === order.status ? 'order-progress__step order-progress__step--active' : 'order-progress__step'}>{statusLabels[step]}</span>
                 ))}
               </div>
-              <a className="order-whatsapp-link" href={`https://wa.me/584148274232?text=${encodeURIComponent(`Hola, consulto el estado de mi pedido #${order.id} de MDJ Soccer.`)}`} target="_blank" rel="noreferrer">Contactar por WhatsApp</a>
+              <a className="order-whatsapp-link" href={`https://wa.me/584147146602?text=${encodeURIComponent(`Hola, consulto el estado de mi pedido #${order.id} de MDJ Soccer.`)}`} target="_blank" rel="noreferrer">Contactar por WhatsApp</a>
               {order.items?.length ? (
                 <div className="order-items-block">
                   <strong>Productos</strong>
