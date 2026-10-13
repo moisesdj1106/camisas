@@ -449,7 +449,7 @@ const AdminPage = () => {
         fetch(apiUrl('/api/admin/dashboard'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/orders'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/audit-logs'), { headers: { Authorization: `Bearer ${token}` } }),
-        fetch(apiUrl('/api/products'), { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(apiUrl('/api/admin/products'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/clubs'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/exchange-rate'), { headers: { Authorization: `Bearer ${token}` } }),
         fetch(apiUrl('/api/admin/users'), { headers: { Authorization: `Bearer ${token}` } }),
