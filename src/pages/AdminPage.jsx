@@ -168,9 +168,9 @@ const getPaymentLedger = (orders, fallbackRate, dateRange = null) => {
       const fullAmount = Number(order.full_payment_amount || 0);
       const methodCurrency = getPaymentMethodCurrency(order.payment_method);
       if (methodCurrency === 'BS') {
-        otherUsd = (fullAmount > 0 ? fullAmount : totalUsd * fullRate) / fullRate;
+        otherUsd = fullAmount / fullRate;
       } else {
-        otherUsd = fullAmount > 0 ? fullAmount : totalUsd;
+        otherUsd = fullAmount;
       }
     }
 
@@ -258,7 +258,7 @@ const createEmptyManualOrderForm = () => ({
   payment_plan: 'full',
   first_payment_amount: '',
   first_payment_currency: 'USD',
-  full_payment_amount: '',
+  full_payment_amount: '0',
   delivery_payment_amount: '',
   delivery_payment_currency: 'BS',
   first_payment_proof: null,
@@ -1182,11 +1182,6 @@ const AdminPage = () => {
       setManualOrderStep(1);
       return;
     }
-    if (!manualOrderForm.first_payment_proof) {
-      setManualOrderError('Adjunta el comprobante del pago para continuar.');
-      setManualOrderStep(3);
-      return;
-    }
     const parsedFirstPaymentAmount = parseLocalizedAmount(manualOrderForm.first_payment_amount);
     const parsedFullPaymentAmount = parseLocalizedAmount(manualOrderForm.full_payment_amount);
     const parsedDeliveryPaymentAmount = parseLocalizedAmount(manualOrderForm.delivery_payment_amount);
@@ -1195,8 +1190,13 @@ const AdminPage = () => {
       setManualOrderStep(3);
       return;
     }
-    if (manualOrderForm.payment_plan === 'full' && (!Number.isFinite(parsedFullPaymentAmount) || parsedFullPaymentAmount <= 0)) {
-      setManualOrderError('Indica el monto recibido por el pago completo.');
+    if (manualOrderForm.payment_plan === 'full' && (!Number.isFinite(parsedFullPaymentAmount) || parsedFullPaymentAmount < 0)) {
+      setManualOrderError('Indica un monto recibido válido (usa 0 si no recibiste dinero).');
+      setManualOrderStep(3);
+      return;
+    }
+    if (manualOrderForm.payment_plan === 'installments' && !manualOrderForm.first_payment_proof) {
+      setManualOrderError('Adjunta el comprobante del primer pago.');
       setManualOrderStep(3);
       return;
     }
@@ -1289,10 +1289,6 @@ const AdminPage = () => {
         return;
       }
       setManualOrderStep(3);
-      return;
-    }
-    if (!manualOrderForm.first_payment_proof) {
-      setManualOrderError('Adjunta el comprobante del pago para continuar.');
       return;
     }
     createManualOrder();
@@ -2866,9 +2862,21 @@ const AdminPage = () => {
                           : payment.finalAmount;
                         return <small className="order-payment-summary">Abono {formatCurrency(payment.amount, payment.currency)}{payment.currency === 'BS' ? ` (tasa ${payment.firstRate} BS/USD)` : ''}{inferredFinalAmount > 0 ? ` · Pago final ${formatCurrency(inferredFinalAmount, finalCurrency)}${finalCurrency === 'BS' ? ` (tasa ${payment.finalRate} BS/USD)` : ''}` : ''} · Saldo {formatCurrency(payment.remainingUsd, 'USD')}{payment.remainingBs === null ? '' : ` (${formatCurrency(payment.remainingBs, 'BS')})`}</small>;
                       })() : null}
-                      {order.payment_plan !== 'installments' && getPaymentMethodCurrency(order.payment_method) === 'BS' && order.full_payment_amount > 0 ? (
-                        <small className="order-payment-summary">Tasa del pago: {order.full_payment_exchange_rate || order.exchange_rate} BS/USD</small>
-                      ) : null}
+                      {order.payment_plan !== 'installments' ? (() => {
+                        const currency = getPaymentMethodCurrency(order.payment_method);
+                        const amount = Number(order.full_payment_amount || 0);
+                        const fullRate = Number(order.full_payment_exchange_rate || order.exchange_rate || 0);
+                        const receivedUsd = currency === 'BS'
+                          ? (fullRate > 0 ? amount / fullRate : 0)
+                          : amount;
+                        const isComplete = amount > 0
+                          && receivedUsd >= Number(order.total_amount || 0) - 0.01;
+                        if (isComplete) return <small className="order-payment-summary order-payment-summary--complete">Pago completado</small>;
+                        if (currency === 'BS' && amount > 0) {
+                          return <small className="order-payment-summary">Tasa del pago: {fullRate || '—'} BS/USD</small>;
+                        }
+                        return null;
+                      })() : null}
                     </td>
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -3285,7 +3293,7 @@ const AdminPage = () => {
             </div>
             <div className="admin-order-proof-fields">
               {manualOrderForm.payment_plan === 'installments' ? <p className="admin-order-payment-note">Primer pago del 50% para confirmar y 50% restante al entregar.</p> : null}
-              {manualOrderForm.payment_plan === 'full' ? <label><span>Monto recibido ({getPaymentMethodCurrency(manualOrderForm.payment_method)})</span><input type="text" inputMode="decimal" value={manualOrderForm.full_payment_amount} onChange={(event) => setManualOrderForm((current) => ({ ...current, full_payment_amount: event.target.value }))} placeholder="12.187,50" /></label> : null}
+              {manualOrderForm.payment_plan === 'full' ? <><label><span>Monto recibido ({getPaymentMethodCurrency(manualOrderForm.payment_method)})</span><input type="text" inputMode="decimal" value={manualOrderForm.full_payment_amount} onChange={(event) => setManualOrderForm((current) => ({ ...current, full_payment_amount: event.target.value }))} placeholder="0" /></label><small className="metric-caption">Escribe 0 si todavía no recibiste dinero. El comprobante es opcional para pedidos de pago completo.</small></> : null}
               {manualOrderForm.payment_plan === 'installments' ? <div className="admin-order-amount-fields"><label><span>Moneda del primer abono</span><select value={manualOrderForm.first_payment_currency} onChange={(event) => setManualOrderForm((current) => changeFirstPaymentCurrency(current, event.target.value, exchangeRate))}><option value="USD">USD</option><option value="BS">Bs</option></select></label><label><span>Primer abono recibido ({manualOrderForm.first_payment_currency})</span><input type="text" inputMode="decimal" value={manualOrderForm.first_payment_amount} onChange={(event) => setManualOrderForm((current) => ({ ...current, first_payment_amount: event.target.value }))} placeholder="12.187,50" /></label><span className="metric-caption">Elige la moneda en que recibiste este abono.</span></div> : null}
               <label className="admin-order-file"><span>{manualOrderForm.payment_plan === 'full' ? 'Comprobante del pago completo' : 'Comprobante del primer pago · 50%'}</span><input type="file" accept="image/*" disabled={uploadingOrderProof === 'manual:first_payment_proof'} onChange={(event) => uploadAdminOrderProof(event, 'manual', 'first_payment_proof')} />{uploadingOrderProof === 'manual:first_payment_proof' ? <small>Subiendo a Cloudinary...</small> : null}{manualOrderForm.first_payment_proof ? <a className="admin-order-current-proof" href={getProofUrl(manualOrderForm.first_payment_proof)} target="_blank" rel="noreferrer">{manualOrderForm.first_payment_proof}</a> : null}</label>
               {manualOrderForm.payment_plan === 'installments' ? <>
